@@ -252,11 +252,11 @@ export function UsersTab() {
                             {userToAct.willBeActive ? " banını kaldırmak istediğinize emin misiniz? Kullanıcı sisteme tekrar giriş yapabilecek." : " hesabını banlamak istediğinize emin misiniz? (Kullanıcı is_active durumu kapatılacak ve sisteme giriş yapamayacaktır.)"}
                         </p>
                         <div className="flex justify-end gap-3">
-                            <RxButton variant="outline" size="sm" onClick={() => setIsConfirmModalOpen(false)} disabled={actionLoading}>
+                            <RxButton variant="secondary" size="sm" onClick={() => setIsConfirmModalOpen(false)} disabled={actionLoading}>
                                 İptal
                             </RxButton>
                             <RxButton
-                                variant="default"
+                                variant="primary"
                                 size="sm"
                                 onClick={executeAction}
                                 className={userToAct.willBeActive ? "bg-success hover:bg-success/90 text-white" : "bg-danger hover:bg-danger/90 text-white"}

@@ -1,0 +1,99 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: #F8F7FF;
+  --foreground: #1A1A2E;
+  --card: #FFFFFF;
+  --card-foreground: #1A1A2E;
+  --popover: #FFFFFF;
+  --popover-foreground: #1A1A2E;
+  --primary: #6C63FF;
+  --primary-foreground: #FFFFFF;
+  --primary-hover: #5A52D5;
+  --primary-light: #F8F7FF;
+  --secondary: #F8F7FF;
+  --secondary-foreground: #6C63FF;
+  --muted: #F3F4F6;
+  --muted-foreground: #6B7280;
+  --accent: #FF6584;
+  --accent-foreground: #FFFFFF;
+  --destructive: #FF6584;
+  --destructive-foreground: #FF6584;
+  --border: #E5E7EB;
+  --input: #E5E7EB;
+  --ring: #6C63FF;
+  --radius: 0.5rem;
+
+  --badge-green-bg: #ECFDF5;
+  --badge-green-text: #065F46;
+  --badge-yellow-bg: #FFFBEB;
+  --badge-yellow-text: #92400E;
+  --badge-red-bg: #FFF1F2;
+  --badge-red-text: #FF6584;
+  --badge-purple-bg: #F0EEFF;
+  --badge-purple-text: #6C63FF;
+  --badge-gray-bg: #F3F4F6;
+  --badge-gray-text: #6B7280;
+
+  --success: #10B981;
+  --info: #6C63FF;
+}
+
+@theme inline {
+  --font-sans: 'Inter', 'Inter Fallback', sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-light: var(--primary-light);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-info: var(--info);
+  --color-badge-green-bg: var(--badge-green-bg);
+  --color-badge-green-text: var(--badge-green-text);
+  --color-badge-yellow-bg: var(--badge-yellow-bg);
+  --color-badge-yellow-text: var(--badge-yellow-text);
+  --color-badge-red-bg: var(--badge-red-bg);
+  --color-badge-red-text: var(--badge-red-text);
+  --color-badge-purple-bg: var(--badge-purple-bg);
+  --color-badge-purple-text: var(--badge-purple-text);
+  --color-badge-gray-bg: var(--badge-gray-bg);
+  --color-badge-gray-text: var(--badge-gray-text);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@keyframes scaleIn {
+  0% { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.15); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}

@@ -46,6 +46,8 @@ import {
   Utensils,
   Car,
 } from "lucide-react"
+import { UsersTab } from "./users-tab"
+import { StatsTab } from "./stats-tab"
 import { RxAvatar } from "./rx-avatar"
 import { RxBadge } from "./rx-badge"
 import { RxButton } from "./rx-button"
@@ -1654,7 +1656,7 @@ function LogsTab() {
 // ─── Main Component ─────────────────────────────────────────────────────────────
 
 export function SuperAdmin() {
-  const [activeTab, setActiveTab] = useState<"overview" | "businesses" | "modules" | "logs">("overview")
+  const [activeTab, setActiveTab] = useState<"overview" | "businesses" | "users" | "modules" | "stats" | "logs">("overview")
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [windowWidth, setWindowWidth] = useState(1200)
 
@@ -1672,7 +1674,9 @@ export function SuperAdmin() {
   const tabs = [
     { key: "overview" as const, label: "Genel Bakış" },
     { key: "businesses" as const, label: "İşletmeler" },
+    { key: "users" as const, label: "Kullanıcılar" },
     { key: "modules" as const, label: "Modül Yönetimi" },
+    { key: "stats" as const, label: "Platform İstatistikleri" },
     { key: "logs" as const, label: "Sistem Logları" },
   ]
 
@@ -1680,7 +1684,9 @@ export function SuperAdmin() {
     const tabMap: Record<string, typeof activeTab> = {
       overview: "overview",
       businesses: "businesses",
+      users: "users",
       modules: "modules",
+      stats: "stats",
       logs: "logs",
     }
     if (tabMap[key]) {
@@ -1744,7 +1750,9 @@ export function SuperAdmin() {
 
             {activeTab === "overview" && <OverviewTab />}
             {activeTab === "businesses" && <BusinessesTab />}
+            {activeTab === "users" && <UsersTab />}
             {activeTab === "modules" && <ModulesTab />}
+            {activeTab === "stats" && <StatsTab />}
             {activeTab === "logs" && <LogsTab />}
           </main>
         </div>

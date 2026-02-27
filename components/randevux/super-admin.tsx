@@ -279,17 +279,24 @@ function OverviewTab() {
 
 
 
+
 // ─── TAB 2: İşletmeler ──────────────────────────────────────────────────────────
 
 function BusinessesTab() {
   const supabase = createClient()
-  const [allBusinesses, setAllBusinesses] = useState<any[]>([])
-  const [filtered, setFiltered] = useState<any[]>([])
+  const [businesses, setBusinesses] = useState<any[]>([])
+  const [modulesList, setModulesList] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
+  // Server-side Filters & Pagination
   const [searchQuery, setSearchQuery] = useState("")
   const [moduleFilter, setModuleFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("all")
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 15
+  const [totalCount, setTotalCount] = useState(0)
+
+  // Drawer
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [drawerTab, setDrawerTab] = useState<"general" | "staff" | "stats">("general")
   const [menuOpenIdx, setMenuOpenIdx] = useState<number | null>(null)
@@ -299,13 +306,27 @@ function BusinessesTab() {
   const [weeklyBarData, setWeeklyBarData] = useState<any[]>([])
   const [revenueStats, setRevenueStats] = useState({ revenue: 0, appts: 0, noShows: 0 })
 
+  // Add Business Modal
+  const [addModalOpen, setAddModalOpen] = useState(false)
+  const [newBiz, setNewBiz] = useState({ name: "", city: "", phone: "", moduleId: "", autoApprove: true })
+
   useEffect(() => {
-    fetchBusinesses()
+    supabase.from("modules").select("id, display_name").then(({ data }) => {
+      if (data) setModulesList(data)
+    })
   }, [])
+
+  useEffect(() => {
+    // Delay search to avoid spamming the DB while typing
+    const delayDebounceFn = setTimeout(() => {
+      fetchBusinesses()
+    }, 400)
+    return () => clearTimeout(delayDebounceFn)
+  }, [currentPage, moduleFilter, statusFilter, searchQuery])
 
   async function fetchBusinesses() {
     setLoading(true)
-    const { data: bizData } = await supabase
+    let query = supabase
       .from("businesses")
       .select(`
         *,
@@ -314,8 +335,27 @@ function BusinessesTab() {
         staff:staff_business(id),
         customers:business_customers(id),
         appts:appointments(id)
-      `)
+      `, { count: 'exact' })
       .order("created_at", { ascending: false })
+
+    if (searchQuery) {
+      query = query.ilike("name", `%${searchQuery}%`)
+    }
+    if (moduleFilter !== "all") {
+      query = query.eq("module_id", moduleFilter)
+    }
+    if (statusFilter === "active") {
+      query = query.eq("is_active", true)
+    }
+    if (statusFilter === "passive") {
+      query = query.eq("is_active", false)
+    }
+
+    const from = (currentPage - 1) * itemsPerPage
+    const to = from + itemsPerPage - 1
+    query = query.range(from, to)
+
+    const { data: bizData, count } = await query
 
     if (bizData) {
       const mapped = bizData.map((b: any) => {
@@ -337,22 +377,35 @@ function BusinessesTab() {
           raw: b
         }
       })
-      setAllBusinesses(mapped)
+      setBusinesses(mapped)
     }
+    if (count !== null) setTotalCount(count)
     setLoading(false)
   }
 
-  useEffect(() => {
-    setFiltered(
-      allBusinesses.filter((b) => {
-        if (searchQuery && !b.name.toLowerCase().includes(searchQuery.toLowerCase())) return false
-        if (moduleFilter !== "all" && b.module !== moduleFilter) return false
-        if (statusFilter === "active" && !b.active) return false
-        if (statusFilter === "passive" && b.active) return false
-        return true
-      })
-    )
-  }, [allBusinesses, searchQuery, moduleFilter, statusFilter])
+  async function handleAddBusiness() {
+    if (!newBiz.name || !newBiz.moduleId) {
+      alert("Lütfen zorunlu alanları (İşletme Adı ve Modül) doldurun.")
+      return
+    }
+
+    const { error } = await supabase.from("businesses").insert({
+      name: newBiz.name,
+      address: newBiz.city,
+      phone: newBiz.phone,
+      module_id: newBiz.moduleId,
+      auto_approve: newBiz.autoApprove,
+      is_active: true
+    })
+
+    if (!error) {
+      setAddModalOpen(false)
+      setNewBiz({ name: "", city: "", phone: "", moduleId: "", autoApprove: true })
+      fetchBusinesses()
+    } else {
+      alert("Hata: " + error.message)
+    }
+  }
 
   async function openDrawer(biz: any) {
     setSelectedBiz(biz)
@@ -362,7 +415,6 @@ function BusinessesTab() {
     setDrawerOpen(true)
     setDrawerTab("general")
 
-    // Fetch staff
     const { data: staffData } = await supabase
       .from("staff_business")
       .select("id, is_active, users(name)")
@@ -376,7 +428,6 @@ function BusinessesTab() {
       })))
     }
 
-    // Fetch weekly bar data & stats
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const { data: apptData } = await supabase
@@ -416,7 +467,7 @@ function BusinessesTab() {
     }
   }
 
-  if (loading) return <div className="flex items-center justify-center p-16"><Loader2 className="size-8 animate-spin text-primary" /></div>
+  const totalPages = Math.max(1, Math.ceil(totalCount / itemsPerPage))
 
   return (
     <div className="flex flex-col gap-6">
@@ -424,10 +475,10 @@ function BusinessesTab() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-[22px] font-semibold text-foreground">{"İşletmeler"}</h2>
-          <p className="text-sm text-muted-foreground">{allBusinesses.length} kayıtlı işletme</p>
+          <p className="text-sm text-muted-foreground">{totalCount} kayıtlı işletme</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <RxButton size="sm" onClick={() => alert("İşletme Ekleme özelliği yakında eklenecek!")}>
+          <RxButton size="sm" onClick={() => setAddModalOpen(true)}>
             <Plus className="size-4" />
             {"Yeni İşletme Ekle"}
           </RxButton>
@@ -437,22 +488,23 @@ function BusinessesTab() {
               type="text"
               placeholder="İşletme ara..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
               className="h-9 w-56 rounded-lg border border-input bg-card pl-10 pr-3 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
             />
           </div>
           <select
             value={moduleFilter}
-            onChange={(e) => setModuleFilter(e.target.value)}
+            onChange={(e) => { setModuleFilter(e.target.value); setCurrentPage(1); }}
             className="h-9 rounded-lg border border-input bg-card px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
           >
-            <option value="all">{"Modül"}</option>
-            <option value="Berber">Berber</option>
-            <option value="Güzellik">{"Güzellik"}</option>
+            <option value="all">{"Tüm Modüller"}</option>
+            {modulesList.map((m) => (
+              <option key={m.id} value={m.id}>{m.display_name}</option>
+            ))}
           </select>
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
             className="h-9 rounded-lg border border-input bg-card px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
           >
             <option value="all">Durum</option>
@@ -464,97 +516,134 @@ function BusinessesTab() {
 
       {/* Table */}
       <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
-        <table className="w-full min-w-[900px]">
-          <thead>
-            <tr className="border-b border-border">
-              {["İşletme", "Modül", "Patron", "Personel", "Müşteri", "Randevu", "Kayıt Tarihi", "Durum", "İşlemler"].map((h) => (
-                <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((biz, idx) => (
-              <tr key={biz.id} className="border-b border-border last:border-0 transition-colors hover:bg-primary-light/50">
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-2.5">
-                    <RxAvatar name={biz.name} size="sm" />
-                    <div className="flex flex-col">
-                      <span className="text-sm font-semibold text-foreground">{biz.name}</span>
-                      <span className="text-xs text-muted-foreground">{biz.city}</span>
+        {loading ? (
+          <div className="flex justify-center p-8"><Loader2 className="size-6 animate-spin text-primary" /></div>
+        ) : (
+          <table className="w-full min-w-[900px]">
+            <thead>
+              <tr className="border-b border-border">
+                {["İşletme", "Modül", "Patron", "Personel", "Müşteri", "Randevu", "Kayıt Tarihi", "Durum", "İşlemler"].map((h) => (
+                  <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {businesses.map((biz, idx) => (
+                <tr key={biz.id} className="border-b border-border last:border-0 transition-colors hover:bg-primary-light/50">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2.5">
+                      <RxAvatar name={biz.name} size="sm" />
+                      <div className="flex flex-col">
+                        <span className="text-sm font-semibold text-foreground">{biz.name}</span>
+                        <span className="text-xs text-muted-foreground">{biz.city}</span>
+                      </div>
                     </div>
-                  </div>
-                </td>
-                <td className="px-4 py-3">
-                  <span className={cn(
-                    "inline-flex items-center rounded-md px-2.5 py-0.5 text-xs font-medium",
-                    biz.module === "Berber" ? "bg-badge-purple-bg text-badge-purple-text" : "bg-badge-green-bg text-badge-green-text"
-                  )}>
-                    {biz.module}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-[13px] text-foreground">{biz.patron}</td>
-                <td className="px-4 py-3 text-[13px] text-foreground">{biz.staff}</td>
-                <td className="px-4 py-3 text-[13px] text-foreground">{biz.customers}</td>
-                <td className="px-4 py-3 text-[13px] font-semibold text-foreground">{biz.appts}</td>
-                <td className="px-4 py-3 text-[13px] text-muted-foreground">{biz.date}</td>
-                <td className="px-4 py-3">
-                  <button
-                    type="button"
-                    onClick={() => toggleStatus(biz.id, biz.active)}
-                    className={cn(
-                      "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors duration-200",
-                      biz.active ? "bg-success" : "bg-muted"
-                    )}
-                    role="switch"
-                    aria-checked={biz.active}
-                  >
+                  </td>
+                  <td className="px-4 py-3">
                     <span className={cn(
-                      "pointer-events-none inline-block size-4 transform rounded-full bg-card shadow-sm ring-0 transition-transform duration-200",
-                      biz.active ? "translate-x-[18px]" : "translate-x-0.5"
-                    )} style={{ marginTop: "2px" }} />
-                  </button>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-1">
+                      "inline-flex items-center rounded-md px-2.5 py-0.5 text-xs font-medium",
+                      biz.module === "Berber" ? "bg-badge-purple-bg text-badge-purple-text" : "bg-badge-green-bg text-badge-green-text"
+                    )}>
+                      {biz.module}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-[13px] text-foreground">{biz.patron}</td>
+                  <td className="px-4 py-3 text-[13px] text-foreground">{biz.staff}</td>
+                  <td className="px-4 py-3 text-[13px] text-foreground">{biz.customers}</td>
+                  <td className="px-4 py-3 text-[13px] font-semibold text-foreground">{biz.appts}</td>
+                  <td className="px-4 py-3 text-[13px] text-muted-foreground">{biz.date}</td>
+                  <td className="px-4 py-3">
                     <button
                       type="button"
-                      onClick={() => openDrawer(biz)}
-                      className="rounded-lg px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary-light"
+                      onClick={() => toggleStatus(biz.id, biz.active)}
+                      className={cn(
+                        "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors duration-200",
+                        biz.active ? "bg-success" : "bg-muted"
+                      )}
+                      role="switch"
+                      aria-checked={biz.active}
                     >
-                      Detay
+                      <span className={cn(
+                        "pointer-events-none inline-block size-4 transform rounded-full bg-card shadow-sm ring-0 transition-transform duration-200",
+                        biz.active ? "translate-x-[18px]" : "translate-x-0.5"
+                      )} style={{ marginTop: "2px" }} />
                     </button>
-                    <div className="relative">
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1">
                       <button
                         type="button"
-                        onClick={() => setMenuOpenIdx(menuOpenIdx === idx ? null : idx)}
-                        className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        onClick={() => openDrawer(biz)}
+                        className="rounded-lg px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary-light"
                       >
-                        <MoreHorizontal className="size-4" />
+                        Detay
                       </button>
-                      {menuOpenIdx === idx && (
-                        <>
-                          <div className="fixed inset-0 z-30" onClick={() => setMenuOpenIdx(null)} aria-hidden="true" />
-                          <div className="absolute right-0 top-full z-40 mt-1 w-40 rounded-lg border border-border bg-card py-1 shadow-lg">
-                            <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-sm text-foreground transition-colors hover:bg-primary-light" onClick={() => { setMenuOpenIdx(null); toggleStatus(biz.id, biz.active); }}>
-                              <Settings className="size-3.5" /> {biz.active ? "Pasife Al" : "Aktif Et"}
-                            </button>
-                          </div>
-                        </>
-                      )}
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setMenuOpenIdx(menuOpenIdx === idx ? null : idx)}
+                          className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        >
+                          <MoreHorizontal className="size-4" />
+                        </button>
+                        {menuOpenIdx === idx && (
+                          <>
+                            <div className="fixed inset-0 z-30" onClick={() => setMenuOpenIdx(null)} aria-hidden="true" />
+                            <div className="absolute right-0 top-full z-40 mt-1 w-40 rounded-lg border border-border bg-card py-1 shadow-lg">
+                              <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-sm text-foreground transition-colors hover:bg-primary-light" onClick={() => { setMenuOpenIdx(null); toggleStatus(biz.id, biz.active); }}>
+                                <Settings className="size-3.5" /> {biz.active ? "Pasife Al" : "Aktif Et"}
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                  </td>
+                </tr>
+              ))}
+              {businesses.length === 0 && (
+                <tr>
+                  <td colSpan={9} className="text-center py-8 text-muted-foreground text-sm">İşletme bulunamadı</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Pagination */}
+      <div className="flex items-center justify-between">
+        <span className="text-sm text-muted-foreground">
+          Toplam {totalCount} kayıttan {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, totalCount)} arası gösteriliyor
+        </span>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="rounded-lg p-2 text-muted-foreground hover:bg-primary-light hover:text-foreground disabled:opacity-50"
+          >
+            <ChevronLeft className="size-4" />
+          </button>
+
+          <span className="text-sm font-medium px-2">Sayfa {currentPage} / {totalPages}</span>
+
+          <button
+            type="button"
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="rounded-lg p-2 text-muted-foreground hover:bg-primary-light hover:text-foreground disabled:opacity-50"
+          >
+            <ChevronRight className="size-4" />
+          </button>
+        </div>
       </div>
 
       {/* Drawer */}
       {drawerOpen && selectedBiz && (
         <>
           <div className="fixed inset-0 z-40 bg-foreground/30" onClick={() => setDrawerOpen(false)} aria-hidden="true" />
-          <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[520px] flex-col border-l border-border bg-card shadow-xl">
+          <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[520px] flex-col border-l border-border bg-card shadow-xl transition-transform duration-300">
             {/* Drawer Header */}
             <div className="flex items-center justify-between border-b border-border px-6 py-4">
               <div className="flex items-center gap-3">
@@ -721,6 +810,63 @@ function BusinessesTab() {
           </aside>
         </>
       )}
+
+      {/* Add Business Modal */}
+      <RxModal
+        open={addModalOpen}
+        onClose={() => setAddModalOpen(false)}
+        title="Yeni İşletme Ekle"
+        footer={
+          <>
+            <RxButton variant="ghost" size="sm" onClick={() => setAddModalOpen(false)}>İptal</RxButton>
+            <RxButton size="sm" onClick={handleAddBusiness}>Kaydet</RxButton>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          <RxInput
+            label="İşletme Adı (*)"
+            placeholder="Örn: X Güzellik Merkezi"
+            value={newBiz.name}
+            onChange={(e) => setNewBiz({ ...newBiz, name: e.target.value })}
+          />
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[13px] font-semibold text-foreground">Modül (*)</label>
+            <select
+              value={newBiz.moduleId}
+              onChange={(e) => setNewBiz({ ...newBiz, moduleId: e.target.value })}
+              className="h-9 w-full rounded-lg border border-input bg-card px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              <option value="" disabled>Seçiniz</option>
+              {modulesList.map((m) => (
+                <option key={m.id} value={m.id}>{m.display_name}</option>
+              ))}
+            </select>
+          </div>
+          <RxInput
+            label="Adres/Şehir"
+            placeholder="Örn: İstanbul"
+            value={newBiz.city}
+            onChange={(e) => setNewBiz({ ...newBiz, city: e.target.value })}
+          />
+          <RxInput
+            label="Telefon"
+            placeholder="+90 555 444 33 22"
+            value={newBiz.phone}
+            onChange={(e) => setNewBiz({ ...newBiz, phone: e.target.value })}
+          />
+          <label className="flex items-center gap-2 cursor-pointer mt-2">
+            <input
+              type="checkbox"
+              checked={newBiz.autoApprove}
+              onChange={(e) => setNewBiz({ ...newBiz, autoApprove: e.target.checked })}
+              className="size-4 rounded border-border text-primary accent-primary"
+            />
+            <span className="text-sm font-medium text-foreground">Randevuları Otomatik Onayla</span>
+          </label>
+        </div>
+      </RxModal>
+
     </div>
   )
 }
@@ -748,6 +894,7 @@ function ModulesTab() {
   const [modules, setModules] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
+  // Add Modal State
   const [newModalOpen, setNewModalOpen] = useState(false)
   const [moduleName, setModuleName] = useState("")
   const [moduleSlug, setModuleSlug] = useState("")
@@ -764,6 +911,20 @@ function ModulesTab() {
     notes: true,
     noshow: true,
     multiResource: false,
+  })
+
+  // Edit Modal State
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [editModId, setEditModId] = useState("")
+  const [editModuleName, setEditModuleName] = useState("")
+  const [editModuleSlug, setEditModuleSlug] = useState("")
+  const [editModuleDesc, setEditModuleDesc] = useState("")
+  const [editSelectedIcon, setEditSelectedIcon] = useState("Scissors")
+  const [editRequiredFields, setEditRequiredFields] = useState({
+    personel: false, hizmet: false, hayvan: false, dosya: false, asset: false
+  })
+  const [editOptionalFeatures, setEditOptionalFeatures] = useState({
+    notes: false, noshow: false, multiResource: false
   })
 
   useEffect(() => {
@@ -807,6 +968,29 @@ function ModulesTab() {
     setModuleSlug(val.toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, ""))
   }
 
+  const handleEditNameChange = (val: string) => {
+    setEditModuleName(val)
+    setEditModuleSlug(val.toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, ""))
+  }
+
+  function openEditModal(mod: any) {
+    setEditModId(mod.id)
+    setEditModuleName(mod.name)
+    setEditModuleSlug(mod.slug)
+    setEditModuleDesc(mod.description)
+    setEditSelectedIcon(mod.iconLabel)
+
+    const rf = { personel: false, hizmet: false, hayvan: false, dosya: false, asset: false }
+    mod.required.forEach((k: any) => { if (k in rf) rf[k as keyof typeof rf] = true })
+    setEditRequiredFields(rf)
+
+    const of = { notes: false, noshow: false, multiResource: false }
+    mod.optional.forEach((k: any) => { if (k in of) of[k as keyof typeof of] = true })
+    setEditOptionalFeatures(of)
+
+    setEditModalOpen(true)
+  }
+
   async function handleAddModule() {
     const config = {
       icon: selectedIcon,
@@ -827,6 +1011,28 @@ function ModulesTab() {
       setModuleName("")
       setModuleSlug("")
       setModuleDesc("")
+      fetchModules()
+    } else {
+      alert("Hata: " + error.message)
+    }
+  }
+
+  async function handleUpdateModule() {
+    const config = {
+      icon: editSelectedIcon,
+      description: editModuleDesc,
+      required: Object.entries(editRequiredFields).filter(([_, v]) => v).map(([k]) => k),
+      optional: Object.entries(editOptionalFeatures).filter(([_, v]) => v).map(([k]) => k),
+    }
+
+    const { error } = await supabase.from("modules").update({
+      name: editModuleSlug,
+      display_name: editModuleName,
+      config: config
+    }).eq("id", editModId)
+
+    if (!error) {
+      setEditModalOpen(false)
       fetchModules()
     } else {
       alert("Hata: " + error.message)
@@ -929,8 +1135,8 @@ function ModulesTab() {
                 </div>
 
                 <div className="mt-1 flex items-center gap-2">
-                  <button type="button" className="rounded-lg px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary-light">{"Düzenle"}</button>
-                  <button type="button" className="rounded-lg px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary-light">Detay</button>
+                  <button type="button" onClick={() => openEditModal(mod)} className="rounded-lg px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary-light">{"Düzenle"}</button>
+                  <button type="button" onClick={() => alert("Modül Detayları hazır değil.")} className="rounded-lg px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary-light">Detay</button>
                 </div>
               </div>
             </div>
@@ -1050,6 +1256,120 @@ function ModulesTab() {
           </div>
         </div>
       </RxModal>
+
+      {/* Edit Module Modal */}
+      <RxModal
+        open={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        title="Modülü Düzenle"
+        className="max-w-[560px]"
+        footer={
+          <>
+            <RxButton variant="ghost" size="sm" onClick={() => setEditModalOpen(false)}>{"Vazgeç"}</RxButton>
+            <RxButton size="sm" onClick={handleUpdateModule}>{"Modülü Güncelle"}</RxButton>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-5">
+          {/* Basic info */}
+          <div>
+            <h4 className="mb-3 text-sm font-semibold text-foreground">Temel Bilgiler</h4>
+            <div className="flex flex-col gap-3">
+              <RxInput
+                label="Modül Adı"
+                placeholder="Örn: Sağlık Kliniği"
+                value={editModuleName}
+                onChange={(e) => handleEditNameChange(e.target.value)}
+              />
+              <RxInput
+                label="Sistem Adı"
+                placeholder="health_clinic"
+                value={editModuleSlug}
+                onChange={(e) => setEditModuleSlug(e.target.value)}
+              />
+              <RxTextarea
+                label="Açıklama"
+                placeholder="Modül hakkında kısa açıklama..."
+                value={editModuleDesc}
+                onChange={(e) => setEditModuleDesc(e.target.value)}
+                className="min-h-[80px]"
+              />
+            </div>
+          </div>
+
+          {/* Icon selection */}
+          <div>
+            <h4 className="mb-3 text-sm font-semibold text-foreground">{"İkon Seçimi"}</h4>
+            <div className="grid grid-cols-6 gap-2">
+              {iconOptions.map((opt) => {
+                const OptIcon = opt.icon
+                return (
+                  <button
+                    key={opt.label}
+                    type="button"
+                    onClick={() => setEditSelectedIcon(opt.label)}
+                    className={cn(
+                      "flex size-10 items-center justify-center rounded-lg border transition-colors",
+                      editSelectedIcon === opt.label
+                        ? "border-primary bg-primary-light text-primary"
+                        : "border-border bg-card text-muted-foreground hover:border-primary hover:text-primary"
+                    )}
+                  >
+                    <OptIcon className="size-5" />
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Required fields */}
+          <div>
+            <h4 className="mb-3 text-sm font-semibold text-foreground">Zorunlu Alanlar</h4>
+            <div className="flex flex-col gap-2">
+              {[
+                { key: "personel" as const, label: "Personel Seçimi" },
+                { key: "hizmet" as const, label: "Hizmet Seçimi" },
+                { key: "hayvan" as const, label: "Hayvan Profili" },
+                { key: "dosya" as const, label: "Dosya Yükleme" },
+                { key: "asset" as const, label: "Asset Rezervasyonu (Ameliyathane vb.)" },
+              ].map((field) => (
+                <label key={field.key} className="flex items-center gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editRequiredFields[field.key as keyof typeof editRequiredFields]}
+                    onChange={(e) => setEditRequiredFields({ ...editRequiredFields, [field.key]: e.target.checked })}
+                    className="size-4 rounded border-border text-primary accent-primary"
+                  />
+                  <span className="text-sm text-foreground">{field.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Optional features */}
+          <div>
+            <h4 className="mb-3 text-sm font-semibold text-foreground">{"Opsiyonel Özellikler"}</h4>
+            <div className="flex flex-col gap-2">
+              {[
+                { key: "notes" as const, label: "Müşteri Notları" },
+                { key: "noshow" as const, label: "No-Show Takibi" },
+                { key: "multiResource" as const, label: "Çoklu Kaynak Yönetimi" },
+              ].map((feat) => (
+                <label key={feat.key} className="flex items-center gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editOptionalFeatures[feat.key as keyof typeof editOptionalFeatures]}
+                    onChange={(e) => setEditOptionalFeatures({ ...editOptionalFeatures, [feat.key]: e.target.checked })}
+                    className="size-4 rounded border-border text-primary accent-primary"
+                  />
+                  <span className="text-sm text-foreground">{feat.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+      </RxModal>
+
     </div>
   )
 }
@@ -1065,13 +1385,14 @@ function LogsTab() {
   const [searchQuery, setSearchQuery] = useState("")
   const [actionFilter, setActionFilter] = useState("all")
   const [tableFilter, setTableFilter] = useState("all")
+  const [dateFilter, setDateFilter] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 20
   const [totalCount, setTotalCount] = useState(0)
 
   useEffect(() => {
     fetchLogs()
-  }, [currentPage, actionFilter, tableFilter]) // Refetch on filter/page change
+  }, [currentPage, actionFilter, tableFilter, dateFilter])
 
   async function fetchLogs() {
     setLoading(true)
@@ -1089,8 +1410,15 @@ function LogsTab() {
     if (tableFilter !== "all") {
       query = query.eq("target_table", tableFilter)
     }
+    if (dateFilter) {
+      const startDate = new Date(dateFilter)
+      startDate.setHours(0, 0, 0, 0)
+      const endDate = new Date(startDate)
+      endDate.setHours(23, 59, 59, 999)
+      query = query.gte("created_at", startDate.toISOString())
+      query = query.lte("created_at", endDate.toISOString())
+    }
 
-    // Pagination
     const from = (currentPage - 1) * itemsPerPage
     const to = from + itemsPerPage - 1
     query = query.range(from, to)
@@ -1114,6 +1442,55 @@ function LogsTab() {
     setLoading(false)
   }
 
+  async function handleExportCSV() {
+    let query = supabase
+      .from("audit_logs")
+      .select(`
+        *,
+        users (name, auth_provider)
+      `)
+      .order("created_at", { ascending: false })
+      .limit(2000) // limit arbitrary large number for safety
+
+    if (actionFilter !== "all") query = query.eq("action", actionFilter)
+    if (tableFilter !== "all") query = query.eq("target_table", tableFilter)
+    if (dateFilter) {
+      const startDate = new Date(dateFilter)
+      startDate.setHours(0, 0, 0, 0)
+      const endDate = new Date(startDate)
+      endDate.setHours(23, 59, 59, 999)
+      query = query.gte("created_at", startDate.toISOString())
+      query = query.lte("created_at", endDate.toISOString())
+    }
+
+    const { data } = await query
+    if (!data || data.length === 0) {
+      alert("Dışa aktarılacak kayıt bulunamadı.")
+      return
+    }
+
+    const headers = ["Zaman", "Kullanıcı", "Giris Tipi", "Islem", "Tablo", "Kayit ID", "IP Adresi"]
+    const rows = data.map((log: any) => {
+      const time = new Date(log.created_at).toLocaleString("tr-TR")
+      const user = log.users?.name || "Bilinmeyen Kullanıcı"
+      const role = log.users?.auth_provider === "google" ? "Google" : "Email"
+      const action = log.action
+      const table = log.target_table
+      const record = log.target_id || "-"
+      const ip = log.ip_address || "Bilinmiyor"
+      return [time, user, role, action, table, record, ip].map(v => `"${v}"`).join(",")
+    })
+
+    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + headers.join(",") + "\n" + rows.join("\n")
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement("a")
+    link.setAttribute("href", encodedUri)
+    link.setAttribute("download", `sistem_loglari_${new Date().toISOString().split("T")[0]}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
   const actionBadge = (action: string) => {
     switch (action) {
       case "viewed":
@@ -1129,7 +1506,6 @@ function LogsTab() {
     }
   }
 
-  // Client-side search for the current page (since fulltext search on generic users name requires a join view)
   const filtered = logs.filter((log) => {
     if (searchQuery && !log.user.toLowerCase().includes(searchQuery.toLowerCase()) && !log.action.toLowerCase().includes(searchQuery.toLowerCase())) return false
     return true
@@ -1148,9 +1524,11 @@ function LogsTab() {
         <div className="flex items-center gap-3">
           <input
             type="date"
+            value={dateFilter}
+            onChange={(e) => { setDateFilter(e.target.value); setCurrentPage(1); }}
             className="h-9 rounded-lg border border-input bg-card px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
           />
-          <RxButton variant="ghost" size="sm">
+          <RxButton variant="ghost" size="sm" onClick={handleExportCSV}>
             <Download className="size-4" />
             {"Dışa Aktar"}
           </RxButton>

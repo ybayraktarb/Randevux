@@ -278,33 +278,15 @@ function OverviewTab() {
 }
 
 
+
 // ─── TAB 2: İşletmeler ──────────────────────────────────────────────────────────
 
-const allBusinesses = [
-  { name: "Güzellik Salonu Bella", city: "Bağcılar, İstanbul", module: "Güzellik", patron: "Mehmet Yılmaz", staff: 3, customers: 184, appts: 1240, date: "15 Oca 2024", active: true },
-  { name: "Barber King", city: "Kadıköy, İstanbul", module: "Berber", patron: "Ahmet Demir", staff: 2, customers: 92, appts: 876, date: "20 Mar 2024", active: true },
-  { name: "Stil Kuaför", city: "Üsküdar, İstanbul", module: "Berber", patron: "Fatma Arslan", staff: 1, customers: 45, appts: 312, date: "05 Haz 2024", active: true },
-  { name: "Nails & More", city: "Beşiktaş, İstanbul", module: "Güzellik", patron: "Zeynep Kaya", staff: 2, customers: 67, appts: 524, date: "12 Tem 2024", active: true },
-  { name: "Elite Barber", city: "Şişli, İstanbul", module: "Berber", patron: "Can Öztürk", staff: 4, customers: 220, appts: 1890, date: "01 Oca 2024", active: true },
-  { name: "Beauty Center", city: "Maltepe, İstanbul", module: "Güzellik", patron: "Ayşe Çelik", staff: 3, customers: 156, appts: 980, date: "28 Şub 2024", active: true },
-  { name: "Demo İşletme", city: "Ankara", module: "Berber", patron: "Test Admin", staff: 0, customers: 0, appts: 0, date: "10 Şub 2026", active: false },
-  { name: "Trend Salon", city: "İzmir", module: "Güzellik", patron: "Selin Yıldız", staff: 2, customers: 78, appts: 645, date: "15 Eki 2024", active: true },
-]
-
-const weeklyBarData = [
-  { week: "1. Hafta", randevu: 42 },
-  { week: "2. Hafta", randevu: 38 },
-  { week: "3. Hafta", randevu: 51 },
-  { week: "4. Hafta", randevu: 47 },
-]
-
-const drawerStaff = [
-  { name: "Ayşe Hanım", role: "Kuaför", appts: 82 },
-  { name: "Fatma Çelik", role: "Güzellik Uzmanı", appts: 64 },
-  { name: "Zeynep Kara", role: "Manikürist", appts: 38 },
-]
-
 function BusinessesTab() {
+  const supabase = createClient()
+  const [allBusinesses, setAllBusinesses] = useState<any[]>([])
+  const [filtered, setFiltered] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
   const [searchQuery, setSearchQuery] = useState("")
   const [moduleFilter, setModuleFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("all")
@@ -312,13 +294,129 @@ function BusinessesTab() {
   const [drawerTab, setDrawerTab] = useState<"general" | "staff" | "stats">("general")
   const [menuOpenIdx, setMenuOpenIdx] = useState<number | null>(null)
 
-  const filtered = allBusinesses.filter((b) => {
-    if (searchQuery && !b.name.toLowerCase().includes(searchQuery.toLowerCase())) return false
-    if (moduleFilter !== "all" && b.module !== moduleFilter) return false
-    if (statusFilter === "active" && !b.active) return false
-    if (statusFilter === "passive" && b.active) return false
-    return true
-  })
+  const [selectedBiz, setSelectedBiz] = useState<any>(null)
+  const [drawerStaff, setDrawerStaff] = useState<any[]>([])
+  const [weeklyBarData, setWeeklyBarData] = useState<any[]>([])
+  const [revenueStats, setRevenueStats] = useState({ revenue: 0, appts: 0, noShows: 0 })
+
+  useEffect(() => {
+    fetchBusinesses()
+  }, [])
+
+  async function fetchBusinesses() {
+    setLoading(true)
+    const { data: bizData } = await supabase
+      .from("businesses")
+      .select(`
+        *,
+        module:modules(display_name),
+        owners:business_owners( users(name, email, phone) ),
+        staff:staff_business(id),
+        customers:business_customers(id),
+        appts:appointments(id)
+      `)
+      .order("created_at", { ascending: false })
+
+    if (bizData) {
+      const mapped = bizData.map((b: any) => {
+        const mod = Array.isArray(b.module) ? b.module[0] : b.module
+        const owner = b.owners?.[0]?.users
+        return {
+          id: b.id,
+          name: b.name,
+          city: b.address || "Belirtilmemiş",
+          module: mod?.display_name || "?",
+          patron: owner?.name || "Bilinmiyor",
+          patronEmail: owner?.email || "-",
+          patronPhone: owner?.phone || "-",
+          staff: b.staff?.length || 0,
+          customers: b.customers?.length || 0,
+          appts: b.appts?.length || 0,
+          date: new Date(b.created_at).toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" }),
+          active: b.is_active,
+          raw: b
+        }
+      })
+      setAllBusinesses(mapped)
+    }
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    setFiltered(
+      allBusinesses.filter((b) => {
+        if (searchQuery && !b.name.toLowerCase().includes(searchQuery.toLowerCase())) return false
+        if (moduleFilter !== "all" && b.module !== moduleFilter) return false
+        if (statusFilter === "active" && !b.active) return false
+        if (statusFilter === "passive" && b.active) return false
+        return true
+      })
+    )
+  }, [allBusinesses, searchQuery, moduleFilter, statusFilter])
+
+  async function openDrawer(biz: any) {
+    setSelectedBiz(biz)
+    setDrawerStaff([])
+    setWeeklyBarData([])
+    setRevenueStats({ revenue: 0, appts: biz.appts, noShows: 0 })
+    setDrawerOpen(true)
+    setDrawerTab("general")
+
+    // Fetch staff
+    const { data: staffData } = await supabase
+      .from("staff_business")
+      .select("id, is_active, users(name)")
+      .eq("business_id", biz.id)
+
+    if (staffData) {
+      setDrawerStaff(staffData.map((s: any) => ({
+        name: s.users?.name || "İsimsiz",
+        role: "Personel",
+        appts: 0
+      })))
+    }
+
+    // Fetch weekly bar data & stats
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const { data: apptData } = await supabase
+      .from("appointments")
+      .select("id, appointment_date, total_price, status")
+      .eq("business_id", biz.id)
+      .gte("appointment_date", thirtyDaysAgo.toISOString().split('T')[0])
+
+    if (apptData) {
+      const weekly = [
+        { week: "1. Hafta", randevu: 0 },
+        { week: "2. Hafta", randevu: 0 },
+        { week: "3. Hafta", randevu: 0 },
+        { week: "4. Hafta", randevu: 0 },
+      ]
+      let revenue = 0;
+      let noShowCount = 0;
+      apptData.forEach((a: any) => {
+        revenue += Number(a.total_price || 0);
+        if (a.status === "no_show") noShowCount++;
+
+        const day = new Date(a.appointment_date).getDate()
+        if (day <= 7) weekly[0].randevu++
+        else if (day <= 14) weekly[1].randevu++
+        else if (day <= 21) weekly[2].randevu++
+        else weekly[3].randevu++
+      })
+      setWeeklyBarData(weekly)
+      setRevenueStats({ revenue, appts: apptData.length, noShows: noShowCount })
+    }
+  }
+
+  async function toggleStatus(id: string, current: boolean) {
+    const { error } = await supabase.from("businesses").update({ is_active: !current }).eq("id", id)
+    if (!error) {
+      fetchBusinesses()
+    }
+  }
+
+  if (loading) return <div className="flex items-center justify-center p-16"><Loader2 className="size-8 animate-spin text-primary" /></div>
 
   return (
     <div className="flex flex-col gap-6">
@@ -326,9 +424,13 @@ function BusinessesTab() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-[22px] font-semibold text-foreground">{"İşletmeler"}</h2>
-          <p className="text-sm text-muted-foreground">{"124 kayıtlı işletme"}</p>
+          <p className="text-sm text-muted-foreground">{allBusinesses.length} kayıtlı işletme</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <RxButton size="sm" onClick={() => alert("İşletme Ekleme özelliği yakında eklenecek!")}>
+            <Plus className="size-4" />
+            {"Yeni İşletme Ekle"}
+          </RxButton>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <input
@@ -372,7 +474,7 @@ function BusinessesTab() {
           </thead>
           <tbody>
             {filtered.map((biz, idx) => (
-              <tr key={biz.name} className="border-b border-border last:border-0 transition-colors hover:bg-primary-light/50">
+              <tr key={biz.id} className="border-b border-border last:border-0 transition-colors hover:bg-primary-light/50">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2.5">
                     <RxAvatar name={biz.name} size="sm" />
@@ -398,6 +500,7 @@ function BusinessesTab() {
                 <td className="px-4 py-3">
                   <button
                     type="button"
+                    onClick={() => toggleStatus(biz.id, biz.active)}
                     className={cn(
                       "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors duration-200",
                       biz.active ? "bg-success" : "bg-muted"
@@ -415,7 +518,7 @@ function BusinessesTab() {
                   <div className="flex items-center gap-1">
                     <button
                       type="button"
-                      onClick={() => { setDrawerOpen(true); setDrawerTab("general") }}
+                      onClick={() => openDrawer(biz)}
                       className="rounded-lg px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary-light"
                     >
                       Detay
@@ -432,14 +535,8 @@ function BusinessesTab() {
                         <>
                           <div className="fixed inset-0 z-30" onClick={() => setMenuOpenIdx(null)} aria-hidden="true" />
                           <div className="absolute right-0 top-full z-40 mt-1 w-40 rounded-lg border border-border bg-card py-1 shadow-lg">
-                            <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-sm text-foreground transition-colors hover:bg-primary-light" onClick={() => setMenuOpenIdx(null)}>
-                              <Edit3 className="size-3.5" /> {"Düzenle"}
-                            </button>
-                            <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-sm text-foreground transition-colors hover:bg-primary-light" onClick={() => setMenuOpenIdx(null)}>
-                              <Settings className="size-3.5" /> Pasife Al
-                            </button>
-                            <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-sm text-accent transition-colors hover:bg-badge-red-bg" onClick={() => setMenuOpenIdx(null)}>
-                              <Trash2 className="size-3.5" /> Sil
+                            <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-sm text-foreground transition-colors hover:bg-primary-light" onClick={() => { setMenuOpenIdx(null); toggleStatus(biz.id, biz.active); }}>
+                              <Settings className="size-3.5" /> {biz.active ? "Pasife Al" : "Aktif Et"}
                             </button>
                           </div>
                         </>
@@ -454,17 +551,17 @@ function BusinessesTab() {
       </div>
 
       {/* Drawer */}
-      {drawerOpen && (
+      {drawerOpen && selectedBiz && (
         <>
           <div className="fixed inset-0 z-40 bg-foreground/30" onClick={() => setDrawerOpen(false)} aria-hidden="true" />
           <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[520px] flex-col border-l border-border bg-card shadow-xl">
             {/* Drawer Header */}
             <div className="flex items-center justify-between border-b border-border px-6 py-4">
               <div className="flex items-center gap-3">
-                <RxAvatar name="Güzellik Salonu Bella" size="lg" />
+                <RxAvatar name={selectedBiz.name} size="lg" />
                 <div className="flex flex-col">
-                  <span className="text-lg font-semibold text-foreground">{"Güzellik Salonu Bella"}</span>
-                  <RxBadge variant="success">Aktif</RxBadge>
+                  <span className="text-lg font-semibold text-foreground">{selectedBiz.name}</span>
+                  {selectedBiz.active ? <RxBadge variant="success">Aktif</RxBadge> : <RxBadge variant="gray">Pasif</RxBadge>}
                 </div>
               </div>
               <button type="button" onClick={() => setDrawerOpen(false)} className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" aria-label="Kapat">
@@ -504,33 +601,24 @@ function BusinessesTab() {
                     <div className="flex flex-col gap-2.5">
                       <div className="flex items-center justify-between">
                         <span className="text-[13px] text-muted-foreground">{"Modül"}</span>
-                        <span className="inline-flex items-center rounded-md bg-badge-green-bg px-2.5 py-0.5 text-xs font-medium text-badge-green-text">{"Güzellik Salonu"}</span>
+                        <span className="inline-flex items-center rounded-md bg-badge-green-bg px-2.5 py-0.5 text-xs font-medium text-badge-green-text">{selectedBiz.module}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-[13px] text-muted-foreground">Adres</span>
-                        <span className="text-[13px] text-foreground">{"Bağcılar, İstanbul"}</span>
+                        <span className="text-[13px] text-foreground">{selectedBiz.city}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-[13px] text-muted-foreground">Telefon</span>
-                        <span className="text-[13px] text-foreground">+90 212 000 00 00</span>
+                        <span className="text-[13px] text-foreground">{selectedBiz.raw.phone || "+90 --- --- -- --"}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-[13px] text-muted-foreground">{"Kayıt Tarihi"}</span>
-                        <span className="text-[13px] text-foreground">15 Ocak 2024</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[13px] text-muted-foreground">QR Kodu</span>
-                        <div className="flex items-center gap-2">
-                          <div className="flex size-10 items-center justify-center rounded border border-border bg-muted">
-                            <span className="text-[8px] font-mono text-muted-foreground">QR</span>
-                          </div>
-                          <button type="button" className="rounded-lg px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary-light">{"İndir"}</button>
-                        </div>
+                        <span className="text-[13px] text-foreground">{selectedBiz.date}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-[13px] text-muted-foreground">Davet Kodu</span>
                         <div className="flex items-center gap-2">
-                          <span className="rounded-md bg-muted px-2.5 py-1 font-mono text-xs font-medium text-foreground">BELLA24</span>
+                          <span className="rounded-md bg-muted px-2.5 py-1 font-mono text-xs font-medium text-foreground">{selectedBiz.raw.invite_code || "-"}</span>
                           <button type="button" className="text-muted-foreground transition-colors hover:text-primary" aria-label="Kopyala">
                             <Copy className="size-3.5" />
                           </button>
@@ -543,16 +631,13 @@ function BusinessesTab() {
                   <div className="rounded-lg border border-border bg-card p-4">
                     <h4 className="mb-3 text-sm font-semibold text-foreground">Patron</h4>
                     <div className="flex items-center gap-3">
-                      <RxAvatar name="Mehmet Yılmaz" size="md" />
+                      <RxAvatar name={selectedBiz.patron} size="md" />
                       <div className="flex flex-col">
-                        <span className="text-sm font-medium text-foreground">{"Mehmet Yılmaz"}</span>
-                        <span className="text-xs text-muted-foreground">mehmet@bella.com</span>
-                        <span className="text-xs text-muted-foreground">+90 532 000 00 00</span>
+                        <span className="text-sm font-medium text-foreground">{selectedBiz.patron}</span>
+                        <span className="text-xs text-muted-foreground">{selectedBiz.patronEmail}</span>
+                        <span className="text-xs text-muted-foreground">{selectedBiz.patronPhone}</span>
                       </div>
                     </div>
-                    <button type="button" className="mt-3 text-sm font-medium text-primary transition-colors hover:text-primary-hover">
-                      {"Patron Profili Gör →"}
-                    </button>
                   </div>
 
                   {/* Settings */}
@@ -561,20 +646,13 @@ function BusinessesTab() {
                     <div className="flex flex-col gap-3">
                       <div className="flex items-center justify-between">
                         <span className="text-[13px] text-foreground">Otomatik Onay</span>
-                        <div className="relative inline-flex h-5 w-9 cursor-pointer rounded-full bg-success transition-colors">
-                          <span className="pointer-events-none inline-block size-4 translate-x-[18px] transform rounded-full bg-card shadow-sm ring-0 transition-transform" style={{ marginTop: "2px" }} />
+                        <div className={cn("relative inline-flex h-5 w-9 rounded-full transition-colors", selectedBiz.raw.auto_approve ? "bg-success" : "bg-muted")}>
+                          <span className={cn("inline-block size-4 transform rounded-full bg-card shadow-sm transition-transform", selectedBiz.raw.auto_approve ? "translate-x-[18px]" : "translate-x-0.5")} style={{ marginTop: "2px" }} />
                         </div>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-[13px] text-foreground">{"İptal Süresi"}</span>
-                        <span className="text-[13px] text-muted-foreground">60 dakika</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[13px] text-foreground">{"Modül"}</span>
-                        <select className="h-8 rounded-lg border border-input bg-card px-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
-                          <option>{"Güzellik Salonu"}</option>
-                          <option>Berber</option>
-                        </select>
+                        <span className="text-[13px] text-muted-foreground">{selectedBiz.raw.cancellation_buffer_minutes} dakika</span>
                       </div>
                     </div>
                   </div>
@@ -582,13 +660,9 @@ function BusinessesTab() {
                   {/* Danger Zone */}
                   <div className="rounded-lg border-t-[3px] border-t-accent border border-border bg-card p-4">
                     <div className="flex flex-col gap-3">
-                      <RxButton variant="ghost" size="sm" className="w-full justify-center text-accent hover:bg-badge-red-bg">
-                        {"İşletmeyi Pasife Al"}
+                      <RxButton variant="ghost" size="sm" className="w-full justify-center text-accent hover:bg-badge-red-bg" onClick={() => toggleStatus(selectedBiz.id, selectedBiz.active)}>
+                        {selectedBiz.active ? "İşletmeyi Pasife Al" : "İşletmeyi Aktif Et"}
                       </RxButton>
-                      <RxButton variant="danger" size="sm" className="w-full justify-center">
-                        {"İşletmeyi Kalıcı Sil"}
-                      </RxButton>
-                      <p className="text-center text-xs text-muted-foreground">{"Bu işlem geri alınamaz."}</p>
                     </div>
                   </div>
                 </div>
@@ -596,16 +670,18 @@ function BusinessesTab() {
 
               {drawerTab === "staff" && (
                 <div className="flex flex-col gap-3">
-                  {drawerStaff.map((s) => (
-                    <div key={s.name} className="flex items-center gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-primary-light/50">
+                  {drawerStaff.map((s, i) => (
+                    <div key={i} className="flex items-center gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-primary-light/50">
                       <RxAvatar name={s.name} size="sm" />
                       <div className="flex flex-1 flex-col">
                         <span className="text-sm font-medium text-foreground">{s.name}</span>
                         <span className="text-xs text-muted-foreground">{s.role}</span>
                       </div>
-                      <span className="text-sm font-medium text-primary">{s.appts} randevu</span>
                     </div>
                   ))}
+                  {drawerStaff.length === 0 && (
+                    <div className="text-center text-sm text-muted-foreground py-4">Personel bulunamadı</div>
+                  )}
                 </div>
               )}
 
@@ -613,20 +689,20 @@ function BusinessesTab() {
                 <div className="flex flex-col gap-6">
                   <div className="grid grid-cols-3 gap-3">
                     <div className="flex flex-col items-center rounded-lg border border-border p-3">
-                      <span className="text-lg font-bold text-foreground">{"₺12.400"}</span>
-                      <span className="text-xs text-muted-foreground">{"Bu ay gelir"}</span>
+                      <span className="text-lg font-bold text-foreground">₺{revenueStats.revenue.toLocaleString('tr-TR')}</span>
+                      <span className="text-xs text-muted-foreground">{"Son 30 Gün Gelir"}</span>
                     </div>
                     <div className="flex flex-col items-center rounded-lg border border-border p-3">
-                      <span className="text-lg font-bold text-foreground">184</span>
+                      <span className="text-lg font-bold text-foreground">{revenueStats.appts}</span>
                       <span className="text-xs text-muted-foreground">Randevu</span>
                     </div>
                     <div className="flex flex-col items-center rounded-lg border border-border p-3">
-                      <span className="text-lg font-bold text-accent">3</span>
+                      <span className="text-lg font-bold text-accent">{revenueStats.noShows}</span>
                       <span className="text-xs text-muted-foreground">No-Show</span>
                     </div>
                   </div>
                   <div>
-                    <h4 className="mb-3 text-sm font-semibold text-foreground">Son 4 Hafta Aktivite</h4>
+                    <h4 className="mb-3 text-sm font-semibold text-foreground">Son 30 Gün Aktivite</h4>
                     <div className="h-[200px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={weeklyBarData}>
@@ -649,6 +725,7 @@ function BusinessesTab() {
   )
 }
 
+
 // ─── TAB 3: Modül Yönetimi ──────────────────────────────────────────────────────
 
 const iconOptions = [
@@ -666,43 +743,11 @@ const iconOptions = [
   { icon: Utensils, label: "Utensils" },
 ]
 
-const modulesData = [
-  {
-    name: "Berber",
-    icon: Scissors,
-    description: "Berber ve kuaför salonları için randevu yönetim modülü.",
-    businesses: 84,
-    appts: 18420,
-    required: ["Personel Seçimi", "Hizmet Seçimi"],
-    optional: ["Müşteri Notu", "No-Show"],
-    active: true,
-    comingSoon: false,
-  },
-  {
-    name: "Güzellik Salonu",
-    icon: Sparkles,
-    description: "Güzellik salonu ve spa merkezleri için özel modül.",
-    businesses: 30,
-    appts: 8240,
-    required: ["Personel Seçimi", "Hizmet Seçimi"],
-    optional: ["Müşteri Notu", "No-Show"],
-    active: true,
-    comingSoon: false,
-  },
-  {
-    name: "Veterinerlik",
-    icon: PawPrint,
-    description: "Veteriner klinikleri için randevu ve hasta takip modülü.",
-    businesses: 0,
-    appts: 0,
-    required: ["Personel Seçimi", "Hayvan Profili", "Dosya Yükleme"],
-    optional: ["Ameliyathane Rezervasyonu", "Röntgen Odası"],
-    active: false,
-    comingSoon: true,
-  },
-]
-
 function ModulesTab() {
+  const supabase = createClient()
+  const [modules, setModules] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
   const [newModalOpen, setNewModalOpen] = useState(false)
   const [moduleName, setModuleName] = useState("")
   const [moduleSlug, setModuleSlug] = useState("")
@@ -721,10 +766,81 @@ function ModulesTab() {
     multiResource: false,
   })
 
+  useEffect(() => {
+    fetchModules()
+  }, [])
+
+  async function fetchModules() {
+    setLoading(true)
+    const { data: modsData } = await supabase
+      .from("modules")
+      .select(`
+        *,
+        businesses(id)
+      `)
+      .order("created_at", { ascending: true })
+
+    if (modsData) {
+      const mapped = modsData.map((m: any) => {
+        const config = m.config || {};
+        return {
+          id: m.id,
+          name: m.display_name,
+          slug: m.name,
+          iconLabel: config.icon || "Puzzle",
+          description: config.description || "Modül açıklaması",
+          businesses: m.businesses?.length || 0,
+          appts: 0,
+          required: config.required || [],
+          optional: config.optional || [],
+          active: m.is_active,
+          comingSoon: false
+        }
+      })
+      setModules(mapped)
+    }
+    setLoading(false)
+  }
+
   const handleNameChange = (val: string) => {
     setModuleName(val)
     setModuleSlug(val.toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, ""))
   }
+
+  async function handleAddModule() {
+    const config = {
+      icon: selectedIcon,
+      description: moduleDesc,
+      required: Object.entries(requiredFields).filter(([_, v]) => v).map(([k]) => k),
+      optional: Object.entries(optionalFeatures).filter(([_, v]) => v).map(([k]) => k),
+    }
+
+    const { error } = await supabase.from("modules").insert({
+      name: moduleSlug,
+      display_name: moduleName,
+      is_active: true,
+      config: config
+    })
+
+    if (!error) {
+      setNewModalOpen(false)
+      setModuleName("")
+      setModuleSlug("")
+      setModuleDesc("")
+      fetchModules()
+    } else {
+      alert("Hata: " + error.message)
+    }
+  }
+
+  async function toggleStatus(id: string, current: boolean) {
+    const { error } = await supabase.from("modules").update({ is_active: !current }).eq("id", id)
+    if (!error) {
+      fetchModules()
+    }
+  }
+
+  if (loading) return <div className="flex items-center justify-center p-16"><Loader2 className="size-8 animate-spin text-primary" /></div>
 
   return (
     <div className="flex flex-col gap-6">
@@ -742,11 +858,12 @@ function ModulesTab() {
 
       {/* Module Cards */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {modulesData.map((mod) => {
-          const Icon = mod.icon
+        {modules.map((mod) => {
+          const IconObj = iconOptions.find(o => o.label === mod.iconLabel)
+          const Icon = IconObj ? IconObj.icon : Puzzle
           return (
             <div
-              key={mod.name}
+              key={mod.id}
               className={cn(
                 "relative overflow-hidden rounded-xl border border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.06)]",
                 !mod.active && "opacity-70"
@@ -768,6 +885,7 @@ function ModulesTab() {
                 </div>
                 <button
                   type="button"
+                  onClick={() => toggleStatus(mod.id, mod.active)}
                   className={cn(
                     "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors duration-200",
                     mod.active ? "bg-success" : "bg-muted"
@@ -795,7 +913,7 @@ function ModulesTab() {
                 <div className="flex flex-col gap-2">
                   <span className="text-xs font-medium text-foreground">Zorunlu:</span>
                   <div className="flex flex-wrap gap-1.5">
-                    {mod.required.map((f) => (
+                    {mod.required.map((f: string) => (
                       <span key={f} className="rounded-md bg-badge-purple-bg px-2 py-0.5 text-[11px] font-medium text-badge-purple-text">{f}</span>
                     ))}
                   </div>
@@ -804,7 +922,7 @@ function ModulesTab() {
                 <div className="flex flex-col gap-2">
                   <span className="text-xs font-medium text-foreground">Opsiyonel:</span>
                   <div className="flex flex-wrap gap-1.5">
-                    {mod.optional.map((f) => (
+                    {mod.optional.map((f: string) => (
                       <span key={f} className="rounded-md bg-badge-gray-bg px-2 py-0.5 text-[11px] font-medium text-badge-gray-text">{f}</span>
                     ))}
                   </div>
@@ -829,7 +947,7 @@ function ModulesTab() {
         footer={
           <>
             <RxButton variant="ghost" size="sm" onClick={() => setNewModalOpen(false)}>{"Vazgeç"}</RxButton>
-            <RxButton size="sm" onClick={() => setNewModalOpen(false)}>{"Modülü Kaydet"}</RxButton>
+            <RxButton size="sm" onClick={handleAddModule}>{"Modülü Kaydet"}</RxButton>
           </>
         }
       >
@@ -899,7 +1017,7 @@ function ModulesTab() {
                 <label key={field.key} className="flex items-center gap-2.5 cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={requiredFields[field.key]}
+                    checked={requiredFields[field.key as keyof typeof requiredFields]}
                     onChange={(e) => setRequiredFields({ ...requiredFields, [field.key]: e.target.checked })}
                     className="size-4 rounded border-border text-primary accent-primary"
                   />
@@ -921,7 +1039,7 @@ function ModulesTab() {
                 <label key={feat.key} className="flex items-center gap-2.5 cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={optionalFeatures[feat.key]}
+                    checked={optionalFeatures[feat.key as keyof typeof optionalFeatures]}
                     onChange={(e) => setOptionalFeatures({ ...optionalFeatures, [feat.key]: e.target.checked })}
                     className="size-4 rounded border-border text-primary accent-primary"
                   />
@@ -936,29 +1054,72 @@ function ModulesTab() {
   )
 }
 
+
 // ─── TAB 4: Sistem Logları ──────────────────────────────────────────────────────
 
-const logsData = [
-  { time: "24 Şub 14:32", user: "Mehmet Yılmaz", role: "Patron", action: "viewed", table: "appointments", record: "#184", ip: "192.168.1.1" },
-  { time: "24 Şub 14:28", user: "Ayşe Hanım", role: "Personel", action: "viewed", table: "customers", record: "#48", ip: "192.168.1.2" },
-  { time: "24 Şub 13:45", user: "Mehmet Yılmaz", role: "", action: "updated", table: "services", record: "#6", ip: "192.168.1.1" },
-  { time: "24 Şub 12:15", user: "Admin", role: "", action: "viewed", table: "users", record: "#3847", ip: "10.0.0.1" },
-  { time: "24 Şub 11:30", user: "Zeynep Arslan", role: "Müşteri", action: "updated", table: "appointments", record: "#183", ip: "95.0.0.1" },
-  { time: "24 Şub 10:22", user: "Mehmet Yılmaz", role: "", action: "deleted", table: "staff", record: "#12", ip: "192.168.1.1" },
-  { time: "24 Şub 09:45", user: "Admin", role: "", action: "updated", table: "businesses", record: "#5", ip: "10.0.0.1" },
-  { time: "24 Şub 09:00", user: "Sistem", role: "", action: "viewed", table: "audit_logs", record: "#7823", ip: "10.0.0.1" },
-]
-
 function LogsTab() {
+  const supabase = createClient()
+  const [logs, setLogs] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
   const [searchQuery, setSearchQuery] = useState("")
   const [actionFilter, setActionFilter] = useState("all")
   const [tableFilter, setTableFilter] = useState("all")
   const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 20
+  const [totalCount, setTotalCount] = useState(0)
+
+  useEffect(() => {
+    fetchLogs()
+  }, [currentPage, actionFilter, tableFilter]) // Refetch on filter/page change
+
+  async function fetchLogs() {
+    setLoading(true)
+    let query = supabase
+      .from("audit_logs")
+      .select(`
+        *,
+        users (name, auth_provider)
+      `, { count: 'exact' })
+      .order("created_at", { ascending: false })
+
+    if (actionFilter !== "all") {
+      query = query.eq("action", actionFilter)
+    }
+    if (tableFilter !== "all") {
+      query = query.eq("target_table", tableFilter)
+    }
+
+    // Pagination
+    const from = (currentPage - 1) * itemsPerPage
+    const to = from + itemsPerPage - 1
+    query = query.range(from, to)
+
+    const { data, count, error } = await query
+
+    if (data) {
+      const mapped = data.map((log: any) => ({
+        time: new Date(log.created_at).toLocaleString("tr-TR", { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }),
+        user: log.users?.name || "Bilinmeyen Kullanıcı",
+        role: log.users?.auth_provider === "google" ? "Google Login" : "Email",
+        action: log.action,
+        table: log.target_table,
+        record: log.target_id ? `#${log.target_id.substring(0, 8)}` : "-",
+        ip: log.ip_address || "Bilinmiyor",
+        rawUser: log.user
+      }))
+      setLogs(mapped)
+    }
+    if (count !== null) setTotalCount(count)
+    setLoading(false)
+  }
 
   const actionBadge = (action: string) => {
     switch (action) {
       case "viewed":
-        return <span className="inline-flex items-center rounded-md bg-badge-purple-bg px-2 py-0.5 font-mono text-[11px] font-medium text-badge-gray-text">viewed</span>
+        return <span className="inline-flex items-center rounded-md bg-badge-purple-bg px-2 py-0.5 font-mono text-[11px] font-medium text-badge-purple-text">viewed</span>
+      case "created":
+        return <span className="inline-flex items-center rounded-md bg-badge-green-bg px-2 py-0.5 font-mono text-[11px] font-medium text-badge-green-text">created</span>
       case "updated":
         return <span className="inline-flex items-center rounded-md bg-badge-yellow-bg px-2 py-0.5 font-mono text-[11px] font-medium text-badge-yellow-text">updated</span>
       case "deleted":
@@ -968,12 +1129,13 @@ function LogsTab() {
     }
   }
 
-  const filtered = logsData.filter((log) => {
+  // Client-side search for the current page (since fulltext search on generic users name requires a join view)
+  const filtered = logs.filter((log) => {
     if (searchQuery && !log.user.toLowerCase().includes(searchQuery.toLowerCase()) && !log.action.toLowerCase().includes(searchQuery.toLowerCase())) return false
-    if (actionFilter !== "all" && log.action !== actionFilter) return false
-    if (tableFilter !== "all" && log.table !== tableFilter) return false
     return true
   })
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / itemsPerPage))
 
   return (
     <div className="flex flex-col gap-6">
@@ -1001,7 +1163,7 @@ function LogsTab() {
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Kullanıcı veya işlem ara..."
+            placeholder="Mevcut sayfada ara..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="h-9 w-full rounded-lg border border-input bg-card pl-10 pr-3 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
@@ -1009,89 +1171,95 @@ function LogsTab() {
         </div>
         <select
           value={actionFilter}
-          onChange={(e) => setActionFilter(e.target.value)}
+          onChange={(e) => { setActionFilter(e.target.value); setCurrentPage(1); }}
           className="h-9 rounded-lg border border-input bg-card px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
         >
           <option value="all">{"Tüm İşlemler"}</option>
           <option value="viewed">viewed</option>
+          <option value="created">created</option>
           <option value="updated">updated</option>
           <option value="deleted">deleted</option>
         </select>
         <select
           value={tableFilter}
-          onChange={(e) => setTableFilter(e.target.value)}
+          onChange={(e) => { setTableFilter(e.target.value); setCurrentPage(1); }}
           className="h-9 rounded-lg border border-input bg-card px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
         >
           <option value="all">{"Tüm Tablolar"}</option>
           <option value="appointments">appointments</option>
+          <option value="businesses">businesses</option>
           <option value="users">users</option>
           <option value="customers">customers</option>
           <option value="staff">staff</option>
+          <option value="modules">modules</option>
         </select>
       </div>
 
       {/* Logs Table */}
       <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
-        <table className="w-full min-w-[800px]">
-          <thead>
-            <tr className="border-b border-border">
-              {["Zaman", "Kullanıcı", "İşlem", "Tablo", "Kayıt ID", "IP Adresi"].map((h) => (
-                <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((log, idx) => (
-              <tr key={idx} className="border-b border-border last:border-0 transition-colors hover:bg-primary-light/50">
-                <td className="px-4 py-3 font-mono text-[13px] text-muted-foreground">{log.time}</td>
-                <td className="px-4 py-3">
-                  <span className="text-[13px] text-foreground">{log.user}</span>
-                  {log.role && (
-                    <span className="ml-1 text-[11px] text-muted-foreground">({log.role})</span>
-                  )}
-                </td>
-                <td className="px-4 py-3">{actionBadge(log.action)}</td>
-                <td className="px-4 py-3 font-mono text-[13px] text-foreground">{log.table}</td>
-                <td className="px-4 py-3 font-mono text-[13px] text-primary">{log.record}</td>
-                <td className="px-4 py-3 font-mono text-[13px] text-muted-foreground">{log.ip}</td>
+        {loading ? (
+          <div className="flex justify-center p-8"><Loader2 className="size-6 animate-spin text-primary" /></div>
+        ) : (
+          <table className="w-full min-w-[800px]">
+            <thead>
+              <tr className="border-b border-border">
+                {["Zaman", "Kullanıcı", "İşlem", "Tablo", "Kayıt ID", "IP Adresi"].map((h) => (
+                  <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">{h}</th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filtered.map((log, idx) => (
+                <tr key={idx} className="border-b border-border last:border-0 transition-colors hover:bg-primary-light/50">
+                  <td className="px-4 py-3 font-mono text-[13px] text-muted-foreground">{log.time}</td>
+                  <td className="px-4 py-3">
+                    <span className="text-[13px] text-foreground">{log.user}</span>
+                    {log.role && (
+                      <span className="ml-1 text-[11px] text-muted-foreground">({log.role})</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">{actionBadge(log.action)}</td>
+                  <td className="px-4 py-3 font-mono text-[13px] text-foreground">{log.table}</td>
+                  <td className="px-4 py-3 font-mono text-[13px] text-primary">{log.record}</td>
+                  <td className="px-4 py-3 font-mono text-[13px] text-muted-foreground">{log.ip}</td>
+                </tr>
+              ))}
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="text-center py-8 text-muted-foreground text-sm">Kayıt bulunamadı</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        )}
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-end gap-1">
-        <button type="button" className="rounded-lg p-2 text-muted-foreground hover:bg-primary-light hover:text-foreground">
-          <ChevronLeft className="size-4" />
-        </button>
-        {[1, 2, 3].map((page) => (
+      <div className="flex items-center justify-between">
+        <span className="text-sm text-muted-foreground">
+          Toplam {totalCount} kayıttan {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, totalCount)} arası gösteriliyor
+        </span>
+        <div className="flex items-center gap-1">
           <button
-            key={page}
             type="button"
-            onClick={() => setCurrentPage(page)}
-            className={cn(
-              "flex size-8 items-center justify-center rounded-lg text-sm font-medium transition-colors",
-              currentPage === page ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-primary-light hover:text-foreground"
-            )}
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="rounded-lg p-2 text-muted-foreground hover:bg-primary-light hover:text-foreground disabled:opacity-50"
           >
-            {page}
+            <ChevronLeft className="size-4" />
           </button>
-        ))}
-        <span className="px-1 text-sm text-muted-foreground">...</span>
-        <button
-          type="button"
-          onClick={() => setCurrentPage(892)}
-          className={cn(
-            "flex size-8 items-center justify-center rounded-lg text-sm font-medium transition-colors",
-            currentPage === 892 ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-primary-light hover:text-foreground"
-          )}
-        >
-          892
-        </button>
-        <button type="button" className="rounded-lg p-2 text-muted-foreground hover:bg-primary-light hover:text-foreground">
-          <ChevronRight className="size-4" />
-        </button>
+
+          <span className="text-sm font-medium px-2">Sayfa {currentPage} / {totalPages}</span>
+
+          <button
+            type="button"
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="rounded-lg p-2 text-muted-foreground hover:bg-primary-light hover:text-foreground disabled:opacity-50"
+          >
+            <ChevronRight className="size-4" />
+          </button>
+        </div>
       </div>
 
       {/* Info Banner */}

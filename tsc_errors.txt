@@ -1,0 +1,3 @@
+components/randevux/dashboard/services-page.tsx(162,26): error TS2304: Cannot find name 'Briefcase'.
+components/randevux/dashboard/settings-page.tsx(305,39): error TS2322: Type '"outline"' is not assignable to type 'Variant | undefined'.
+components/randevux/dashboard/staff-page.tsx(177,26): error TS2304: Cannot find name 'Users'.

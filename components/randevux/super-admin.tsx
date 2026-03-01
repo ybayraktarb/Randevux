@@ -434,7 +434,7 @@ function BusinessesTab() {
   const [moduleFilter, setModuleFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("all")
   const [currentPage, setCurrentPage] = useState(1)
-  const itemsPerPage = 15
+  const itemsPerPage = 10
   const [totalCount, setTotalCount] = useState(0)
 
   // Drawer
@@ -449,7 +449,16 @@ function BusinessesTab() {
 
   // Add Business Modal
   const [addModalOpen, setAddModalOpen] = useState(false)
-  const [newBiz, setNewBiz] = useState({ name: "", city: "", phone: "", moduleId: "", autoApprove: true })
+  const [newBiz, setNewBiz] = useState({
+    name: "", city: "", phone: "", moduleId: "", description: "",
+    autoApprove: true, cancellationBuffer: 60, ownerId: ""
+  })
+
+  // Owner Search State
+  const [ownerSearchQuery, setOwnerSearchQuery] = useState("")
+  const [ownerSearchResults, setOwnerSearchResults] = useState<any[]>([])
+  const [isOwnerDropdownOpen, setIsOwnerDropdownOpen] = useState(false)
+  const [selectedOwner, setSelectedOwner] = useState<any>(null)
 
   useEffect(() => {
     supabase.from("modules").select("id, display_name").then(({ data }) => {
@@ -525,27 +534,73 @@ function BusinessesTab() {
   }
 
   async function handleAddBusiness() {
-    if (!newBiz.name || !newBiz.moduleId) {
-      alert("Lütfen zorunlu alanları (İşletme Adı ve Modül) doldurun.")
+    if (!newBiz.name || !newBiz.moduleId || !newBiz.ownerId) {
+      alert("Lütfen zorunlu alanları (İşletme Adı, Modül ve İşletme Sahibi) doldurun.")
       return
     }
 
-    const { error } = await supabase.from("businesses").insert({
-      name: newBiz.name,
-      address: newBiz.city,
-      phone: newBiz.phone,
-      module_id: newBiz.moduleId,
-      auto_approve: newBiz.autoApprove,
-      is_active: true
-    })
+    // 1. İşletmeyi (businesses tablosuna) Ekle
+    const { data: bData, error: bError } = await supabase
+      .from("businesses")
+      .insert({
+        name: newBiz.name,
+        address: newBiz.city,
+        phone: newBiz.phone,
+        module_id: newBiz.moduleId,
+        auto_approve: newBiz.autoApprove,
+        cancellation_buffer_minutes: newBiz.cancellationBuffer,
+        is_active: true
+      })
+      .select("id")
+      .single()
 
-    if (!error) {
-      setAddModalOpen(false)
-      setNewBiz({ name: "", city: "", phone: "", moduleId: "", autoApprove: true })
-      fetchBusinesses()
-    } else {
-      alert("Hata: " + error.message)
+    if (bError || !bData) {
+      alert("İşletme eklenirken hata: " + bError?.message)
+      return
     }
+
+    const businessId = bData.id
+
+    // 2. İşletme Sahibini (business_owners tablosuna) Ekle
+    const { error: oError } = await supabase
+      .from("business_owners")
+      .insert({
+        business_id: businessId,
+        user_id: newBiz.ownerId
+      })
+
+    if (oError) {
+      // Rollback mantığı yapılabilir ama şimdilik en azından uyaralım
+      alert("İşletme eklendi fakat Sahip ataması sırasında hata oluştu: " + oError.message)
+    }
+
+    // 3. Varsayılan Çalışma Saatlerini (business_hours tablosuna) Ekle (Pzt-Paz)
+    const defaultHours = [1, 2, 3, 4, 5, 6, 0].map(day => ({
+      business_id: businessId,
+      day_of_week: day,
+      open_time: "09:00",
+      close_time: "18:00",
+      is_closed: false
+    }))
+
+    const { error: hError } = await supabase
+      .from("business_hours")
+      .insert(defaultHours)
+
+    if (hError) {
+      console.error("Çalışma saatleri eklenemedi:", hError)
+    }
+
+    // Başarılı Senaryo - UI Reset & Refetch
+    setAddModalOpen(false)
+    setNewBiz({
+      name: "", city: "", phone: "", moduleId: "", description: "",
+      autoApprove: true, cancellationBuffer: 60, ownerId: ""
+    })
+    setSelectedOwner(null)
+    fetchBusinesses()
+
+    // Not: Normalde Sonner (toast) kullanılabilir, alert yerine.
   }
 
   async function openDrawer(biz: any) {
@@ -752,33 +807,37 @@ function BusinessesTab() {
         )}
       </div>
 
-      {/* Pagination */}
-      <div className="flex items-center justify-between">
-        <span className="text-sm text-muted-foreground">
-          Toplam {totalCount} kayıttan {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, totalCount)} arası gösteriliyor
-        </span>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-            className="rounded-lg p-2 text-muted-foreground hover:bg-primary-light hover:text-foreground disabled:opacity-50"
-          >
-            <ChevronLeft className="size-4" />
-          </button>
-
-          <span className="text-sm font-medium px-2">Sayfa {currentPage} / {totalPages}</span>
-
-          <button
-            type="button"
-            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-            className="rounded-lg p-2 text-muted-foreground hover:bg-primary-light hover:text-foreground disabled:opacity-50"
-          >
-            <ChevronRight className="size-4" />
-          </button>
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-2">
+          <span className="text-sm text-muted-foreground">
+            Toplam {totalCount} kayıttan {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, totalCount)} arası gösteriliyor
+          </span>
+          <div className="flex items-center shadow-sm rounded-lg border border-border bg-card">
+            <button
+              type="button"
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="flex items-center gap-1 rounded-l-lg p-2 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+            >
+              <ChevronLeft className="size-4" /> Önceki
+            </button>
+            <div className="h-4 w-px bg-border" />
+            <span className="px-4 text-sm font-medium text-muted-foreground">
+              Sayfa {currentPage} / {totalPages}
+            </span>
+            <div className="h-4 w-px bg-border" />
+            <button
+              type="button"
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="flex items-center gap-1 rounded-r-lg p-2 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+            >
+              Sonraki <ChevronRight className="size-4" />
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Drawer */}
       {drawerOpen && selectedBiz && (
@@ -952,11 +1011,12 @@ function BusinessesTab() {
         </>
       )}
 
-      {/* Add Business Modal */}
+      {/* Add Business Modal (Grid Form) */}
       <RxModal
         open={addModalOpen}
         onClose={() => setAddModalOpen(false)}
         title="Yeni İşletme Ekle"
+        className="max-w-[800px]" // Modal'ı genişlettik
         footer={
           <>
             <RxButton variant="ghost" size="sm" onClick={() => setAddModalOpen(false)}>İptal</RxButton>
@@ -964,47 +1024,133 @@ function BusinessesTab() {
           </>
         }
       >
-        <div className="flex flex-col gap-4">
-          <RxInput
-            label="İşletme Adı (*)"
-            placeholder="Örn: X Güzellik Merkezi"
-            value={newBiz.name}
-            onChange={(e) => setNewBiz({ ...newBiz, name: e.target.value })}
-          />
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[13px] font-semibold text-foreground">Modül (*)</label>
-            <select
-              value={newBiz.moduleId}
-              onChange={(e) => setNewBiz({ ...newBiz, moduleId: e.target.value })}
-              className="h-9 w-full rounded-lg border border-input bg-card px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-              <option value="" disabled>Seçiniz</option>
-              {modulesList.map((m) => (
-                <option key={m.id} value={m.id}>{m.display_name}</option>
-              ))}
-            </select>
-          </div>
-          <RxInput
-            label="Adres/Şehir"
-            placeholder="Örn: İstanbul"
-            value={newBiz.city}
-            onChange={(e) => setNewBiz({ ...newBiz, city: e.target.value })}
-          />
-          <RxInput
-            label="Telefon"
-            placeholder="+90 555 444 33 22"
-            value={newBiz.phone}
-            onChange={(e) => setNewBiz({ ...newBiz, phone: e.target.value })}
-          />
-          <label className="flex items-center gap-2 cursor-pointer mt-2">
-            <input
-              type="checkbox"
-              checked={newBiz.autoApprove}
-              onChange={(e) => setNewBiz({ ...newBiz, autoApprove: e.target.checked })}
-              className="size-4 rounded border-border text-primary accent-primary"
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+          {/* Sol Kolon - Temel İşletme Bilgileri */}
+          <div className="flex flex-col gap-4">
+            <h4 className="text-sm font-semibold text-foreground border-b border-border pb-2">Temel Bilgiler</h4>
+            <RxInput
+              label="İşletme Adı (*)"
+              placeholder="Örn: X Güzellik Merkezi"
+              value={newBiz.name}
+              onChange={(e) => setNewBiz({ ...newBiz, name: e.target.value })}
             />
-            <span className="text-sm font-medium text-foreground">Randevuları Otomatik Onayla</span>
-          </label>
+            <RxTextarea
+              label="Kısa Açıklama"
+              placeholder="İşletme hakkında kısa bir not..."
+              value={newBiz.description}
+              onChange={(e) => setNewBiz({ ...newBiz, description: e.target.value })}
+              className="resize-none h-20"
+            />
+            <RxInput
+              label="Telefon"
+              placeholder="+90 555 444 33 22"
+              value={newBiz.phone}
+              onChange={(e) => setNewBiz({ ...newBiz, phone: e.target.value })}
+            />
+            <RxInput
+              label="Adres/Şehir"
+              placeholder="Örn: Kadıköy, İstanbul"
+              value={newBiz.city}
+              onChange={(e) => setNewBiz({ ...newBiz, city: e.target.value })}
+            />
+          </div>
+
+          {/* Sağ Kolon - Konfigürasyon ve Sahip */}
+          <div className="flex flex-col gap-4">
+            <h4 className="text-sm font-semibold text-foreground border-b border-border pb-2">Sistem Ayarları</h4>
+
+            {/* Modül Seçimi */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[13px] font-semibold text-foreground">Sektör / Modül (*)</label>
+              <select
+                value={newBiz.moduleId}
+                onChange={(e) => setNewBiz({ ...newBiz, moduleId: e.target.value })}
+                className="h-10 w-full rounded-lg border border-input bg-card px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="" disabled>Lütfen Modül Seçin</option>
+                {modulesList.map((m) => (
+                  <option key={m.id} value={m.id}>{m.display_name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Owner (Patron) Seçimi - Custom Combobox */}
+            <div className="flex flex-col gap-1.5 relative">
+              <label className="text-[13px] font-semibold text-foreground">İşletme Sahibi (Owner) (*)</label>
+              <div
+                className="flex items-center w-full h-10 border border-input rounded-lg px-3 bg-card"
+                onClick={() => setIsOwnerDropdownOpen(true)}
+              >
+                {selectedOwner ? (
+                  <div className="flex items-center justify-between w-full">
+                    <span className="text-sm text-foreground">{selectedOwner.name} ({selectedOwner.email})</span>
+                    <button type="button" onClick={(e) => { e.stopPropagation(); setSelectedOwner(null); setNewBiz({ ...newBiz, ownerId: "" }) }}>
+                      <X className="size-4 text-muted-foreground hover:text-danger" />
+                    </button>
+                  </div>
+                ) : (
+                  <input
+                    type="text"
+                    placeholder="İsim ile abone ara..."
+                    className="w-full bg-transparent text-sm focus:outline-none text-foreground placeholder:text-muted-foreground"
+                    value={ownerSearchQuery}
+                    onChange={(e) => setOwnerSearchQuery(e.target.value)}
+                    onFocus={() => setIsOwnerDropdownOpen(true)}
+                  />
+                )}
+              </div>
+
+              {/* Owner Search Dropdown */}
+              {isOwnerDropdownOpen && !selectedOwner && (
+                <div className="absolute top-[4.5rem] left-0 w-full z-10 bg-card border border-border shadow-lg rounded-lg overflow-hidden">
+                  {ownerSearchResults.length > 0 ? (
+                    ownerSearchResults.map(u => (
+                      <div
+                        key={u.id}
+                        className="flex flex-col p-2.5 hover:bg-muted cursor-pointer transition-colors border-b border-border last:border-0"
+                        onClick={() => {
+                          setSelectedOwner(u)
+                          setNewBiz({ ...newBiz, ownerId: u.id })
+                          setIsOwnerDropdownOpen(false)
+                          setOwnerSearchQuery("")
+                        }}
+                      >
+                        <span className="text-sm font-medium text-foreground">{u.name}</span>
+                        <span className="text-xs text-muted-foreground">{u.email}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-3 text-sm text-muted-foreground text-center">
+                      {ownerSearchQuery.length > 1 ? "Kullanıcı bulunamadı." : "Aramak için yazın..."}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Ek Configs */}
+            <div className="grid grid-cols-2 gap-4 mt-2">
+              <RxInput
+                label="Min. İptal Süresi (Dk)"
+                type="number"
+                value={newBiz.cancellationBuffer.toString()}
+                onChange={(e) => setNewBiz({ ...newBiz, cancellationBuffer: Number(e.target.value) })}
+              />
+              <div className="flex items-end pb-2">
+                <label className="flex items-center gap-2 cursor-pointer w-full p-2 border border-border rounded-lg hover:bg-muted transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={newBiz.autoApprove}
+                    onChange={(e) => setNewBiz({ ...newBiz, autoApprove: e.target.checked })}
+                    className="size-4 rounded border-border text-primary accent-primary"
+                  />
+                  <span className="text-xs font-semibold text-foreground">Oto Randevu Onayı</span>
+                </label>
+              </div>
+            </div>
+
+          </div>
         </div>
       </RxModal>
 

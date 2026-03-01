@@ -6,7 +6,8 @@ import { RxButton } from "./rx-button"
 import { useCurrentUser } from "@/hooks/use-current-user"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
-import { Loader2, Save, Lock, User, Building2, Calendar, RefreshCw, Copy, QrCode } from "lucide-react"
+import { Loader2, Save, Lock, User, Building2, Calendar, RefreshCw, Copy, QrCode, Download } from "lucide-react"
+import QRCode from "react-qr-code"
 
 export function BusinessSettings() {
     const { user } = useCurrentUser()
@@ -80,9 +81,13 @@ export function BusinessSettings() {
         const { error } = await supabase.from("businesses").update({
             name: bizName, address: bizAddress || null, phone: bizPhone || null,
             description: bizDesc || null, logo_url: logoUrl || null,
+            qr_code: qrCode || null
         }).eq("id", businessId)
         setSavingBiz(false)
-        if (error) { toast?.error?.("Isletme bilgileri guncellenemedi."); return }
+        if (error) {
+            toast?.error?.("İşletme bilgileri güncellenemedi. Girdiğiniz kod başkası tarafından kullanılıyor olabilir.")
+            return
+        }
         // Audit
         try { const { logAudit } = await import("@/lib/audit"); await logAudit(supabase, { userId: user!.id, action: "updated", targetTable: "businesses", targetId: businessId }) } catch { }
         toast?.success?.("Isletme bilgileri guncellendi!")
@@ -127,6 +132,26 @@ export function BusinessSettings() {
         toast?.success?.("Sifre basariyla degistirildi!")
         setNewPassword(""); setConfirmPassword("")
     }
+
+    const downloadQRCode = () => {
+        const svg = document.getElementById("BusinessQRCode") as unknown as SVGElement;
+        if (!svg) return;
+        const svgData = new XMLSerializer().serializeToString(svg);
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        const img = new Image();
+        img.onload = () => {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx?.drawImage(img, 0, 0);
+            const pngFile = canvas.toDataURL("image/png");
+            const downloadLink = document.createElement("a");
+            downloadLink.download = `${bizName || "business"}_qrcode.png`;
+            downloadLink.href = `${pngFile}`;
+            downloadLink.click();
+        };
+        img.src = `data:image/svg+xml;base64,${btoa(svgData)}`;
+    };
 
     if (loading) return <div className="flex items-center justify-center p-20"><Loader2 className="size-8 animate-spin text-primary" /></div>
 
@@ -176,23 +201,49 @@ export function BusinessSettings() {
                             <input type="url" value={logoUrl} onChange={e => setLogoUrl(e.target.value)} className={inputClass} placeholder="https://..." />
                         </div>
 
-                        {/* Invite Code */}
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-sm font-medium text-foreground">Davet Kodu</label>
+                        {/* QR Code / Custom Code Entry */}
+                        <div className="flex flex-col gap-1.5 mt-2">
+                            <label className="text-sm font-medium text-foreground">İşletme Kodu (Örn: msn2026)</label>
+                            <p className="text-xs text-muted-foreground">
+                                Müşterileriniz bu kodu girerek işletmenize katılabilir veya arayabilir. Özel bir kelime belirleyebilirsiniz (Benzersiz olmalıdır).
+                            </p>
                             <div className="flex gap-2">
-                                <div className="flex h-10 flex-1 items-center rounded-lg border border-input bg-muted px-3 text-sm font-mono text-foreground">{inviteCode || "—"}</div>
-                                <button type="button" onClick={() => { navigator.clipboard.writeText(inviteCode); toast?.success?.("Kopyalandi!") }} className="flex h-10 items-center gap-1.5 rounded-lg border border-input px-3 text-sm text-muted-foreground hover:text-foreground transition-colors" title="Kopyala"><Copy className="size-4" /></button>
-                                <button type="button" onClick={handleRefreshInviteCode} className="flex h-10 items-center gap-1.5 rounded-lg border border-input px-3 text-sm text-muted-foreground hover:text-foreground transition-colors" title="Yenile"><RefreshCw className="size-4" /></button>
+                                <input
+                                    type="text"
+                                    value={qrCode}
+                                    onChange={e => setQrCode(e.target.value.replace(/\s+/g, ''))}
+                                    className={cn(inputClass, "flex-1 font-mono text-sm")}
+                                    placeholder="Kendi kodunuzu girin..."
+                                />
+                                <button type="button" onClick={() => { navigator.clipboard.writeText(qrCode); toast?.success?.("Kopyalandı!") }} className="flex h-10 items-center gap-1.5 rounded-lg border border-input bg-card px-3 text-sm text-muted-foreground hover:text-foreground transition-colors" title="Kopyala">
+                                    <Copy className="size-4" />
+                                </button>
+                                <button type="button" onClick={() => setQrCode(crypto.randomUUID().slice(0, 8).toUpperCase())} className="flex h-10 items-center gap-1.5 rounded-lg border border-input bg-card px-3 text-sm text-muted-foreground hover:text-foreground transition-colors" title="Yeni Rastgele Kod Üret">
+                                    <RefreshCw className="size-4" />
+                                </button>
                             </div>
                         </div>
 
                         {/* QR Code */}
                         {qrCode && (
-                            <div className="flex flex-col gap-1.5">
-                                <label className="text-sm font-medium text-foreground">QR Kod</label>
-                                <div className="flex items-center gap-2">
-                                    <QrCode className="size-5 text-muted-foreground" />
-                                    <span className="font-mono text-sm text-muted-foreground">{qrCode}</span>
+                            <div className="flex flex-col gap-1.5 mt-2 p-4 rounded-xl border border-dashed border-primary/20 bg-primary/5">
+                                <label className="text-sm font-medium text-foreground flex items-center gap-2">
+                                    <QrCode className="size-4 text-primary" />
+                                    Müşteri Randevu QR Kodu
+                                </label>
+                                <p className="text-xs text-muted-foreground mb-2">
+                                    Müşterileriniz bu QR kodu okutarak işletmenize bağlanabilir ve randevu alabilir.
+                                </p>
+                                <div className="flex flex-col items-center gap-4 bg-white p-4 rounded-lg w-fit border border-border">
+                                    <QRCode
+                                        id="BusinessQRCode"
+                                        value={qrCode}
+                                        size={180}
+                                        level="M"
+                                    />
+                                    <RxButton onClick={downloadQRCode} variant="secondary" className="w-full text-xs h-8">
+                                        <Download className="size-3 mr-1" /> QR Kodu İndir
+                                    </RxButton>
                                 </div>
                             </div>
                         )}

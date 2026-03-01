@@ -2,11 +2,14 @@
 
 import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
-import { Loader2, Search, MoreHorizontal, ChevronLeft, ChevronRight, Ban, UserCheck, Trash2, Ban as BanIcon } from "lucide-react"
+import { Loader2, Search, MoreHorizontal, ChevronLeft, ChevronRight, UserCheck, BanIcon, Edit2, Plus, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { RxAvatar } from "./rx-avatar"
 import { RxBadge } from "./rx-badge"
 import { RxButton } from "./rx-button"
+import { RxModal } from "./rx-modal"
+import { RxInput } from "./rx-input"
+import { createUserAction } from "@/app/actions/user.actions"
 
 export function UsersTab() {
     const supabase = createClient()
@@ -23,10 +26,17 @@ export function UsersTab() {
     // Actions
     const [menuOpenIdx, setMenuOpenIdx] = useState<number | null>(null)
 
-    // Modal State for Action Confirmation
+    // Modal State for Action Confirmation & Edit
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false)
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false)
     const [userToAct, setUserToAct] = useState<{ id: string, name: string, willBeActive: boolean } | null>(null)
+    const [editForm, setEditForm] = useState({ id: "", name: "", email: "", role: "user" })
     const [actionLoading, setActionLoading] = useState(false)
+
+    // Create User Modal State
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+    const [createForm, setCreateForm] = useState({ name: "", email: "", password: "" })
+    const [createLoading, setCreateLoading] = useState(false)
 
     useEffect(() => {
         const delayDebounceFn = setTimeout(() => {
@@ -65,6 +75,7 @@ export function UsersTab() {
                 name: u.name || "İsimsiz Kullanıcı",
                 email: u.email || "-",
                 phone: u.phone || "-",
+                role: u.role || "user",
                 active: u.is_active,
                 date: new Date(u.created_at).toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" }),
                 avatar: u.avatar_url,
@@ -79,6 +90,17 @@ export function UsersTab() {
     function promptAction(user: any) {
         setUserToAct({ id: user.id, name: user.name, willBeActive: !user.active })
         setIsConfirmModalOpen(true)
+        setMenuOpenIdx(null)
+    }
+
+    function openEditModal(user: any) {
+        setEditForm({
+            id: user.id,
+            name: user.name === "İsimsiz Kullanıcı" ? "" : user.name,
+            email: user.email === "-" ? "" : user.email,
+            role: user.role
+        })
+        setIsEditModalOpen(true)
         setMenuOpenIdx(null)
     }
 
@@ -101,6 +123,57 @@ export function UsersTab() {
         }
     }
 
+    async function handleEditSubmit(e: React.FormEvent) {
+        e.preventDefault()
+        setActionLoading(true)
+
+        // Super Admin only updating fields
+        const updates = {
+            name: editForm.name,
+            email: editForm.email
+        }
+
+        const { error } = await supabase
+            .from("users")
+            .update(updates)
+            .eq("id", editForm.id)
+
+        setActionLoading(false)
+        if (!error) {
+            setIsEditModalOpen(false)
+            fetchUsers()
+        } else {
+            alert("Güncelleme hatası: " + error.message)
+        }
+    }
+
+    async function handleCreateUser() {
+        if (!createForm.name || !createForm.email || !createForm.password) {
+            alert("Lütfen ad, e-posta ve şifre alanlarını doldurun.")
+            return
+        }
+
+        setCreateLoading(true)
+
+        const formData = new FormData()
+        formData.append("name", createForm.name)
+        formData.append("email", createForm.email)
+        formData.append("password", createForm.password)
+
+        const result = await createUserAction(formData)
+
+        setCreateLoading(false)
+
+        if (result?.error) {
+            alert("Hesap oluşturulamadı: " + result.error)
+        } else if (result?.success) {
+            alert("Kullanıcı hesabı başarıyla oluşturuldu! (Sonner toast eklenebilir)")
+            setIsCreateModalOpen(false)
+            setCreateForm({ name: "", email: "", password: "" })
+            fetchUsers() // Tabloyu Yenile
+        }
+    }
+
     const totalPages = Math.max(1, Math.ceil(totalCount / itemsPerPage))
 
     return (
@@ -112,6 +185,10 @@ export function UsersTab() {
                     <p className="text-sm text-muted-foreground">{totalCount} kayıtlı kullanıcı</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
+                    <RxButton size="sm" onClick={() => setIsCreateModalOpen(true)}>
+                        <Plus className="size-4" />
+                        Yeni Kullanıcı Ekle
+                    </RxButton>
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                         <input
@@ -119,7 +196,7 @@ export function UsersTab() {
                             placeholder="İsim, email veya telefon..."
                             value={searchQuery}
                             onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-                            className="h-9 w-64 rounded-lg border border-input bg-card pl-10 pr-3 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
+                            className="h-9 w-56 rounded-lg border border-input bg-card pl-10 pr-3 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
                         />
                     </div>
                     <select
@@ -142,7 +219,7 @@ export function UsersTab() {
                     <table className="w-full min-w-[800px]">
                         <thead>
                             <tr className="border-b border-border">
-                                {["Kullanıcı", "E-posta", "Telefon", "Kayıt Tarihi", "Durum", "İşlemler"].map((h) => (
+                                {["Kullanıcı", "E-posta", "Telefon", "Rol", "Kayıt Tarihi", "Durum", "İşlemler"].map((h) => (
                                     <th key={h} className="px-5 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">{h}</th>
                                 ))}
                             </tr>
@@ -161,6 +238,13 @@ export function UsersTab() {
                                     </td>
                                     <td className="px-5 py-3 text-sm text-foreground">{user.email}</td>
                                     <td className="px-5 py-3 text-[13px] text-foreground font-mono">{user.phone}</td>
+                                    <td className="px-5 py-3">
+                                        {user.role === 'super_admin' ? (
+                                            <RxBadge variant="purple">Süper Admin</RxBadge>
+                                        ) : (
+                                            <span className="text-sm text-foreground">Kullanıcı</span>
+                                        )}
+                                    </td>
                                     <td className="px-5 py-3 text-[13px] text-muted-foreground">{user.date}</td>
                                     <td className="px-5 py-3">
                                         {user.active ? (
@@ -182,6 +266,13 @@ export function UsersTab() {
                                                 <>
                                                     <div className="fixed inset-0 z-30" onClick={() => setMenuOpenIdx(null)} aria-hidden="true" />
                                                     <div className="absolute right-0 top-full z-40 mt-1 w-44 rounded-lg border border-border bg-card py-1 shadow-lg">
+                                                        <button
+                                                            type="button"
+                                                            className="flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors text-foreground hover:bg-muted"
+                                                            onClick={() => openEditModal(user)}
+                                                        >
+                                                            <Edit2 className="size-4" /> Düzenle
+                                                        </button>
                                                         <button
                                                             type="button"
                                                             className={cn(
@@ -213,31 +304,37 @@ export function UsersTab() {
                 )}
             </div>
 
-            {/* Pagination */}
-            <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">
-                    Toplam {totalCount} kayıttan {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, totalCount)} arası gösteriliyor
-                </span>
-                <div className="flex items-center gap-1">
-                    <button
-                        type="button"
-                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                        disabled={currentPage === 1}
-                        className="rounded-lg p-2 text-muted-foreground hover:bg-primary-light hover:text-foreground disabled:opacity-50"
-                    >
-                        <ChevronLeft className="size-4" />
-                    </button>
-                    <span className="text-sm font-medium px-2">Sayfa {currentPage} / {totalPages}</span>
-                    <button
-                        type="button"
-                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                        disabled={currentPage === totalPages}
-                        className="rounded-lg p-2 text-muted-foreground hover:bg-primary-light hover:text-foreground disabled:opacity-50"
-                    >
-                        <ChevronRight className="size-4" />
-                    </button>
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+                <div className="flex items-center justify-between px-2">
+                    <span className="text-sm text-muted-foreground">
+                        Toplam {totalCount} kayıttan {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, totalCount)} arası gösteriliyor
+                    </span>
+                    <div className="flex items-center shadow-sm rounded-lg border border-border bg-card">
+                        <button
+                            type="button"
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            className="flex items-center gap-1 rounded-l-lg p-2 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+                        >
+                            <ChevronLeft className="size-4" /> Önceki
+                        </button>
+                        <div className="h-4 w-px bg-border" />
+                        <span className="px-4 text-sm font-medium text-muted-foreground">
+                            Sayfa {currentPage} / {totalPages}
+                        </span>
+                        <div className="h-4 w-px bg-border" />
+                        <button
+                            type="button"
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages}
+                            className="flex items-center gap-1 rounded-r-lg p-2 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+                        >
+                            Sonraki <ChevronRight className="size-4" />
+                        </button>
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* Confirmation Modal */}
             {isConfirmModalOpen && userToAct && (
@@ -269,6 +366,110 @@ export function UsersTab() {
                     </div>
                 </div>
             )}
+
+            {/* Edit User Modal */}
+            {isEditModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm" onClick={() => !actionLoading && setIsEditModalOpen(false)} />
+                    <div className="relative z-50 w-full max-w-md overflow-hidden rounded-xl border border-border bg-card p-6 shadow-xl animate-in fade-in zoom-in-95">
+                        <h3 className="mb-4 text-lg font-semibold text-foreground">Kullanıcıyı Düzenle</h3>
+                        <form onSubmit={handleEditSubmit} className="flex flex-col gap-4">
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-sm font-medium text-foreground">İsim Soyisim</label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={editForm.name}
+                                    onChange={e => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                                    className="h-10 rounded-lg border border-input bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                                />
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-sm font-medium text-foreground">E-posta Adresi</label>
+                                <input
+                                    type="email"
+                                    required
+                                    value={editForm.email}
+                                    onChange={e => setEditForm(prev => ({ ...prev, email: e.target.value }))}
+                                    className="h-10 rounded-lg border border-input bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                                />
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-sm font-medium text-foreground">Sistem Rolü</label>
+                                <select
+                                    value={editForm.role}
+                                    onChange={e => setEditForm(prev => ({ ...prev, role: e.target.value }))}
+                                    className="h-10 rounded-lg border border-input bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                                >
+                                    <option value="user">Standart Kullanıcı</option>
+                                    <option value="super_admin">Süper Admin</option>
+                                </select>
+                            </div>
+
+                            <div className="mt-4 flex justify-end gap-3">
+                                <RxButton type="button" variant="secondary" onClick={() => setIsEditModalOpen(false)} disabled={actionLoading}>
+                                    İptal
+                                </RxButton>
+                                <RxButton type="submit" variant="primary" disabled={actionLoading}>
+                                    {actionLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
+                                    Değişiklikleri Kaydet
+                                </RxButton>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Create User Modal (Sprint 4) */}
+            <RxModal
+                open={isCreateModalOpen}
+                onClose={() => setIsCreateModalOpen(false)}
+                title="Yeni Kullanıcı / Patron Oluştur"
+                footer={
+                    <>
+                        <RxButton variant="ghost" size="sm" onClick={() => setIsCreateModalOpen(false)} disabled={createLoading}>
+                            İptal
+                        </RxButton>
+                        <RxButton size="sm" onClick={handleCreateUser} disabled={createLoading}>
+                            {createLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
+                            Hesabı Oluştur
+                        </RxButton>
+                    </>
+                }
+            >
+                <div className="flex flex-col gap-4">
+                    <div className="rounded-lg bg-primary-light/50 p-3 text-sm text-primary-dark">
+                        Oluşturulan bu hesap doğrudan giriş yapabilir ve işletmelerde **Owner (Patron)** olarak atanabilir.
+                    </div>
+
+                    <RxInput
+                        label="Ad Soyad (*)"
+                        placeholder="Örn: Ahmet Yılmaz"
+                        value={createForm.name}
+                        onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
+                        disabled={createLoading}
+                    />
+                    <RxInput
+                        label="E-posta Adresi (*)"
+                        type="email"
+                        placeholder="Örn: ahmet@kuafor.com"
+                        value={createForm.email}
+                        onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
+                        disabled={createLoading}
+                    />
+                    <RxInput
+                        label="Sistem Şifresi (*)"
+                        type="password"
+                        placeholder="En az 6 karakter"
+                        value={createForm.password}
+                        onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
+                        disabled={createLoading}
+                    />
+                    <div className="text-[11px] text-muted-foreground">
+                        Not: Hesap açıldığında e-posta onayı beklenmeden direkt giriş yapılabilir.
+                    </div>
+                </div>
+            </RxModal>
         </div>
     )
 }

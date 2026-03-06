@@ -12,6 +12,7 @@ import {
   ArrowRight,
   Star,
   Loader2,
+  Heart,
 } from "lucide-react"
 import { RxButton } from "./rx-button"
 import { RxAvatar } from "./rx-avatar"
@@ -21,6 +22,7 @@ import { useParams, useRouter } from "next/navigation"
 import { useCurrentUser } from "@/hooks/use-current-user"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
+import { toggleFavoriteAction } from "@/app/actions/business.actions"
 
 // ─── Data Types ───────────────────────────────────────────────────────────────
 
@@ -33,6 +35,19 @@ interface Business {
   address: string
   phone: string
   logo_url?: string
+  description?: string
+  isFavorite?: boolean
+  averageRating?: number
+  reviewCount?: number
+}
+
+interface Review {
+  id: string
+  userName: string
+  avatarUrl?: string
+  rating: number
+  comment: string
+  createdAt: string
 }
 
 interface Service {
@@ -64,10 +79,12 @@ interface WorkingDay {
 
 function BusinessHeader({
   business,
-  todayInfo
+  todayInfo,
+  onToggleFavorite
 }: {
   business: Business
   todayInfo?: WorkingDay
+  onToggleFavorite: () => void
 }) {
   const initials = (business.name || "?").substring(0, 2).toUpperCase()
 
@@ -97,8 +114,18 @@ function BusinessHeader({
         <h1 className="text-xl font-semibold text-foreground">
           {business.name}
         </h1>
-        <div className="mt-1.5">
+        <div className="mt-1.5 flex items-center gap-3">
           <RxBadge variant="purple">{business.category || "Genel"}</RxBadge>
+          {business.averageRating && (
+            <div className="flex items-center gap-1 cursor-pointer hover:underline" onClick={() => {
+              const el = document.getElementById("reviews-section")
+              if (el) el.scrollIntoView({ behavior: 'smooth' })
+            }}>
+              <Star className="size-4 fill-yellow-400 text-yellow-400" />
+              <span className="text-sm font-bold">{business.averageRating}</span>
+              <span className="text-xs text-muted-foreground">({business.reviewCount} yorum)</span>
+            </div>
+          )}
         </div>
 
         {/* Info Row */}
@@ -135,6 +162,15 @@ function BusinessHeader({
           }}>
             <Phone className="size-4" />
             Ara
+          </RxButton>
+          <RxButton
+            variant="secondary"
+            size="md"
+            className={cn("gap-2", business.isFavorite && "text-red-500 border-red-200 bg-red-50")}
+            onClick={onToggleFavorite}
+          >
+            <Heart className={cn("size-4", business.isFavorite && "fill-current")} />
+            {business.isFavorite ? "Favorilerde" : "Favoriye Ekle"}
           </RxButton>
         </div>
       </div>
@@ -381,6 +417,51 @@ function WorkingHoursSection({ hours }: { hours: WorkingDay[] }) {
   )
 }
 
+// ─── Reviews Section ─────────────────────────────────────────────────────────────
+
+function ReviewsSection({ reviews }: { reviews: Review[] }) {
+  if (reviews.length === 0) return null
+
+  return (
+    <section id="reviews-section" className="px-4 sm:px-6 mt-4">
+      <h2 className="text-lg font-semibold text-foreground">Değerlendirmeler</h2>
+      <div className="mt-4 flex flex-col gap-4">
+        {reviews.map((review) => (
+          <div key={review.id} className="rounded-xl border border-border bg-card p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <RxAvatar name={review.userName} src={review.avatarUrl} size="sm" />
+                <div className="flex flex-col">
+                  <span className="text-sm font-semibold">{review.userName}</span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {new Date(review.createdAt).toLocaleDateString('tr-TR')}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-0.5">
+                {[...Array(5)].map((_, i) => (
+                  <Star
+                    key={i}
+                    className={cn(
+                      "size-3",
+                      i < review.rating ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground/30"
+                    )}
+                  />
+                ))}
+              </div>
+            </div>
+            {review.comment && (
+              <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
+                {review.comment}
+              </p>
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 // ─── Sticky Bottom Bar ──────────────────────────────────────────────────────────
 
 function StickyBottomBar({
@@ -435,6 +516,7 @@ export function BusinessProfile({ businessId: propBusinessId }: BusinessProfileP
   const [services, setServices] = useState<Service[]>([])
   const [staff, setStaff] = useState<StaffMember[]>([])
   const [workingHours, setWorkingHours] = useState<WorkingDay[]>([])
+  const [reviews, setReviews] = useState<Review[]>([])
 
   const { user } = useCurrentUser()
   const supabase = createClient()
@@ -453,11 +535,19 @@ export function BusinessProfile({ businessId: propBusinessId }: BusinessProfileP
             category: bData.category || "Genel",
             address: bData.address || "",
             phone: bData.phone || "",
-            logo_url: bData.logo_url
+            logo_url: bData.logo_url,
+            description: bData.description || "",
+            isFavorite: false
           })
         }
 
-        // 2. Are we connected?
+        // 2. Favorite status
+        if (user) {
+          const { data: fav } = await supabase.from("user_favorites").select("id").eq("business_id", businessId).eq("user_id", user.id).maybeSingle()
+          setBusiness(prev => prev ? { ...prev, isFavorite: !!fav } : null)
+        }
+
+        // 3. Are we connected?
         if (user) {
           const { data: conn } = await supabase.from("business_customers").select("id").eq("business_id", businessId).eq("user_id", user.id).maybeSingle()
           if (!conn) {
@@ -512,6 +602,34 @@ export function BusinessProfile({ businessId: propBusinessId }: BusinessProfileP
           })))
         }
 
+        // 6. Reviews
+        const { data: rData } = await supabase
+          .from("business_reviews")
+          .select("*, user:users(name, avatar_url)")
+          .eq("business_id", businessId)
+          .order("created_at", { ascending: false })
+
+        if (rData) {
+          const formattedReviews = rData.map(r => ({
+            id: r.id,
+            userName: r.user?.name || "Müşteri",
+            avatarUrl: r.user?.avatar_url,
+            rating: r.rating,
+            comment: r.comment,
+            createdAt: r.created_at
+          }))
+          setReviews(formattedReviews)
+
+          if (formattedReviews.length > 0) {
+            const avg = formattedReviews.reduce((sum, r) => sum + r.rating, 0) / formattedReviews.length
+            setBusiness(prev => prev ? {
+              ...prev,
+              averageRating: Number(avg.toFixed(1)),
+              reviewCount: formattedReviews.length
+            } : null)
+          }
+        }
+
       } catch (err) {
         console.error(err)
       } finally {
@@ -530,6 +648,20 @@ export function BusinessProfile({ businessId: propBusinessId }: BusinessProfileP
     })
   }
 
+  const handleToggleFavorite = async () => {
+    if (!user) {
+      toast.error("Favorilere eklemek için giriş yapmalısınız.")
+      return
+    }
+    const res = await toggleFavoriteAction(businessId)
+    if (res.success) {
+      setBusiness(prev => prev ? { ...prev, isFavorite: res.isFavorite } : null)
+      toast.success(res.isFavorite ? "Favorilere eklendi." : "Favorilerden çıkarıldı.")
+    } else {
+      toast.error(res.error || "Bir hata oluştu.")
+    }
+  }
+
   const handleConnectBusiness = async () => {
     if (!user || !businessId) return
     const { error } = await supabase.from("business_customers").insert({
@@ -544,6 +676,12 @@ export function BusinessProfile({ businessId: propBusinessId }: BusinessProfileP
     } else {
       toast?.error ? toast.error("Bir sorun olustu.") : alert("Hata oluştu.")
     }
+  }
+
+  const handleViewReviews = () => {
+    // This could open a new modal or scroll to reviews
+    const section = document.getElementById("reviews-section")
+    if (section) section.scrollIntoView({ behavior: 'smooth' })
   }
 
   const handleContinueToBooking = () => {
@@ -581,7 +719,21 @@ export function BusinessProfile({ businessId: propBusinessId }: BusinessProfileP
       <div className="mx-auto max-w-[720px]">
         <div className={cn("flex flex-col gap-6 pb-8", selectedServices.size > 0 && "pb-28")}>
           {/* Section 1 - Header */}
-          <BusinessHeader business={business} todayInfo={todayInfo} />
+          <BusinessHeader
+            business={business}
+            todayInfo={todayInfo}
+            onToggleFavorite={handleToggleFavorite}
+          />
+
+          {/* Business Description */}
+          {business.description && (
+            <section className="px-4 sm:px-6">
+              <h2 className="text-lg font-semibold text-foreground">Hakkında</h2>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">
+                {business.description}
+              </p>
+            </section>
+          )}
 
           {/* Section 2 - Connection Banner */}
           {showBanner && (
@@ -600,6 +752,9 @@ export function BusinessProfile({ businessId: propBusinessId }: BusinessProfileP
 
           {/* Section 5 - Working Hours */}
           <WorkingHoursSection hours={workingHours} />
+
+          {/* Section 6 - Reviews */}
+          <ReviewsSection reviews={reviews} />
         </div>
       </div>
 

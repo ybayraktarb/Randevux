@@ -6,15 +6,21 @@ import { RxButton } from "./rx-button"
 import { useCurrentUser } from "@/hooks/use-current-user"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
-import { Loader2, Save, Lock, User, Building2, Calendar, RefreshCw, Copy, QrCode, Download } from "lucide-react"
+import { logAuditAction } from "@/app/actions/audit.actions" // DEĞİŞTİRİLDİ
+import { Loader2, Save, Lock, User, Building2, Calendar, RefreshCw, Copy, QrCode, Download, Clock, CalendarOff, Plus, Trash2, ChevronDown } from "lucide-react"
 import QRCode from "react-qr-code"
+import {
+    addClosedDateAction, removeClosedDateAction, getClosedDatesAction,
+    upsertBusinessHoursAction, getBusinessHoursAction,
+    type BusinessHour,
+} from "@/app/actions/business-settings.actions"
 
 export function BusinessSettings() {
     const { user } = useCurrentUser()
     const supabase = createClient()
 
     const [loading, setLoading] = useState(true)
-    const [activeTab, setActiveTab] = useState<"business" | "appointment" | "profile">("business")
+    const [activeTab, setActiveTab] = useState<"business" | "appointment" | "profile" | "hours" | "closed">("business")
 
     // Business fields
     const [businessId, setBusinessId] = useState<string | null>(null)
@@ -77,7 +83,7 @@ export function BusinessSettings() {
 
     const handleSaveBusiness = async () => {
         if (!businessId) return
-        setSavingBiz(true)
+        console.log("[Settings] Saving business info for:", businessId, { bizName, qrCode })
         const { error } = await supabase.from("businesses").update({
             name: bizName, address: bizAddress || null, phone: bizPhone || null,
             description: bizDesc || null, logo_url: logoUrl || null,
@@ -85,11 +91,14 @@ export function BusinessSettings() {
         }).eq("id", businessId)
         setSavingBiz(false)
         if (error) {
-            toast?.error?.("İşletme bilgileri güncellenemedi. Girdiğiniz kod başkası tarafından kullanılıyor olabilir.")
+            console.error("[Settings] Save error:", error)
+            toast?.error?.("İşletme bilgileri güncellenemedi: " + error.message)
             return
         }
         // Audit
-        try { const { logAudit } = await import("@/lib/audit"); await logAudit(supabase, { userId: user!.id, action: "updated", targetTable: "businesses", targetId: businessId }) } catch { }
+        try {
+            await logAuditAction({ action: "updated", targetTable: "businesses", targetId: businessId })
+        } catch (err) { console.error("[Audit]", err) }
         toast?.success?.("Isletme bilgileri guncellendi!")
     }
 
@@ -108,7 +117,9 @@ export function BusinessSettings() {
         }).eq("id", businessId)
         setSavingAppt(false)
         if (error) { toast?.error?.("Ayarlar guncellenemedi."); return }
-        try { const { logAudit } = await import("@/lib/audit"); await logAudit(supabase, { userId: user!.id, action: "updated", targetTable: "businesses", targetId: businessId }) } catch { }
+        try {
+            await logAuditAction({ action: "updated", targetTable: "businesses", targetId: businessId })
+        } catch (err) { console.error("[Audit]", err) }
         toast?.success?.("Randevu ayarlari guncellendi!")
     }
 
@@ -118,12 +129,14 @@ export function BusinessSettings() {
         const { error } = await supabase.from("users").update({ name: profileName, phone: profilePhone || null }).eq("id", user.id)
         setSavingProfile(false)
         if (error) { toast?.error?.("Profil guncellenemedi."); return }
-        try { const { logAudit } = await import("@/lib/audit"); await logAudit(supabase, { userId: user!.id, action: "updated", targetTable: "users", targetId: user!.id }) } catch { }
+        try {
+            await logAuditAction({ action: "updated", targetTable: "users", targetId: user!.id })
+        } catch (err) { console.error("[Audit]", err) }
         toast?.success?.("Profil guncellendi!")
     }
 
     const handleChangePassword = async () => {
-        if (newPassword.length < 6) { toast?.error?.("Sifre en az 6 karakter olmali."); return }
+        if (newPassword.length < 8) { toast?.error?.("Şifre en az 8 karakter olmalı."); return }
         if (newPassword !== confirmPassword) { toast?.error?.("Sifreler uyusmuyor."); return }
         setChangingPw(true)
         const { error } = await supabase.auth.updateUser({ password: newPassword })
@@ -156,8 +169,10 @@ export function BusinessSettings() {
     if (loading) return <div className="flex items-center justify-center p-20"><Loader2 className="size-8 animate-spin text-primary" /></div>
 
     const tabs = [
-        { key: "business" as const, label: "Isletme Bilgileri", icon: Building2 },
-        { key: "appointment" as const, label: "Randevu Ayarlari", icon: Calendar },
+        { key: "business" as const, label: "İşletme", icon: Building2 },
+        { key: "hours" as const, label: "Çalışma Saatleri", icon: Clock },
+        { key: "closed" as const, label: "Kapalı Günler", icon: CalendarOff },
+        { key: "appointment" as const, label: "Randevu Ayarları", icon: Calendar },
         { key: "profile" as const, label: "Profil", icon: User },
     ]
 
@@ -168,7 +183,7 @@ export function BusinessSettings() {
             <h1 className="text-2xl font-semibold text-foreground">Ayarlar</h1>
 
             {/* Tab bar */}
-            <div className="flex gap-2 rounded-lg border border-border bg-card p-1">
+            <div className="flex gap-1 flex-wrap rounded-lg border border-border bg-card p-1">
                 {tabs.map(t => (
                     <button key={t.key} type="button" onClick={() => setActiveTab(t.key)} className={cn("flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors", activeTab === t.key ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-primary-light")}>
                         <t.icon className="size-4" />{t.label}
@@ -203,22 +218,35 @@ export function BusinessSettings() {
 
                         {/* QR Code / Custom Code Entry */}
                         <div className="flex flex-col gap-1.5 mt-2">
-                            <label className="text-sm font-medium text-foreground">İşletme Kodu (Örn: msn2026)</label>
+                            <label className="text-sm font-medium text-foreground">Özel İşletme Kodu (Örn: msn2026)</label>
                             <p className="text-xs text-muted-foreground">
-                                Müşterileriniz bu kodu girerek işletmenize katılabilir veya arayabilir. Özel bir kelime belirleyebilirsiniz (Benzersiz olmalıdır).
+                                Müşterileriniz bu kodu girerek işletmenize katılabilir. Benzersiz olmalıdır.
                             </p>
                             <div className="flex gap-2">
                                 <input
                                     type="text"
                                     value={qrCode}
-                                    onChange={e => setQrCode(e.target.value.replace(/\s+/g, ''))}
-                                    className={cn(inputClass, "flex-1 font-mono text-sm")}
+                                    onChange={e => setQrCode(e.target.value.replace(/\s+/g, '').toUpperCase())}
+                                    className={cn(inputClass, "flex-1 font-mono text-sm uppercase")}
                                     placeholder="Kendi kodunuzu girin..."
                                 />
                                 <button type="button" onClick={() => { navigator.clipboard.writeText(qrCode); toast?.success?.("Kopyalandı!") }} className="flex h-10 items-center gap-1.5 rounded-lg border border-input bg-card px-3 text-sm text-muted-foreground hover:text-foreground transition-colors" title="Kopyala">
                                     <Copy className="size-4" />
                                 </button>
-                                <button type="button" onClick={() => setQrCode(crypto.randomUUID().slice(0, 8).toUpperCase())} className="flex h-10 items-center gap-1.5 rounded-lg border border-input bg-card px-3 text-sm text-muted-foreground hover:text-foreground transition-colors" title="Yeni Rastgele Kod Üret">
+                            </div>
+                        </div>
+
+                        {/* System Invite Code (Read-only Backup) */}
+                        <div className="flex flex-col gap-1.5 mt-2 opacity-80">
+                            <label className="text-xs font-medium text-muted-foreground">Sistem Davet Kodu (Yedek)</label>
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={inviteCode}
+                                    readOnly
+                                    className={cn(inputClass, "flex-1 font-mono text-xs bg-muted cursor-not-allowed")}
+                                />
+                                <button type="button" onClick={handleRefreshInviteCode} className="flex h-10 items-center justify-center rounded-lg border border-input bg-card px-3 text-muted-foreground hover:text-foreground transition-colors" title="Yeni Kod Üret">
                                     <RefreshCw className="size-4" />
                                 </button>
                             </div>
@@ -309,7 +337,7 @@ export function BusinessSettings() {
                         <div className="flex flex-col gap-4 max-w-md">
                             <div className="flex flex-col gap-1.5">
                                 <label className="text-sm font-medium text-foreground">Yeni Sifre</label>
-                                <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className={inputClass} placeholder="En az 6 karakter" />
+                                <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className={inputClass} placeholder="En az 8 karakter" />
                             </div>
                             <div className="flex flex-col gap-1.5">
                                 <label className="text-sm font-medium text-foreground">Sifre Tekrar</label>
@@ -320,6 +348,215 @@ export function BusinessSettings() {
                             </RxButton>
                         </div>
                     </div>
+                </div>
+            )}
+            {activeTab === "hours" && businessId && (
+                <BusinessHoursTab businessId={businessId} />
+            )}
+
+            {activeTab === "closed" && businessId && (
+                <ClosedDatesTab businessId={businessId} />
+            )}
+        </div>
+    )
+}
+
+// ─── Business Hours Tab ─────────────────────────────────────────────────────
+
+const DAYS_TR = [
+    { key: 1, label: "Pazartesi" }, { key: 2, label: "Salı" }, { key: 3, label: "Çarşamba" },
+    { key: 4, label: "Perşembe" }, { key: 5, label: "Cuma" }, { key: 6, label: "Cumartesi" }, { key: 0, label: "Pazar" },
+]
+
+function BusinessHoursTab({ businessId }: { businessId: string }) {
+    const defaultHours: BusinessHour[] = DAYS_TR.map(d => ({
+        day_of_week: d.key,
+        open_time: "09:00",
+        close_time: "18:00",
+        is_open: d.key !== 0,
+    }))
+    const [hours, setHours] = useState<BusinessHour[]>(defaultHours)
+    const [loading, setLoading] = useState(true)
+    const [saving, setSaving] = useState(false)
+
+    useEffect(() => {
+        async function load() {
+            const res = await getBusinessHoursAction(businessId)
+            if (res.success && res.data.length > 0) {
+                const merged = defaultHours.map(def => {
+                    const found = res.data.find(h => h.day_of_week === def.day_of_week)
+                    return found ? { ...def, ...found } : def
+                })
+                setHours(merged)
+            }
+            setLoading(false)
+        }
+        load()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [businessId])
+
+    function updateHour(dayKey: number, field: keyof BusinessHour, value: any) {
+        setHours(prev => prev.map(h => h.day_of_week === dayKey ? { ...h, [field]: value } : h))
+    }
+
+    async function save() {
+        setSaving(true)
+        const res = await upsertBusinessHoursAction(businessId, hours)
+        if (res.success) toast.success("Çalışma saatleri kaydedildi.")
+        else toast.error(res.error?.message || "Hata")
+        setSaving(false)
+    }
+
+    if (loading) return <div className="flex justify-center py-12"><Loader2 className="size-6 animate-spin text-primary" /></div>
+
+    return (
+        <div className="rounded-xl border border-border bg-card p-6 shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
+            <div className="flex items-center justify-between mb-5">
+                <div>
+                    <h2 className="text-lg font-semibold text-foreground">İşletme Çalışma Saatleri</h2>
+                    <p className="text-xs text-muted-foreground mt-0.5">İşletmenizin genel açılış-kapanış saatlerini ayarlayın.</p>
+                </div>
+                <RxButton onClick={save} loading={saving} size="sm">
+                    <Save className="size-3.5" /> Kaydet
+                </RxButton>
+            </div>
+            <div className="flex flex-col gap-2">
+                {DAYS_TR.map(day => {
+                    const h = hours.find(x => x.day_of_week === day.key)!
+                    return (
+                        <div key={day.key} className={cn("flex items-center gap-3 rounded-lg border px-4 py-2.5 transition-all", h.is_open ? "border-border bg-card" : "border-dashed border-border/60 bg-muted/30 opacity-60")}>
+                            <button
+                                onClick={() => updateHour(day.key, "is_open", !h.is_open)}
+                                className={cn("relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors", h.is_open ? "bg-primary" : "bg-muted-foreground/40")}
+                            >
+                                <span className={cn("inline-block size-3.5 rounded-full bg-white shadow transition-transform", h.is_open ? "translate-x-4" : "translate-x-0.5")} />
+                            </button>
+                            <span className="w-24 text-sm font-medium text-foreground">{day.label}</span>
+                            {h.is_open ? (
+                                <div className="ml-auto flex items-center gap-2">
+                                    <input type="time" value={h.open_time} onChange={e => updateHour(day.key, "open_time", e.target.value)}
+                                        className="h-8 rounded-md border border-input bg-card px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+                                    <span className="text-muted-foreground text-xs">—</span>
+                                    <input type="time" value={h.close_time} onChange={e => updateHour(day.key, "close_time", e.target.value)}
+                                        className="h-8 rounded-md border border-input bg-card px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+                                </div>
+                            ) : (
+                                <span className="ml-auto text-xs text-muted-foreground">Kapalı</span>
+                            )}
+                        </div>
+                    )
+                })}
+            </div>
+        </div>
+    )
+}
+
+// ─── Closed Dates Tab ───────────────────────────────────────────────────────
+
+type ClosedDate = { id: string; date: string; reason: string | null }
+
+function ClosedDatesTab({ businessId }: { businessId: string }) {
+    const [dates, setDates] = useState<ClosedDate[]>([])
+    const [loading, setLoading] = useState(true)
+    const [saving, setSaving] = useState(false)
+    const [deletingId, setDeletingId] = useState<string | null>(null)
+    const today = new Date().toISOString().split("T")[0]
+    const [form, setForm] = useState({ date: today, reason: "" })
+
+    const load = useCallback(async () => {
+        setLoading(true)
+        const res = await getClosedDatesAction(businessId)
+        setDates(res.data as ClosedDate[])
+        setLoading(false)
+    }, [businessId])
+
+    useEffect(() => { load() }, [load])
+
+    async function handleAdd() {
+        if (!form.date) { toast.error("Tarih seçin."); return }
+        setSaving(true)
+        const res = await addClosedDateAction(businessId, form.date, form.reason || undefined)
+        if (res.success) {
+            toast.success("Kapalı gün eklendi.")
+            setForm({ date: today, reason: "" })
+            load()
+        } else {
+            toast.error(res.error?.message || "Bu tarih zaten kapalı günler listesinde.")
+        }
+        setSaving(false)
+    }
+
+    async function handleDelete(id: string) {
+        setDeletingId(id)
+        const res = await removeClosedDateAction(id)
+        if (res.success) {
+            toast.success("Kapalı gün silindi.")
+            setDates(prev => prev.filter(d => d.id !== id))
+        } else {
+            toast.error(res.error?.message || "Hata")
+        }
+        setDeletingId(null)
+    }
+
+    return (
+        <div className="rounded-xl border border-border bg-card p-6 shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
+            <div className="mb-5">
+                <h2 className="text-lg font-semibold text-foreground">İşletme Kapalı Günleri</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">Belirlediğiniz günlerde müşterilerin randevu alması engellenir.</p>
+            </div>
+
+            {/* Add form */}
+            <div className="flex items-end gap-3 flex-wrap mb-6 p-4 bg-muted/40 rounded-lg border border-dashed border-border">
+                <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">Tarih</label>
+                    <input
+                        type="date" value={form.date} min={today}
+                        onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
+                        className="h-9 rounded-md border border-input bg-card px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                </div>
+                <div className="flex flex-col gap-1.5 flex-1 min-w-[160px]">
+                    <label className="text-xs font-medium text-muted-foreground">Açıklama (Opsiyonel)</label>
+                    <input
+                        type="text" value={form.reason}
+                        onChange={e => setForm(f => ({ ...f, reason: e.target.value }))}
+                        placeholder="Örn: Ulusal tatil, tadilat..."
+                        className="h-9 rounded-md border border-input bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                </div>
+                <RxButton size="sm" onClick={handleAdd} loading={saving}>
+                    <Plus className="size-3.5" /> Ekle
+                </RxButton>
+            </div>
+
+            {/* List */}
+            {loading ? (
+                <div className="flex justify-center py-8"><Loader2 className="size-5 animate-spin text-primary" /></div>
+            ) : dates.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-border bg-muted/20 py-10 text-center">
+                    <CalendarOff className="size-8 mx-auto text-muted-foreground/40 mb-2" />
+                    <p className="text-sm text-muted-foreground">Henüz kapalı gün tanımlanmadı.</p>
+                </div>
+            ) : (
+                <div className="flex flex-col gap-2">
+                    {dates.map(d => (
+                        <div key={d.id} className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3">
+                            <CalendarOff className="size-4 text-muted-foreground shrink-0" />
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-foreground">
+                                    {new Date(d.date + "T00:00:00").toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                                </p>
+                                {d.reason && <p className="text-xs text-muted-foreground mt-0.5">{d.reason}</p>}
+                            </div>
+                            <button
+                                onClick={() => handleDelete(d.id)}
+                                disabled={deletingId === d.id}
+                                className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-badge-red-bg rounded-md transition-colors"
+                            >
+                                {deletingId === d.id ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                            </button>
+                        </div>
+                    ))}
                 </div>
             )}
         </div>

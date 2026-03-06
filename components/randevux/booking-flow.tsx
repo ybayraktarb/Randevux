@@ -24,6 +24,10 @@ import { useSearchParams, useRouter } from "next/navigation"
 import { useCurrentUser } from "@/hooks/use-current-user"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
+import { createNotificationAction } from "@/app/actions/notification.actions"
+import { logAuditAction } from "@/app/actions/audit.actions"
+import { getAvailableSlotsAction, type TimeSlot } from "@/app/actions/availability.actions"
+import { getFamilyProfilesAction } from "@/app/actions/family.actions"
 
 // ─── TYPES ───
 
@@ -43,10 +47,7 @@ interface Staff {
   serviceIds: string[]
 }
 
-interface TimeSlot {
-  time: string
-  status: "available" | "booked" | "break"
-}
+// TimeSlot interface removed (imported from availability.actions)
 
 interface WorkingSchedule {
   day_of_week: number
@@ -468,6 +469,8 @@ function StepDateTime({
 
   const isPast = (d: Date) => d < today
 
+  const isToday = isSameDay(selectedDate, today)
+
   const prevMonth = () => {
     if (viewMonth === 0) {
       setViewMonth(11)
@@ -612,6 +615,9 @@ function StepSummary({
   selectedTime,
   note,
   onNoteChange,
+  familyProfiles,
+  selectedFamilyId,
+  onFamilySelect,
 }: {
   businessName: string
   services: Service[]
@@ -622,6 +628,9 @@ function StepSummary({
   selectedTime: string | null
   note: string
   onNoteChange: (v: string) => void
+  familyProfiles: any[]
+  selectedFamilyId: string | null
+  onFamilySelect: (id: string | null) => void
 }) {
   const selectedSvcs = services.filter((s) => selectedServices.includes(s.id))
   const totalPrice = selectedSvcs.reduce((acc, s) => acc + s.price, 0)
@@ -656,6 +665,42 @@ function StepSummary({
             </p>
           </div>
         </div>
+
+        {/* Kimin İçin? (Family Selection) */}
+        {familyProfiles.length > 0 && (
+          <div className="p-4 bg-primary/5 border-l-4 border-primary">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+              Kimin İçin Randevu Alıyorsunuz?
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => onFamilySelect(null)}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-xs font-medium border transition-all",
+                  selectedFamilyId === null
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background border-border text-foreground hover:bg-muted"
+                )}
+              >
+                Kendim İçin
+              </button>
+              {familyProfiles.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => onFamilySelect(p.id)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg text-xs font-medium border transition-all",
+                    selectedFamilyId === p.id
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background border-border text-foreground hover:bg-muted"
+                  )}
+                >
+                  {p.full_name} ({p.relationship})
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Services */}
         <div className="p-4 flex flex-col gap-2">
@@ -717,21 +762,36 @@ function StepSummary({
 }
 
 function SuccessState({ router }: { router: any }) {
+  useEffect(() => {
+    // Proactive WOW factor: Confetti on success
+    import("canvas-confetti").then((confetti) => {
+      confetti.default({
+        particleCount: 150,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ["#7C3AED", "#A78BFA", "#F59E0B"]
+      })
+    })
+  }, [])
+
   return (
-    <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-      <div className="size-20 rounded-full bg-primary flex items-center justify-center mb-6 animate-[scaleIn_0.4s_ease-out]">
-        <CheckCircle2 className="size-10 text-primary-foreground" />
+    <div className="flex flex-col items-center justify-center py-12 px-4 text-center animate-in fade-in zoom-in duration-500">
+      <div className="size-24 rounded-full bg-primary/10 flex items-center justify-center mb-6 relative">
+        <div className="absolute inset-0 rounded-full bg-primary animate-ping opacity-20" />
+        <CheckCircle2 className="size-12 text-primary relative z-10" />
       </div>
-      <h2 className="text-[22px] font-semibold text-foreground mb-2">
-        Randevunuz Olusturuldu!
+      <h2 className="text-2xl font-bold text-foreground mb-3">
+        Randevunuz Alındı! 🎊
       </h2>
-      <p className="text-[13px] text-muted-foreground mb-8">
-        Randevu durumunuzu randevularınızdan takip edebilirsiniz.
+      <p className="text-sm text-muted-foreground mb-10 max-w-[280px]">
+        Harika! Randevunuz başarıyla oluşturuldu. Detayları aşağıdan kontrol edebilirsiniz.
       </p>
       <div className="flex flex-col gap-3 w-full max-w-xs">
-        <RxButton className="w-full" onClick={() => router.push("/randevularim")}>Randevularimi Goruntule</RxButton>
-        <RxButton variant="ghost" className="w-full" onClick={() => router.push("/musteri-panel")}>
-          Ana Sayfaya Don
+        <RxButton className="w-full h-12 text-base shadow-lg shadow-primary/20" onClick={() => router.push("/randevularim")}>
+          Randevularımı Görüntüle
+        </RxButton>
+        <RxButton variant="ghost" className="w-full h-12 text-base" onClick={() => router.push("/musteri-panel")}>
+          Ana Sayfaya Dön
         </RxButton>
       </div>
     </div>
@@ -764,6 +824,8 @@ function BookingFlowInner() {
   })
   const [selectedTime, setSelectedTime] = useState<string | null>(null)
   const [note, setNote] = useState("")
+  const [familyProfiles, setFamilyProfiles] = useState<any[]>([])
+  const [selectedFamilyId, setSelectedFamilyId] = useState<string | null>(null)
 
   // Time slot data
   const [fetchStatus, setFetchStatus] = useState<"idle" | "loading" | "done">("idle")
@@ -788,14 +850,18 @@ function BookingFlowInner() {
     async function loadData() {
       if (!businessId) return
       try {
-        const [bRes, sRes, stRes, staffSvcRes] = await Promise.all([
+        const [bRes, sRes, stRes, staffSvcRes, familyRes] = await Promise.all([
           supabase.from("businesses").select("name").eq("id", businessId).single(),
           supabase.from("services").select("*").eq("business_id", businessId).eq("is_active", true),
           supabase.from("staff_business").select("*, user:users(name, title)").eq("business_id", businessId).eq("is_active", true),
-          supabase.from("staff_services").select("*").eq("is_active", true)
+          supabase.from("staff_services").select("*").eq("is_active", true),
+          getFamilyProfilesAction()
         ])
 
         if (bRes.data) setBusinessName(bRes.data.name)
+        if (typeof familyRes !== "undefined" && "success" in (familyRes as any) && (familyRes as any).success) {
+          setFamilyProfiles((familyRes as any).data || [])
+        }
 
         const fetchedServices: Service[] = (sRes.data || []).map(s => ({
           id: s.id,
@@ -848,114 +914,25 @@ function BookingFlowInner() {
     setFetchStatus("loading")
     setSelectedTime(null)
 
-    // We will analyze the chosen date
     const ymd = dateToYMD(selectedDate)
-    const dayOfWeek = selectedDate.getDay() // 0-6 JS (Sunday=0)
-
-    // Total needed duration
-    const totalDuration = selectedServices.reduce((sum, sId) => {
-      const s = services.find(x => x.id === sId)
-      return sum + (s?.duration || 0)
-    }, 0)
 
     try {
-      // Are we closed globally?
-      const { data: closed } = await supabase.from("business_closed_dates").select("id").eq("business_id", businessId).eq("date", ymd).maybeSingle()
-      if (closed) {
-        setTimeSlots([])
-        setFetchStatus("done")
-        return
-      }
-
-      // We need to resolve which staff to check. If ANY, we fetch all capable staff and aggregate slots.
-      let checkStaffIds: string[] = []
-      if (selectedStaff === "ANY") {
-        checkStaffIds = staffList.filter(st => selectedServices.every(sId => st.serviceIds.includes(sId))).map(s => s.id)
-      } else {
-        checkStaffIds = [selectedStaff!]
-      }
-
-      if (checkStaffIds.length === 0) {
-        setTimeSlots([])
-        setFetchStatus("done")
-        return
-      }
-
-      // Fetch work templates, breaks, and appointments for these staff members
-      const [worksRes, breaksRes, aptsRes] = await Promise.all([
-        supabase.from("work_schedule_templates").select("*").in("staff_business_id", checkStaffIds).eq("day_of_week", dayOfWeek),
-        supabase.from("break_schedules").select("*").in("staff_business_id", checkStaffIds).eq("day_of_week", dayOfWeek),
-        supabase.from("appointments").select("staff_business_id, start_time, end_time").in("staff_business_id", checkStaffIds).eq("appointment_date", ymd).not("status", "eq", "cancelled").not("status", "eq", "no_show")
-      ])
-
-      const works = worksRes.data || []
-      const breaks = breaksRes.data || []
-      const apts = aptsRes.data || []
-      const nowMs = new Date().getTime()
-
-      // Calculate availability:
-      // We will generate 30-min block slots starting from earliest work time.
-      let earliestWork = 24 * 60
-      let latestWork = 0
-      works.forEach(w => {
-        if (!w.is_working) return
-        earliestWork = Math.min(earliestWork, parseTime(w.start_time))
-        latestWork = Math.max(latestWork, parseTime(w.end_time))
+      const res = await getAvailableSlotsAction({
+        businessId: businessId!,
+        date: ymd,
+        staffBusinessId: selectedStaff!,
+        serviceIds: selectedServices,
       })
 
-      if (earliestWork >= latestWork) {
+      if (res.success && res.slots) {
+        setTimeSlots(res.slots)
+      } else {
+        toast.error(res.error || "Müsait saatler alınamadı.")
         setTimeSlots([])
-        setFetchStatus("done")
-        return
       }
-
-      // To simplify ANY, a time slot is available if AT LEAST ONE staff member is completely free for duration.
-      // We evaluate slot by slot.
-      const slots: TimeSlot[] = []
-      for (let time = earliestWork; time + totalDuration <= latestWork; time += 30) {
-
-        let isSlotAvailableForAtLeastOne = false
-
-        // Skip past times if today
-        const slotDateStr = `${ymd}T${formatTime(time)}:00`
-        if (new Date(slotDateStr).getTime() < nowMs) {
-          continue // slot in past
-        }
-
-        for (const sId of checkStaffIds) {
-          const staffWork = works.find(w => w.staff_business_id === sId)
-          if (!staffWork || !staffWork.is_working) continue
-
-          const wStart = parseTime(staffWork.start_time)
-          const wEnd = parseTime(staffWork.end_time)
-
-          if (time < wStart || time + totalDuration > wEnd) continue
-
-          const sBreaks = breaks.filter(b => b.staff_business_id === sId)
-          const sApts = apts.filter(a => a.staff_business_id === sId)
-
-          // Check collision with breaks
-          const hitBreak = sBreaks.some(b => isOverlap(time, time + totalDuration, parseTime(b.start_time), parseTime(b.end_time)))
-          if (hitBreak) continue
-
-          // Check collision with appointments
-          const hitApt = sApts.some(a => isOverlap(time, time + totalDuration, parseTime(a.start_time), parseTime(a.end_time)))
-          if (hitApt) continue
-
-          // Staff is available!
-          isSlotAvailableForAtLeastOne = true
-          break
-        }
-
-        slots.push({
-          time: formatTime(time),
-          status: isSlotAvailableForAtLeastOne ? "available" : "booked"
-        })
-      }
-
-      setTimeSlots(slots)
     } catch (e) {
       console.error(e)
+      setTimeSlots([])
     } finally {
       setFetchStatus("done")
     }
@@ -1035,8 +1012,8 @@ function BookingFlowInner() {
         .select("id")
         .eq("staff_business_id", assignedStaffId)
         .eq("appointment_date", ymd)
-        .not("status", "eq", "cancelled")
-        .not("status", "eq", "no_show")
+        .not("status", "eq", "İptal")
+        .not("status", "eq", "Gelmedi")
 
       // Check overlap
       const tStart = parseTime(selectedTime)
@@ -1067,10 +1044,11 @@ function BookingFlowInner() {
         business_id: businessId,
         customer_user_id: user.id,
         staff_business_id: assignedStaffId,
+        family_profile_id: selectedFamilyId, // EKLENDI
         appointment_date: ymd,
         start_time: startTimeStr,
         end_time: endTimeStr,
-        status: "pending",
+        status: "Bekliyor",
         total_price: totalPrice,
         total_duration_minutes: totalDuration,
         customer_note: note
@@ -1095,25 +1073,26 @@ function BookingFlowInner() {
 
       // Notify staff and business owner
       try {
-        const { createNotification } = await import("@/lib/notifications")
+        // KALDIRILDI: const { createNotification } = await import("@/lib/notifications")
         const dateLabel = `${ymd}`
         const timeLabel = selectedTime
         // Get staff user_id
         const { data: sbData } = await supabase.from("staff_business").select("user_id, business_id").eq("id", assignedStaffId).maybeSingle()
         if (sbData?.user_id) {
-          await createNotification(supabase, { userId: sbData.user_id, type: "appointment_created", title: "Yeni randevu talebi", body: `${dateLabel} tarihinde saat ${timeLabel} icin yeni bir randevu`, relatedId: aptData.id, relatedType: "appointment" })
+          await createNotificationAction({ userId: sbData.user_id, type: "appointment_created", title: "Yeni randevu talebi", body: `${dateLabel} tarihinde saat ${timeLabel} icin yeni bir randevu`, relatedId: aptData.id, relatedType: "appointment" })
         }
         // Get business owner user_id
         if (sbData?.business_id) {
           const { data: ownerData } = await supabase.from("business_owners").select("user_id").eq("business_id", sbData.business_id).maybeSingle()
           if (ownerData?.user_id && ownerData.user_id !== sbData.user_id) {
-            await createNotification(supabase, { userId: ownerData.user_id, type: "appointment_created", title: "Yeni randevu talebi", body: `${dateLabel} tarihinde saat ${timeLabel} icin yeni bir randevu`, relatedId: aptData.id, relatedType: "appointment" })
+            await createNotificationAction({ userId: ownerData.user_id, type: "appointment_created", title: "Yeni randevu talebi", body: `${dateLabel} tarihinde saat ${timeLabel} icin yeni bir randevu`, relatedId: aptData.id, relatedType: "appointment" })
           }
         }
       } catch (e) { console.error("[Notification]", e) }
 
-      // Audit
-      try { const { logAudit } = await import("@/lib/audit"); await logAudit(supabase, { userId: user.id, action: "created", targetTable: "appointments", targetId: aptData.id }) } catch { }
+      try {
+        await logAuditAction({ action: "created", targetTable: "appointments", targetId: aptData.id })
+      } catch (err) { console.error("[Audit]", err) }
 
       setSuccess(true)
       setPreviewStep(4)
@@ -1180,6 +1159,9 @@ function BookingFlowInner() {
                 selectedTime={selectedTime}
                 note={note}
                 onNoteChange={setNote}
+                familyProfiles={familyProfiles}
+                selectedFamilyId={selectedFamilyId}
+                onFamilySelect={setSelectedFamilyId}
               />
             )}
             {previewStep === 4 && <SuccessState router={router} />}

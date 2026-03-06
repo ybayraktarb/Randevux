@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import * as Sentry from "@sentry/nextjs"
 
 interface WebhookPayload {
     type: 'INSERT' | 'UPDATE' | 'DELETE'
@@ -34,16 +35,16 @@ export async function POST(request: Request) {
 
             if (newStatus !== oldStatus) {
                 shouldSendEmail = true
-                if (newStatus === 'confirmed') {
+                if (newStatus === 'Onaylandı') {
                     emailSubject = 'Randevunuz Onaylandi'
                     emailBody = `Randevunuz onaylandi! Sizi ${record.appointment_date} saat ${record.start_time}'da bekliyoruz.`
-                } else if (newStatus === 'cancelled') {
+                } else if (newStatus === 'İptal') {
                     emailSubject = 'Randevunuz Iptal Edildi'
                     emailBody = `Randevunuz iptal edildi.`
-                } else if (newStatus === 'completed') {
+                } else if (newStatus === 'Tamamlandı') {
                     emailSubject = 'Bizi Tercih Ettiginiz Icin Tesekkurler'
                     emailBody = `Randevunuz tamamlandi. Tekrar gorusmek uzere!`
-                } else if (newStatus === 'no_show') {
+                } else if (newStatus === 'Gelmedi') {
                     emailSubject = 'Randevunuza Katilmadiniz'
                     emailBody = `Randevunuza katilim saglamadiginizi fark ettik. Yeni bir randevu icin lutfen sistemimizi kullanin.`
                 } else {
@@ -66,6 +67,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: true, message: 'Webhook processed' }, { status: 200 })
     } catch (error) {
         console.error('Webhook islenirken hata olustu:', error)
+        Sentry.captureException(error)
         return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 })
     }
 }

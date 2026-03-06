@@ -3,8 +3,9 @@ import { test, expect } from "@playwright/test"
 test.describe("Login Page", () => {
     test("should display login form", async ({ page }) => {
         await page.goto("/login")
-        await expect(page.locator("text=Giris Yap")).toBeVisible()
+        await expect(page.getByRole("button", { name: "Giris Yap" })).toBeVisible()
     })
+
 
     test("should show error on empty form submit", async ({ page }) => {
         await page.goto("/login")

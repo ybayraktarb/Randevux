@@ -1,0 +1,58 @@
+▲ Next.js 16.1.6 (webpack)
+- Environments: .env.local
+- Experiments (use with caution):
+  · clientTraceMetadata
+
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+[@sentry/nextjs] DEPRECATION WARNING: It is recommended renaming your `sentry.client.config.ts` file, or moving its content to `instrumentation-client.ts`. When using Turbopack `sentry.client.config.ts` will no longer work. Read more about the `instrumentation-client.ts` file: https://nextjs.org/docs/app/api-reference/file-conventions/instrumentation-client
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (188kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (139kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (133kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+✓ Compiled successfully in 36.4s
+  Running TypeScript ...
+  Collecting page data using 7 workers ...
+  Generating static pages using 7 workers (0/27) ...
+  Generating static pages using 7 workers (6/27) 
+  Generating static pages using 7 workers (13/27) 
+  Generating static pages using 7 workers (20/27) 
+✓ Generating static pages using 7 workers (27/27) in 273.0ms
+  Finalizing page optimization ...
+  Collecting build traces ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ○ /admin-dashboard
+├ ƒ /api/sentry-example-api
+├ ƒ /api/webhooks/supabase
+├ ƒ /auth/callback
+├ ○ /ayarlar
+├ ○ /forgot-password
+├ ○ /hizmetler
+├ ○ /isletme
+├ ƒ /isletme/[id]
+├ ○ /izin
+├ ○ /login
+├ ○ /musteri-panel
+├ ○ /musteriler
+├ ○ /patron-dashboard
+├ ○ /personel
+├ ○ /personel-ayarlar
+├ ○ /personel-panel
+├ ○ /personel-randevular
+├ ○ /profil
+├ ○ /randevu-al
+├ ○ /randevular
+├ ○ /randevularim
+├ ○ /register
+├ ○ /reset-password
+├ ○ /sentry-example-page
+└ ○ /takvim
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

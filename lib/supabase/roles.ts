@@ -46,7 +46,7 @@ export async function getUserRole(
 export function getDashboardPath(role: UserRole): string {
     const paths: Record<UserRole, string> = {
         super_admin: "/admin-dashboard",
-        patron: "/dashboard",
+        patron: "/patron-dashboard",
         personel: "/personel-panel",
         musteri: "/musteri-panel",
     }

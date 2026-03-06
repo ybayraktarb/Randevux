@@ -16,6 +16,8 @@ import {
   Repeat,
   Loader2,
   Save,
+  Clock,
+  Check,
 } from "lucide-react"
 import { RxAvatar } from "./rx-avatar"
 import { RxBadge } from "./rx-badge"
@@ -24,15 +26,18 @@ import { RxModal } from "./rx-modal"
 import { RxInput } from "./rx-input"
 import { createClient } from "@/lib/supabase/client"
 import { useCurrentUser } from "@/hooks/use-current-user"
+import { updateAppointmentStatusAction } from "@/app/actions/appointment.actions"
+import { toast } from "sonner"
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
 
 interface Appointment {
+  id?: string
   start: string
   end: string
   customer: string
   service: string
-  status?: "confirmed" | "pending" | "completed"
+  status?: "Onaylandı" | "Bekliyor" | "Tamamlandı" | "İptal" | "Gelmedi"
   isBreak?: boolean
   isOffHours?: boolean
 }
@@ -93,12 +98,17 @@ function AppointmentPopover({
   apt,
   position,
   onClose,
+  businessId,
+  onRefresh,
 }: {
   apt: Appointment
   position: { top: number; left: number }
   onClose: () => void
+  businessId: string
+  onRefresh: () => void
 }) {
   const popoverRef = useRef<HTMLDivElement>(null)
+  const [updating, setUpdating] = useState(false)
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -110,24 +120,64 @@ function AppointmentPopover({
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [onClose])
 
+  const handleAction = async (status: any) => {
+    if (!apt.id || !businessId) return
+    setUpdating(true)
+    try {
+      const res = await updateAppointmentStatusAction(apt.id, status, businessId)
+      if (res.success) {
+        toast.success("Randevu durumu güncellendi.")
+        onRefresh()
+        onClose()
+      } else {
+        toast.error(res.error || "Hata oluştu.")
+      }
+    } finally {
+      setUpdating(false)
+    }
+  }
+
   return (
     <div
       ref={popoverRef}
-      className="absolute z-30 w-56 rounded-xl border border-border bg-card p-4 shadow-lg"
+      className="absolute z-30 w-64 rounded-xl border border-border bg-card p-4 shadow-lg animate-in fade-in zoom-in-95 duration-200"
       style={{ top: position.top, left: position.left }}
     >
-      <div className="flex flex-col gap-2">
-        <p className="text-sm font-semibold text-foreground">{apt.customer}</p>
-        <p className="text-[13px] text-muted-foreground">{apt.service}</p>
-        <p className="text-[13px] text-muted-foreground">{apt.start} - {apt.end}</p>
+      <div className="flex flex-col gap-3">
+        <div className="flex items-start justify-between">
+          <div className="flex flex-col">
+            <p className="text-sm font-semibold text-foreground">{apt.customer}</p>
+            <p className="text-[12px] text-muted-foreground">{apt.service}</p>
+          </div>
+          <button onClick={onClose} className="rounded-md p-0.5 text-muted-foreground hover:bg-muted"><X className="size-3.5" /></button>
+        </div>
+
+        <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
+          <Clock className="size-3.5" />
+          {apt.start} - {apt.end}
+        </div>
+
         {apt.status && (
-          <RxBadge variant={apt.status === "completed" ? "success" : apt.status === "pending" ? "warning" : "success"}>
-            {apt.status === "completed" ? "Tamamlandi" : apt.status === "pending" ? "Bekliyor" : "Onaylandi"}
+          <RxBadge variant={apt.status === "Tamamlandı" ? "purple" : apt.status === "Bekliyor" ? "warning" : apt.status === "Gelmedi" ? "danger" : "success"}>
+            {apt.status === "Bekliyor" ? "Bekliyor" : apt.status === "Onaylandı" ? "Onaylandı" : apt.status === "Tamamlandı" ? "Tamamlandı" : "No-Show"}
           </RxBadge>
         )}
-        <div className="mt-1 flex items-center gap-2">
-          <RxButton size="sm" variant="primary">Detay Gor</RxButton>
-          <RxButton size="sm" variant="danger">Iptal Et</RxButton>
+
+        <div className="my-1 h-px bg-border" />
+
+        <div className="grid grid-cols-2 gap-2">
+          {apt.status === "Bekliyor" && (
+            <RxButton size="sm" variant="primary" className="col-span-2" onClick={() => handleAction("Onaylandı")} disabled={updating}>
+              {updating ? <Loader2 className="size-3 animate-spin" /> : <Check className="size-3.5" />}
+              Onayla
+            </RxButton>
+          )}
+          <RxButton size="sm" variant="ghost" className="text-accent hover:bg-badge-red-bg" onClick={() => handleAction("Gelmedi")} disabled={updating}>
+            No-Show
+          </RxButton>
+          <RxButton size="sm" variant="ghost" className="text-accent hover:bg-badge-red-bg" onClick={() => handleAction("İptal")} disabled={updating}>
+            Iptal Et
+          </RxButton>
         </div>
       </div>
     </div>
@@ -162,7 +212,7 @@ function SlotTooltip({ position, onClose }: { position: { top: number; left: num
 
 // ─── Week View Calendar ─────────────────────────────────────────────────────────
 
-function WeekViewCalendar({ staffFilter, staffData }: { staffFilter: string; staffData: StaffCalendarData[] }) {
+function WeekViewCalendar({ staffFilter, staffData, businessId, onRefresh }: { staffFilter: string; staffData: StaffCalendarData[]; businessId: string; onRefresh: () => void }) {
   const [popoverApt, setPopoverApt] = useState<{ apt: Appointment; pos: { top: number; left: number } } | null>(null)
   const [slotTip, setSlotTip] = useState<{ pos: { top: number; left: number } } | null>(null)
 
@@ -269,16 +319,28 @@ function WeekViewCalendar({ staffFilter, staffData }: { staffFilter: string; sta
                 )
               }
 
+              const statusColors = {
+                "Bekliyor": "bg-badge-yellow-bg border-badge-yellow-text text-badge-yellow-text",
+                "Onaylandı": "bg-success/10 border-success text-success",
+                "Tamamlandı": "bg-primary-light border-primary text-primary",
+                "Gelmedi": "bg-badge-red-bg border-accent text-accent",
+                "İptal": "bg-muted border-muted-foreground/30 text-muted-foreground",
+              }
+              const colorClass = apt.status ? statusColors[apt.status] : "bg-primary border-primary text-primary-foreground"
+
               return (
                 <button
                   key={i}
                   type="button"
-                  className="absolute left-1 right-1 cursor-pointer overflow-hidden rounded-md border-2 border-card bg-primary px-2 py-1 text-left transition-opacity hover:opacity-90"
+                  className={cn(
+                    "absolute left-1 right-1 cursor-pointer overflow-hidden rounded-md border-l-4 px-2 py-1 text-left transition-opacity hover:opacity-90 shadow-sm",
+                    colorClass
+                  )}
                   style={style}
                   onClick={(e) => handleBlockClick(apt, e)}
                 >
-                  <p className="truncate text-[12px] font-semibold leading-tight text-primary-foreground">{apt.customer}</p>
-                  <p className="truncate text-[11px] leading-tight text-primary-foreground/80">{apt.service}</p>
+                  <p className="truncate text-[12px] font-bold leading-tight">{apt.customer}</p>
+                  <p className="truncate text-[11px] leading-tight opacity-80">{apt.service}</p>
                 </button>
               )
             })}
@@ -300,6 +362,8 @@ function WeekViewCalendar({ staffFilter, staffData }: { staffFilter: string; sta
             apt={popoverApt.apt}
             position={popoverApt.pos}
             onClose={() => setPopoverApt(null)}
+            businessId={businessId}
+            onRefresh={onRefresh}
           />
         )}
 
@@ -317,7 +381,7 @@ function WeekViewCalendar({ staffFilter, staffData }: { staffFilter: string; sta
 
 // ─── Day View Calendar ──────────────────────────────────────────────────────────
 
-function DayViewCalendar({ staffFilter, staffData }: { staffFilter: string; staffData: StaffCalendarData[] }) {
+function DayViewCalendar({ staffFilter, staffData, businessId, onRefresh }: { staffFilter: string; staffData: StaffCalendarData[]; businessId: string; onRefresh: () => void }) {
   const filteredAppointments = useMemo(() => {
     if (staffFilter === "all") return staffData.flatMap((s) => s.appointments).filter((a) => !a.isOffHours)
     const staff = staffData.find((s) => s.name === staffFilter)
@@ -391,7 +455,7 @@ function DayViewCalendar({ staffFilter, staffData }: { staffFilter: string; staf
 
 // ─── TAB 1: Calendar View ───────────────────────────────────────────────────────
 
-function CalendarViewTab({ staffData, loading }: { staffData: StaffCalendarData[]; loading: boolean }) {
+function CalendarViewTab({ staffData, loading, businessId, onRefresh }: { staffData: StaffCalendarData[]; loading: boolean; businessId: string; onRefresh: () => void }) {
   const [viewMode, setViewMode] = useState<"day" | "week" | "month">("week")
   const [staffFilter, setStaffFilter] = useState("all")
   const [staffDropdownOpen, setStaffDropdownOpen] = useState(false)
@@ -492,8 +556,8 @@ function CalendarViewTab({ staffData, loading }: { staffData: StaffCalendarData[
       </div>
 
       {/* Calendar */}
-      {viewMode === "week" && <WeekViewCalendar staffFilter={staffFilter} staffData={staffData} />}
-      {viewMode === "day" && <DayViewCalendar staffFilter={staffFilter} staffData={staffData} />}
+      {viewMode === "week" && <WeekViewCalendar staffFilter={staffFilter} staffData={staffData} businessId={businessId} onRefresh={onRefresh} />}
+      {viewMode === "day" && <DayViewCalendar staffFilter={staffFilter} staffData={staffData} businessId={businessId} onRefresh={onRefresh} />}
       {viewMode === "month" && (
         <div className="flex h-[400px] items-center justify-center rounded-xl border border-dashed border-border bg-card">
           <p className="text-muted-foreground">Aylik gorunum yakinda eklenecek</p>
@@ -1119,11 +1183,12 @@ export function CalendarShifts() {
             const startParts = String(a.start_time).split(":")
             const endParts = String(a.end_time).split(":")
             return {
+              id: a.id,
               start: `${startParts[0]?.padStart(2, "0")}:${startParts[1]?.padStart(2, "0")}`,
               end: `${endParts[0]?.padStart(2, "0")}:${endParts[1]?.padStart(2, "0")}`,
               customer: cust?.name || "?",
               service: svcObj?.name || "?",
-              status: (a.status === "confirmed" ? "confirmed" : a.status === "completed" ? "completed" : "pending") as "confirmed" | "completed" | "pending",
+              status: a.status as any,
             }
           })
 
@@ -1185,7 +1250,7 @@ export function CalendarShifts() {
       </div>
 
       {/* Tab Content */}
-      {activeTab === "calendar" && <CalendarViewTab staffData={staffData} loading={loading} />}
+      {activeTab === "calendar" && businessId && <CalendarViewTab staffData={staffData} loading={loading} businessId={businessId} onRefresh={fetchCalendarData} />}
       {activeTab === "shifts" && businessId && <ShiftTemplatesTab staffData={staffData} businessId={businessId} />}
       {activeTab === "closed" && businessId && <ClosedDaysTab businessId={businessId} />}
     </div>

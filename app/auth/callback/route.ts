@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
+import { getUserRole, getDashboardPath } from "@/lib/supabase/roles" // EKLENDI
 
 // NOTE: Google/Apple providers must be enabled in Supabase Dashboard → Auth → Providers
 // Google: provide Client ID + Client Secret from Google Cloud Console
@@ -18,7 +19,7 @@ export async function GET(request: Request) {
             // Determine the user's role and redirect to the correct dashboard
             const { data: { user } } = await supabase.auth.getUser()
             if (user) {
-                const { getUserRole, getDashboardPath } = await import("@/lib/supabase/roles")
+                // KALDIRILDI: const { getUserRole, getDashboardPath } = await import("@/lib/supabase/roles")
                 const role = await getUserRole(supabase, user.id)
                 const dashboardPath = getDashboardPath(role)
                 return NextResponse.redirect(new URL(dashboardPath, origin))

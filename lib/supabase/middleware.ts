@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
+import { getUserRole, getDashboardPath } from "@/lib/supabase/roles" // EKLENDI
 
 export async function updateSession(request: NextRequest) {
     let supabaseResponse = NextResponse.next({
@@ -62,7 +63,7 @@ export async function updateSession(request: NextRequest) {
 
     // Logic 2: Giriş yapmış kullanıcı — role kontrolü
     if (user) {
-        const { getUserRole, getDashboardPath } = await import("@/lib/supabase/roles")
+        // KALDIRILDI: const { getUserRole, getDashboardPath } = await import("@/lib/supabase/roles")
         let role = await getUserRole(supabase, user.id)
 
         const correctPath = getDashboardPath(role)

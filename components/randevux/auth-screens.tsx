@@ -203,24 +203,36 @@ export function LoginScreen() {
         password,
       })
       if (authError) {
+        console.error("AUTH HATASI:", authError.message)
         if (authError.message.includes("Invalid login")) {
-          setError("E-posta veya sifre hatali.")
+          setError("E-posta veya şifre hatalı. (Şifreyi doğru yazdığınızdan emin olun, min 8 karakter olmalı.)")
         } else if (authError.message.includes("Email not confirmed")) {
-          setError("Lutfen e-posta adresinizi onaylayin veya yoneticiyle iletisime gecin.")
+          setError("Lütfen e-posta adresinizi onaylayın veya yöneticiyle iletişime geçin.")
         } else {
           setError(authError.message)
         }
         return
       }
       // Login başarılı — rolü belirle ve yönlendir
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        const role = await getUserRole(supabase, user.id)
-        router.push(getDashboardPath(role))
-        router.refresh()
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (userError) {
+        console.error("USER GETIRILEMEDI:", userError.message)
       }
-    } catch {
-      setError("Bir hata olustu. Lutfen tekrar deneyin.")
+      if (user) {
+        try {
+          const role = await getUserRole(supabase, user.id)
+          if (role === "musteri") {
+            console.warn("Sistem rolünüzü bulamadı, Müşteriye yönlendiriliyorsunuz. Lütfen RLS yetkilerinizi kontrol edin.")
+          }
+          router.push(getDashboardPath(role))
+          router.refresh()
+        } catch (roleError: any) {
+          console.error("ROLES HATASI:", roleError.message)
+        }
+      }
+    } catch (err: any) {
+      console.error("CATCH HATASI:", err.message)
+      setError("Bir hata oluştu: " + err.message)
     } finally {
       setLoading(false)
     }

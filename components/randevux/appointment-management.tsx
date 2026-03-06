@@ -27,8 +27,12 @@ import { RxButton } from "./rx-button"
 import { RxInput, RxTextarea } from "./rx-input"
 import { createClient } from "@/lib/supabase/client"
 import { useCurrentUser } from "@/hooks/use-current-user"
+import { updateAppointmentStatusAction } from "@/app/actions/appointment.actions"
+import { checkoutAppointmentAction } from "@/app/actions/finance.actions"
+import { addProductToAppointmentAction } from "@/app/actions/inventory.actions"
+import { toast } from "sonner"
 
-type AppointmentStatus = "pending" | "confirmed" | "completed" | "cancelled" | "no_show"
+type AppointmentStatus = "Bekliyor" | "Onaylandı" | "Tamamlandı" | "İptal" | "Gelmedi"
 
 interface AppointmentSvc {
   name: string
@@ -59,11 +63,11 @@ interface Appointment {
 
 function StatusBadge({ status }: { status: AppointmentStatus }) {
   switch (status) {
-    case "confirmed": return <RxBadge variant="success">Onaylandi</RxBadge>
-    case "pending": return <RxBadge variant="warning">Bekliyor</RxBadge>
-    case "completed": return <RxBadge variant="purple">Tamamlandi</RxBadge>
-    case "cancelled": return <RxBadge variant="gray">Iptal Edildi</RxBadge>
-    case "no_show": return <RxBadge variant="danger">No-Show</RxBadge>
+    case "Onaylandı": return <RxBadge variant="success">Onaylandı</RxBadge>
+    case "Bekliyor": return <RxBadge variant="warning">Bekliyor</RxBadge>
+    case "Tamamlandı": return <RxBadge variant="purple">Tamamlandı</RxBadge>
+    case "İptal": return <RxBadge variant="gray">İptal Edildi</RxBadge>
+    case "Gelmedi": return <RxBadge variant="danger">Gelmedi (No-Show)</RxBadge>
     default: return null
   }
 }
@@ -107,9 +111,242 @@ function ActionDropdown({ onAction }: { onAction: (action: string) => void }) {
   )
 }
 
+// ─── Tahsilat (Checkout) Modal ──────────────────────────────────────────────────
+
+export function CheckoutModal({ open, onClose, appointment, businessId, onCheckoutSuccess }: { open: boolean; onClose: () => void; appointment: Appointment | null; businessId: string; onCheckoutSuccess: () => void }) {
+  const [loading, setLoading] = useState(false)
+  const [amount, setAmount] = useState(appointment?.amount.toString() || "0")
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "credit_card" | "transfer" | "other">("credit_card")
+
+  // Ürün Satış State'leri
+  const [products, setProducts] = useState<any[]>([])
+  const [searchQuery, setSearchQuery] = useState("")
+  const [selectedProducts, setSelectedProducts] = useState<Array<{ product: any, quantity: number, staffId: string }>>([])
+  const [staffList, setStaffList] = useState<{ id: string, name: string }[]>([])
+  const supabase = createClient()
+
+  useEffect(() => {
+    if (appointment) {
+      setAmount(appointment.amount.toString())
+      setSelectedProducts([])
+      setSearchQuery("")
+    }
+  }, [appointment])
+
+  // Ürünleri ve personelleri getir
+  useEffect(() => {
+    if (!open || !businessId) return
+    async function fetchData() {
+      const { data: pData } = await supabase.from("products").select("id, name, selling_price, stock_quantity").eq("business_id", businessId).eq("is_active", true).gt("stock_quantity", 0)
+      setProducts(pData || [])
+
+      const { data: sData } = await supabase.from("staff_business").select("id, user:users(name)").eq("business_id", businessId).eq("is_active", true)
+      const mappedStaff = (sData || []).map(s => {
+        const u = Array.isArray(s.user) ? s.user[0] : s.user
+        return { id: s.id, name: u?.name || "?" }
+      })
+      setStaffList(mappedStaff)
+    }
+    fetchData()
+  }, [open, businessId, supabase])
+
+  // Sepet tutarını güncelle
+  useEffect(() => {
+    if (!appointment) return
+    const hwTotal = appointment.amount
+    const productTotal = selectedProducts.reduce((acc, curr) => acc + (curr.product.selling_price * curr.quantity), 0)
+    setAmount((hwTotal + productTotal).toString())
+  }, [selectedProducts, appointment])
+
+  if (!open || !appointment) return null
+
+  const handleAddProduct = (p: any) => {
+    if (selectedProducts.find(sp => sp.product.id === p.id)) return
+    setSelectedProducts([...selectedProducts, { product: p, quantity: 1, staffId: staffList[0]?.id || "" }])
+    setSearchQuery("")
+  }
+
+  const updateQuantity = (pid: string, val: number) => {
+    setSelectedProducts(selectedProducts.map(sp => {
+      if (sp.product.id === pid) {
+        const maxQ = sp.product.stock_quantity
+        const newQ = Math.max(1, Math.min(val, maxQ))
+        return { ...sp, quantity: newQ }
+      }
+      return sp
+    }))
+  }
+
+  const updateStaff = (pid: string, staffId: string) => {
+    setSelectedProducts(selectedProducts.map(sp => sp.product.id === pid ? { ...sp, staffId } : sp))
+  }
+
+  const removeProduct = (pid: string) => setSelectedProducts(selectedProducts.filter(sp => sp.product.id !== pid))
+
+  const handleCheckout = async () => {
+    if (!appointment || !amount) return
+    setLoading(true)
+
+    // 1. Varsa ürünleri sepete / adisyona ekle
+    try {
+      for (const item of selectedProducts) {
+        const res = await addProductToAppointmentAction({
+          appointmentId: appointment.id,
+          businessId: businessId,
+          productId: item.product.id,
+          quantity: item.quantity,
+          staffBusinessId: item.staffId
+        })
+        if (!res.success) throw new Error(res.error || "Ürün eklenemedi")
+      }
+    } catch (err: any) {
+      toast.error(err.message)
+      setLoading(false)
+      return
+    }
+
+    // 2. Tahsilatı bitir
+    try {
+      const res = await checkoutAppointmentAction({
+        appointmentId: appointment.id,
+        businessId,
+        amount: Number(amount),
+        paymentMethod
+      })
+      if (res.success) {
+        toast.success("Ödeme alındı ve randevu tamamlandı.")
+        onCheckoutSuccess()
+      } else {
+        toast.error(res.error || "Ödeme alınamadı")
+      }
+    } catch (err) {
+      toast.error("İşlem sırasında bir hata oluştu.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const filteredProducts = products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) && !selectedProducts.some(sp => sp.product.id === p.id))
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/30 p-4 sm:p-0">
+      <div className="w-full max-w-xl rounded-xl bg-card shadow-2xl max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between border-b border-border px-5 py-4">
+          <h2 className="text-lg font-semibold text-foreground">Ödeme Al & Satış (POS)</h2>
+          <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground">
+            <X className="size-5" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-6">
+          {/* Randevu Özeti */}
+          <div className="flex flex-col gap-2 rounded-lg bg-primary-light px-4 py-3 border border-primary/20">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="text-sm font-semibold text-primary">{appointment.customer}</h3>
+                <p className="text-xs text-primary/80 mt-1">{appointment.services.map(s => s.name).join(", ")}</p>
+              </div>
+              <span className="font-bold text-primary">₺{appointment.amount.toLocaleString("tr-TR")}</span>
+            </div>
+          </div>
+
+          {/* Ürün Arama */}
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-foreground">Sepete Ürün Ekle (Opsiyonel)</label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                placeholder="Stoktan ürün ara..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="h-10 w-full rounded-lg border border-input bg-card pl-9 pr-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+
+              {searchQuery && filteredProducts.length > 0 && (
+                <div className="absolute top-11 left-0 right-0 max-h-48 overflow-y-auto bg-card border border-border rounded-lg shadow-lg z-10">
+                  {filteredProducts.map(p => (
+                    <button key={p.id} type="button" onClick={() => handleAddProduct(p)} className="w-full text-left px-4 py-2 hover:bg-muted/50 border-b border-border/50 last:border-0 flex justify-between items-center">
+                      <span className="text-sm font-medium line-clamp-1">{p.name}</span>
+                      <span className="text-xs font-semibold shrink-0 ml-2">₺{p.selling_price} (Stok: {p.stock_quantity})</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {searchQuery && filteredProducts.length === 0 && (
+                <div className="absolute top-11 left-0 right-0 p-3 bg-card border border-border rounded-lg shadow-lg z-10 text-center text-sm text-muted-foreground">Ürün bulunamadı veya stokta yok.</div>
+              )}
+            </div>
+          </div>
+
+          {/* Sepet */}
+          {selectedProducts.length > 0 && (
+            <div className="flex flex-col gap-3">
+              <h4 className="text-[13px] font-semibold text-muted-foreground uppercase tracking-wider">Adisyona Eklenecekler</h4>
+              <div className="flex flex-col gap-3">
+                {selectedProducts.map((item) => (
+                  <div key={item.product.id} className="flex flex-col sm:flex-row gap-3 items-start sm:items-center p-3 rounded-lg border border-border bg-muted/10 relative group">
+                    <div className="flex-1 min-w-0">
+                      <h5 className="text-sm font-medium truncate pr-6">{item.product.name}</h5>
+                      <span className="text-xs text-muted-foreground">Birim: ₺{item.product.selling_price}</span>
+                    </div>
+
+                    <div className="flex items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0">
+                      <div className="flex flex-col gap-1 w-full sm:w-32">
+                        <span className="text-[10px] text-muted-foreground whitespace-nowrap">Satan Personel (Prim)</span>
+                        <select value={item.staffId} onChange={e => updateStaff(item.product.id, e.target.value)} className="h-8 text-xs rounded border border-input bg-card px-2 w-full">
+                          {staffList.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                          {staffList.length === 0 && <option value="">Şube İçi</option>}
+                        </select>
+                      </div>
+                      <div className="flex flex-col gap-1 w-20">
+                        <span className="text-[10px] text-muted-foreground">Miktar (Stok: {item.product.stock_quantity})</span>
+                        <input type="number" min="1" max={item.product.stock_quantity} value={item.quantity} onChange={e => updateQuantity(item.product.id, parseInt(e.target.value))} className="h-8 text-sm rounded border border-input bg-card px-2 text-center w-full" />
+                      </div>
+                      <div className="text-right w-16">
+                        <span className="text-sm font-semibold text-foreground">₺{(item.product.selling_price * item.quantity).toLocaleString("tr-TR")}</span>
+                      </div>
+                    </div>
+
+                    <button type="button" onClick={() => removeProduct(item.product.id)} className="absolute top-2 right-2 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
+                      <X className="size-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="border-t border-border pt-4">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-lg font-bold text-foreground">Toplam Fatura:</span>
+              <span className="text-2xl font-bold text-success">₺{Number(amount).toLocaleString("tr-TR")}</span>
+            </div>
+
+            <label className="mb-2 block text-sm font-medium text-foreground">Nasıl Alınacak?</label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <button type="button" onClick={() => setPaymentMethod("credit_card")} className={cn("rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors text-center", paymentMethod === "credit_card" ? "border-primary bg-primary-light text-primary" : "border-border text-foreground hover:bg-muted")}>Kredi Kartı</button>
+              <button type="button" onClick={() => setPaymentMethod("cash")} className={cn("rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors text-center", paymentMethod === "cash" ? "border-primary bg-primary-light text-primary" : "border-border text-foreground hover:bg-muted")}>Nakit</button>
+              <button type="button" onClick={() => setPaymentMethod("transfer")} className={cn("rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors text-center", paymentMethod === "transfer" ? "border-primary bg-primary-light text-primary" : "border-border text-foreground hover:bg-muted")}>Havale/EFT</button>
+              <button type="button" onClick={() => setPaymentMethod("other")} className={cn("rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors text-center", paymentMethod === "other" ? "border-primary bg-primary-light text-primary" : "border-border text-foreground hover:bg-muted")}>Diğer</button>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-3 border-t border-border px-5 py-4 bg-muted/10">
+          <RxButton variant="ghost" className="border border-border" onClick={onClose}>İptal</RxButton>
+          <RxButton variant="primary" onClick={handleCheckout} disabled={loading}>
+            {loading ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle className="size-4" />}
+            {loading ? " İşleniyor..." : " Tahsilatı Tamamla"}
+          </RxButton>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Manuel Randevu Ekle Modal ──────────────────────────────────────────────────
 
-function AddAppointmentModal({ open, onClose, businessId, onAdded }: { open: boolean; onClose: () => void; businessId: string; onAdded: () => void }) {
+export function AddAppointmentModal({ open, onClose, businessId, onAdded }: { open: boolean; onClose: () => void; businessId: string; onAdded: () => void }) {
   const overlayRef = useRef<HTMLDivElement>(null)
   const [searchValue, setSearchValue] = useState("")
   const [selectedCustomer, setSelectedCustomer] = useState<{ id: string; name: string } | null>(null)
@@ -122,6 +359,12 @@ function AddAppointmentModal({ open, onClose, businessId, onAdded }: { open: boo
   const [selectedDate, setSelectedDate] = useState("")
   const [selectedTime, setSelectedTime] = useState("")
   const [saving, setSaving] = useState(false)
+
+  // Guest Customer Logic
+  const [isGuest, setIsGuest] = useState(false)
+  const [guestName, setGuestName] = useState("")
+  const [guestPhone, setGuestPhone] = useState("")
+
   const supabase = createClient()
 
   useEffect(() => {
@@ -173,43 +416,30 @@ function AddAppointmentModal({ open, onClose, businessId, onAdded }: { open: boo
   }
 
   async function handleSubmit() {
-    if (!selectedCustomer || selectedServices.length === 0 || !selectedStaff || !selectedDate || !selectedTime) return
+    const isCustomerValid = isGuest ? (guestName.trim() !== "" && guestPhone.trim() !== "") : !!selectedCustomer;
+    if (!isCustomerValid || selectedServices.length === 0 || !selectedStaff || !selectedDate || !selectedTime) return
     setSaving(true)
     try {
       const selectedSvcs = services.filter(s => selectedServices.includes(s.id))
-      const totalDuration = selectedSvcs.reduce((sum, s) => sum + s.base_duration_minutes, 0)
-      const totalPrice = selectedSvcs.reduce((sum, s) => sum + Number(s.base_price), 0)
 
-      // Parse start/end times
-      const [hh, mm] = selectedTime.split(":").map(Number)
-      const endMinutes = hh * 60 + mm + totalDuration
-      const endHH = String(Math.floor(endMinutes / 60)).padStart(2, "0")
-      const endMM = String(endMinutes % 60).padStart(2, "0")
+      const { createManualAppointmentAction } = await import("@/app/actions/appointment.actions")
+      const result = await createManualAppointmentAction({
+        businessId,
+        customerId: isGuest ? undefined : selectedCustomer?.id,
+        guestName: isGuest ? guestName : undefined,
+        guestPhone: isGuest ? guestPhone : undefined,
+        staffId: selectedStaff,
+        date: selectedDate,
+        time: selectedTime,
+        services: selectedSvcs.map(s => ({ id: s.id, base_price: Number(s.base_price), base_duration_minutes: s.base_duration_minutes }))
+      })
 
-      const { data: aptData } = await supabase.from("appointments").insert({
-        business_id: businessId,
-        customer_user_id: selectedCustomer.id,
-        staff_business_id: selectedStaff,
-        appointment_date: selectedDate,
-        start_time: `${selectedTime}:00`,
-        end_time: `${endHH}:${endMM}:00`,
-        status: "confirmed",
-        total_price: totalPrice,
-        total_duration_minutes: totalDuration,
-        customer_note: "",
-      }).select("id").single()
-
-      // Insert appointment_services
-      if (aptData) {
-        const aptServices = selectedSvcs.map(s => ({
-          appointment_id: aptData.id,
-          service_id: s.id,
-          price_snapshot: Number(s.base_price),
-          duration_snapshot: s.base_duration_minutes,
-          buffer_snapshot: 0,
-        }))
-        await supabase.from("appointment_services").insert(aptServices)
+      if (!result.success) {
+        toast.error(result.error || "Randevu oluşturulamadı")
+        return
       }
+
+      toast.success("Randevu eklendi.")
 
       onAdded()
       onClose()
@@ -232,30 +462,53 @@ function AddAppointmentModal({ open, onClose, businessId, onAdded }: { open: boo
           <div className="flex flex-col gap-4">
             {/* Customer */}
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-foreground">Musteri Secimi</label>
-              {selectedCustomer ? (
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-sm font-medium text-foreground">Musteri Secimi</label>
                 <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-2 rounded-lg border border-primary bg-primary-light px-3 py-1.5 text-sm font-medium text-primary">
-                    {selectedCustomer.name}
-                    <button type="button" onClick={() => setSelectedCustomer(null)} className="rounded-full p-0.5 text-primary transition-colors hover:bg-primary/10"><X className="size-3.5" /></button>
-                  </span>
+                  <span className="text-xs text-muted-foreground mr-1">Kayıtlı mı?</span>
+                  <button type="button" onClick={() => setIsGuest(false)} className={cn("px-2 py-1 text-xs rounded-md transition-colors", !isGuest ? "bg-primary text-primary-foreground font-medium" : "bg-muted text-muted-foreground hover:bg-muted/80")}>Evet</button>
+                  <button type="button" onClick={() => setIsGuest(true)} className={cn("px-2 py-1 text-xs rounded-md transition-colors", isGuest ? "bg-primary text-primary-foreground font-medium" : "bg-muted text-muted-foreground hover:bg-muted/80")}>Hayır (Misafir)</button>
                 </div>
-              ) : (
-                <div className="relative">
-                  <RxInput icon={<Search className="size-4" />} placeholder="Musteri ara..." value={searchValue} onChange={(e) => { setSearchValue(e.target.value); setShowDropdown(true) }} onFocus={() => setShowDropdown(true)} />
-                  {showDropdown && customers.length > 0 && (
-                    <div className="absolute left-0 right-0 top-full z-10 mt-1 rounded-lg border border-border bg-card shadow-lg">
-                      {customers.map((c) => (
-                        <button key={c.id} type="button" onClick={() => { setSelectedCustomer({ id: c.id, name: c.name }); setShowDropdown(false); setSearchValue("") }} className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-primary-light">
-                          <RxAvatar name={c.name} size="sm" />
-                          <div className="flex flex-1 flex-col">
-                            <span className="text-sm font-medium text-foreground">{c.name}</span>
-                            <span className="text-xs text-muted-foreground">{c.phone}</span>
-                          </div>
-                        </button>
-                      ))}
+              </div>
+
+              {!isGuest ? (
+                <>
+                  {selectedCustomer ? (
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center gap-2 rounded-lg border border-primary bg-primary-light px-3 py-1.5 text-sm font-medium text-primary">
+                        {selectedCustomer.name}
+                        <button type="button" onClick={() => setSelectedCustomer(null)} className="rounded-full p-0.5 text-primary transition-colors hover:bg-primary/10"><X className="size-3.5" /></button>
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <RxInput icon={<Search className="size-4" />} placeholder="Musteri ara..." value={searchValue} onChange={(e) => { setSearchValue(e.target.value); setShowDropdown(true) }} onFocus={() => setShowDropdown(true)} />
+                      {showDropdown && customers.length > 0 && (
+                        <div className="absolute left-0 right-0 top-full z-10 mt-1 rounded-lg border border-border bg-card shadow-lg max-h-48 overflow-y-auto">
+                          {customers.map((c) => (
+                            <button key={c.id} type="button" onClick={() => { setSelectedCustomer({ id: c.id, name: c.name }); setShowDropdown(false); setSearchValue("") }} className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-primary-light border-b border-border/50 last:border-0">
+                              <RxAvatar name={c.name} size="sm" />
+                              <div className="flex flex-1 flex-col">
+                                <span className="text-sm font-medium text-foreground">{c.name}</span>
+                                <span className="text-xs text-muted-foreground">{c.phone}</span>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
+                </>
+              ) : (
+                <div className="flex flex-col gap-3 p-3 bg-muted/20 border border-border rounded-lg">
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">Ad Soyad *</label>
+                    <RxInput placeholder="Misafir ad soyad..." value={guestName} onChange={e => setGuestName(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">Telefon *</label>
+                    <RxInput placeholder="05XX XXX XX XX" value={guestPhone} onChange={e => setGuestPhone(e.target.value)} />
+                  </div>
                 </div>
               )}
             </div>
@@ -302,10 +555,9 @@ function AddAppointmentModal({ open, onClose, businessId, onAdded }: { open: boo
           </div>
         </div>
 
-        {/* Footer */}
         <div className="flex items-center justify-end gap-3 border-t border-border px-5 py-4">
           <RxButton variant="ghost" onClick={onClose}>Vazgec</RxButton>
-          <RxButton variant="primary" onClick={handleSubmit} disabled={saving || !selectedCustomer || selectedServices.length === 0 || !selectedStaff || !selectedDate || !selectedTime}>
+          <RxButton variant="primary" onClick={handleSubmit} disabled={saving || (isGuest ? (guestName.trim() === "" || guestPhone.trim() === "") : !selectedCustomer) || selectedServices.length === 0 || !selectedStaff || !selectedDate || !selectedTime}>
             {saving ? <Loader2 className="size-4 animate-spin" /> : <CalendarPlus className="size-4" />}
             {saving ? " Kaydediliyor..." : " Randevu Olustur"}
           </RxButton>
@@ -330,14 +582,15 @@ function ListeGorunumu({ appointments, statusCounts, loading, onRefresh, onStatu
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [modalOpen, setModalOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
+  const [checkoutApt, setCheckoutApt] = useState<Appointment | null>(null)
 
   const statusTabs: { key: AppointmentStatus | "all"; label: string }[] = [
-    { key: "all", label: "Tumu" },
-    { key: "pending", label: "Bekliyor" },
-    { key: "confirmed", label: "Onaylandi" },
-    { key: "completed", label: "Tamamlandi" },
-    { key: "cancelled", label: "Iptal Edildi" },
-    { key: "no_show", label: "No-Show" },
+    { key: "all", label: "Tümü" },
+    { key: "Bekliyor", label: "Bekliyor" },
+    { key: "Onaylandı", label: "Onaylandı" },
+    { key: "Tamamlandı", label: "Tamamlandı" },
+    { key: "İptal", label: "İptal Edildi" },
+    { key: "Gelmedi", label: "Gelmedi" },
   ]
 
   const filtered = appointments.filter(a => {
@@ -396,8 +649,8 @@ function ListeGorunumu({ appointments, statusCounts, loading, onRefresh, onStatu
       {selectedIds.length > 0 && (
         <div className="sticky top-0 z-20 flex items-center gap-3 rounded-xl bg-foreground px-5 py-3 text-primary-foreground shadow-lg">
           <span className="text-sm font-medium">{selectedIds.length} randevu secildi</span>
-          <RxButton variant="primary" size="sm" className="bg-primary-foreground text-foreground hover:bg-primary-foreground/90" onClick={() => { selectedIds.forEach(id => onStatusChange(id, "confirmed")); setSelectedIds([]) }}><Check className="size-3.5" /> Onayla</RxButton>
-          <RxButton variant="ghost" size="sm" className="text-primary-foreground hover:bg-primary-foreground/10" onClick={() => { selectedIds.forEach(id => onStatusChange(id, "cancelled")); setSelectedIds([]) }}><XIcon className="size-3.5" /> Iptal Et</RxButton>
+          <RxButton variant="primary" size="sm" className="bg-primary-foreground text-foreground hover:bg-primary-foreground/90" onClick={() => { selectedIds.forEach(id => onStatusChange(id, "Onaylandı")); setSelectedIds([]) }}><Check className="size-3.5" /> Onayla</RxButton>
+          <RxButton variant="ghost" size="sm" className="text-primary-foreground hover:bg-primary-foreground/10" onClick={() => { selectedIds.forEach(id => onStatusChange(id, "İptal")); setSelectedIds([]) }}><XIcon className="size-3.5" /> İptal Et</RxButton>
           <button type="button" onClick={() => setSelectedIds([])} className="ml-auto rounded-lg p-1 text-primary-foreground/70 transition-colors hover:text-primary-foreground"><X className="size-4" /></button>
         </div>
       )}
@@ -425,9 +678,9 @@ function ListeGorunumu({ appointments, statusCounts, loading, onRefresh, onStatu
                 <tr><td colSpan={8} className="px-5 py-12 text-center text-sm text-muted-foreground">Randevu bulunamadi</td></tr>
               )}
               {filtered.map((apt) => {
-                const isNoShow = apt.status === "no_show"
-                const isCancelled = apt.status === "cancelled"
-                const isPending = apt.status === "pending"
+                const isNoShow = apt.status === "Gelmedi"
+                const isCancelled = apt.status === "İptal"
+                const isPending = apt.status === "Bekliyor"
 
                 return (
                   <tr key={apt.id} className={cn("border-b border-border transition-colors hover:bg-primary-light/50", isNoShow && "bg-badge-red-bg/40", isCancelled && "bg-muted/40")}>
@@ -472,20 +725,27 @@ function ListeGorunumu({ appointments, statusCounts, loading, onRefresh, onStatu
                     <td className="px-4 py-3 text-right">
                       {isPending ? (
                         <div className="flex items-center justify-end gap-1.5">
-                          <button type="button" onClick={() => onStatusChange(apt.id, "confirmed")} className="inline-flex items-center gap-1 rounded-lg bg-success px-2.5 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-success/90">
+                          <button type="button" onClick={() => onStatusChange(apt.id, "Onaylandı")} className="inline-flex items-center gap-1 rounded-lg bg-success px-2.5 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-success/90">
                             <Check className="size-3" /> Onayla
                           </button>
-                          <button type="button" onClick={() => onStatusChange(apt.id, "cancelled")} className="inline-flex items-center gap-1 rounded-lg border border-destructive px-2.5 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-badge-red-bg">
+                          <button type="button" onClick={() => onStatusChange(apt.id, "İptal")} className="inline-flex items-center gap-1 rounded-lg border border-destructive px-2.5 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-badge-red-bg">
                             <XIcon className="size-3" /> Reddet
                           </button>
                         </div>
                       ) : (
-                        <ActionDropdown onAction={(action) => {
-                          if (action === "detail") onDetailView(apt)
-                          else if (action === "approve") onStatusChange(apt.id, "confirmed")
-                          else if (action === "cancel") onStatusChange(apt.id, "cancelled")
-                          else if (action === "noshow") onStatusChange(apt.id, "no_show")
-                        }} />
+                        <div className="flex items-center justify-end gap-2">
+                          {(!isCancelled && !isNoShow && apt.status !== "Tamamlandı") && (
+                            <button type="button" onClick={() => setCheckoutApt(apt)} className="inline-flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90">
+                              Ödeme Al
+                            </button>
+                          )}
+                          <ActionDropdown onAction={(action) => {
+                            if (action === "detail") onDetailView(apt)
+                            else if (action === "approve") onStatusChange(apt.id, "Onaylandı")
+                            else if (action === "cancel") onStatusChange(apt.id, "İptal")
+                            else if (action === "noshow") onStatusChange(apt.id, "Gelmedi")
+                          }} />
+                        </div>
                       )}
                     </td>
                   </tr>
@@ -502,14 +762,16 @@ function ListeGorunumu({ appointments, statusCounts, loading, onRefresh, onStatu
       </div>
 
       <AddAppointmentModal open={modalOpen} onClose={() => setModalOpen(false)} businessId={businessId} onAdded={onRefresh} />
-    </div>
+      <CheckoutModal open={!!checkoutApt} onClose={() => setCheckoutApt(null)} appointment={checkoutApt} businessId={businessId} onCheckoutSuccess={() => { onRefresh(); setCheckoutApt(null) }} />
+    </div >
   )
 }
 
 // ─── Randevu Detayi ─────────────────────────────────────────────────────────────
 
-function RandevuDetayi({ appointment, onBack, onStatusChange }: { appointment: Appointment; onBack: () => void; onStatusChange: (id: string, status: AppointmentStatus) => void }) {
+function RandevuDetayi({ appointment, onBack, onStatusChange, businessId, onRefresh }: { appointment: Appointment; onBack: () => void; onStatusChange: (id: string, status: AppointmentStatus) => void; businessId: string; onRefresh: () => void }) {
   const [showCancelInput, setShowCancelInput] = useState(false)
+  const [checkoutOpen, setCheckoutOpen] = useState(false)
   const [noteText, setNoteText] = useState("")
   const [staffNotes, setStaffNotes] = useState<{ staff: string; date: string; note: string }[]>([])
   const [customerStats, setCustomerStats] = useState({ totalAppointments: 0, totalNoShow: 0, totalSpent: 0 })
@@ -528,8 +790,8 @@ function RandevuDetayi({ appointment, onBack, onStatusChange }: { appointment: A
       const all = custApts || []
       setCustomerStats({
         totalAppointments: all.length,
-        totalNoShow: all.filter(a => a.status === "no_show").length,
-        totalSpent: all.filter(a => a.status === "completed").reduce((sum, a) => sum + (Number(a.total_price) || 0), 0),
+        totalNoShow: all.filter(a => a.status === "Gelmedi").length,
+        totalSpent: all.filter(a => a.status === "Tamamlandı").reduce((sum, a) => sum + (Number(a.total_price) || 0), 0),
       })
 
       // Customer notes
@@ -706,27 +968,29 @@ function RandevuDetayi({ appointment, onBack, onStatusChange }: { appointment: A
               <h2 className="text-[15px] font-semibold text-foreground">Islemler</h2>
             </div>
             <div className="flex flex-col gap-2.5 px-5 py-4">
-              {apt.status === "pending" && (
-                <RxButton variant="primary" className="w-full justify-center" onClick={() => onStatusChange(apt.id, "confirmed")}>
+              {apt.status === "Bekliyor" && (
+                <RxButton variant="primary" className="w-full justify-center" onClick={() => onStatusChange(apt.id, "Onaylandı")}>
                   <CheckCircle className="size-4" /> Randevuyu Onayla
                 </RxButton>
               )}
-              <RxButton variant="primary" className="w-full justify-center" onClick={() => onStatusChange(apt.id, "completed")}>
-                <CheckCheck className="size-4" /> Tamamlandi Isaretle
-              </RxButton>
-              <RxButton variant="ghost" className="w-full justify-center text-accent hover:bg-badge-red-bg hover:text-accent" onClick={() => onStatusChange(apt.id, "no_show")}>
-                <UserX className="size-4" /> No-Show Isaretle
+              {apt.status !== "Tamamlandı" && apt.status !== "İptal" && apt.status !== "Gelmedi" && (
+                <RxButton variant="primary" className="w-full justify-center" onClick={() => setCheckoutOpen(true)}>
+                  <CheckCheck className="size-4" /> Ödeme Al ve Tamamla
+                </RxButton>
+              )}
+              <RxButton variant="ghost" className="w-full justify-center text-accent hover:bg-badge-red-bg hover:text-accent" onClick={() => onStatusChange(apt.id, "Gelmedi")}>
+                <UserX className="size-4" /> No-Show İşaretle
               </RxButton>
               <RxButton variant="ghost" className="w-full justify-center text-accent hover:bg-badge-red-bg hover:text-accent" onClick={() => setShowCancelInput(!showCancelInput)}>
-                <XCircle className="size-4" /> Randevuyu Iptal Et
+                <XCircle className="size-4" /> Randevuyu İptal Et
               </RxButton>
 
               {showCancelInput && (
                 <div className="mt-2 flex flex-col gap-2 rounded-lg border border-border p-3">
-                  <RxTextarea placeholder="Iptal Nedeni" className="min-h-[70px]" />
+                  <RxTextarea placeholder="İptal Nedeni" className="min-h-[70px]" />
                   <div className="flex items-center gap-2">
-                    <RxButton variant="danger" size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90" onClick={() => { onStatusChange(apt.id, "cancelled"); setShowCancelInput(false) }}>Iptal Et</RxButton>
-                    <RxButton variant="ghost" size="sm" onClick={() => setShowCancelInput(false)}>Vazgec</RxButton>
+                    <RxButton variant="danger" size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90" onClick={() => { onStatusChange(apt.id, "İptal"); setShowCancelInput(false) }}>İptal Et</RxButton>
+                    <RxButton variant="ghost" size="sm" onClick={() => setShowCancelInput(false)}>Vazgeç</RxButton>
                   </div>
                 </div>
               )}
@@ -734,6 +998,7 @@ function RandevuDetayi({ appointment, onBack, onStatusChange }: { appointment: A
           </div>
         </div>
       </div>
+      <CheckoutModal open={checkoutOpen} onClose={() => setCheckoutOpen(false)} appointment={apt} businessId={businessId} onCheckoutSuccess={() => { onRefresh(); setCheckoutOpen(false); onBack() }} />
     </div>
   )
 }
@@ -747,7 +1012,7 @@ export function AppointmentManagement() {
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
   const [businessId, setBusinessId] = useState<string | null>(null)
-  const [statusCounts, setStatusCounts] = useState<Record<string, number>>({ all: 0, pending: 0, confirmed: 0, completed: 0, cancelled: 0, no_show: 0 })
+  const [statusCounts, setStatusCounts] = useState<Record<string, number>>({ all: 0, Bekliyor: 0, Onaylandı: 0, Tamamlandı: 0, İptal: 0, Gelmedi: 0 })
 
   const supabase = createClient()
 
@@ -806,7 +1071,7 @@ export function AppointmentManagement() {
       setAppointments(mapped)
 
       // Count statuses
-      const counts: Record<string, number> = { all: mapped.length, pending: 0, confirmed: 0, completed: 0, cancelled: 0, no_show: 0 }
+      const counts: Record<string, number> = { all: mapped.length, Bekliyor: 0, Onaylandı: 0, Tamamlandı: 0, İptal: 0, Gelmedi: 0 }
       mapped.forEach(a => { counts[a.status] = (counts[a.status] || 0) + 1 })
       setStatusCounts(counts)
     } finally {
@@ -820,40 +1085,21 @@ export function AppointmentManagement() {
 
   const handleStatusChange = async (id: string, status: AppointmentStatus) => {
     // Optimistic update
+    const previousAppointments = appointments
     setAppointments(prev => prev.map(a => a.id === id ? { ...a, status } : a))
 
-    const now = new Date().toISOString()
-    const updatePayload: Record<string, unknown> = { status }
-
-    if (status === "confirmed") {
-      updatePayload.confirmed_at = now
-    } else if (status === "completed") {
-      updatePayload.completed_at = now
-    } else if (status === "cancelled") {
-      updatePayload.cancelled_by = "staff"
-      updatePayload.cancelled_at = now
-    }
-
-    await supabase.from("appointments").update(updatePayload).eq("id", id)
-
-    // Insert no_show_record if marking as no-show
-    if (status === "no_show" && user) {
-      const { data: staffRow } = await supabase
-        .from("staff_business")
-        .select("id")
-        .eq("business_id", businessId!)
-        .eq("user_id", user.id)
-        .maybeSingle()
-
-      if (staffRow) {
-        await supabase.from("no_show_records").insert({
-          appointment_id: id,
-          marked_by_staff_business_id: staffRow.id,
-        })
+    try {
+      const res = await updateAppointmentStatusAction(id, status as any, businessId!)
+      if (!res.success) {
+        setAppointments(previousAppointments)
+        toast.error(res.error || "Hata oluştu.")
+      } else {
+        fetchAppointments()
       }
+    } catch (err) {
+      setAppointments(previousAppointments)
+      toast.error("İşlem başarısız.")
     }
-
-    fetchAppointments()
   }
 
   const handleDetailView = (apt: Appointment) => {
@@ -888,7 +1134,7 @@ export function AppointmentManagement() {
           businessId={businessId || ""}
         />
       ) : (
-        selectedAppointment && <RandevuDetayi appointment={selectedAppointment} onBack={() => setTab("list")} onStatusChange={handleStatusChange} />
+        selectedAppointment && <RandevuDetayi appointment={selectedAppointment} onBack={() => setTab("list")} onStatusChange={handleStatusChange} businessId={businessId || ""} onRefresh={fetchAppointments} />
       )}
     </div>
   )

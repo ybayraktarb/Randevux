@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/tooltip"
 import { createClient } from "@/lib/supabase/client"
 import { useCurrentUser } from "@/hooks/use-current-user"
+import { toast } from "sonner"
 
 
 
@@ -841,9 +842,19 @@ export function ServiceManagement() {
   }, [fetchServices])
 
   const handleToggleStatus = async (id: string, currentActive: boolean) => {
-    // Optimistic update
+    // Rollback için mevcut state'i yedekle
+    const previousServices = services
+
+    // Optimistic update — UI hemen güncellenir
     setServices((prev) => prev.map((s) => s.id === id ? { ...s, is_active: !currentActive } : s))
-    await supabase.from("services").update({ is_active: !currentActive }).eq("id", id)
+
+    const { error } = await supabase.from("services").update({ is_active: !currentActive }).eq("id", id)
+
+    if (error) {
+      // Rollback — eski state'e dön
+      setServices(previousServices)
+      toast.error("Hizmet durumu güncellenemedi, lütfen tekrar deneyin.")
+    }
   }
 
   const handleUpdateService = async (id: string, data: { name: string; description: string; base_duration_minutes: number; base_price: number; buffer_time_minutes: number; is_active: boolean }) => {

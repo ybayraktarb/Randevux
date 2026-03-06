@@ -26,6 +26,8 @@ import { RxTextarea } from "./rx-input"
 import { useCurrentUser } from "@/hooks/use-current-user"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
+import { createNotificationAction } from "@/app/actions/notification.actions" // DEĞİŞTİRİLDİ
+import { logAuditAction } from "@/app/actions/audit.actions" // DEĞİŞTİRİLDİ
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
 
@@ -38,7 +40,7 @@ interface Appointment {
   service: string
   duration: string
   price: string
-  status: "pending" | "confirmed" | "completed" | "cancelled" | "no_show"
+  status: "Bekliyor" | "Onaylandı" | "Tamamlandı" | "İptal" | "Gelmedi"
   note?: string
   isBreak?: boolean
   appointmentDate: string
@@ -84,15 +86,15 @@ const DAYS_FULL_TR = ["Pazar", "Pazartesi", "Sali", "Carsamba", "Persembe", "Cum
 
 function StatusBadge({ status }: { status: string }) {
   switch (status) {
-    case "completed":
-      return <RxBadge variant="success">Tamamlandi</RxBadge>
-    case "confirmed":
-      return <RxBadge variant="purple">Onaylandi</RxBadge>
-    case "pending":
+    case "Tamamlandı":
+      return <RxBadge variant="success">Tamamlandı</RxBadge>
+    case "Onaylandı":
+      return <RxBadge variant="purple">Onaylandı</RxBadge>
+    case "Bekliyor":
       return <RxBadge variant="warning">Bekliyor</RxBadge>
-    case "cancelled":
-      return <RxBadge variant="danger">Iptal Edildi</RxBadge>
-    case "no_show":
+    case "İptal":
+      return <RxBadge variant="danger">İptal Edildi</RxBadge>
+    case "Gelmedi":
       return <RxBadge variant="warning">No-Show</RxBadge>
     default:
       return <RxBadge variant="gray">{status}</RxBadge>
@@ -106,6 +108,7 @@ function useStaffData() {
   const supabase = createClient()
   const [staffBusinessId, setStaffBusinessId] = useState<string | null>(null)
   const [businessId, setBusinessId] = useState<string | null>(null)
+  const [businessName, setBusinessName] = useState("")
   const [staffName, setStaffName] = useState("")
   const [loading, setLoading] = useState(true)
 
@@ -114,23 +117,25 @@ function useStaffData() {
     async function load() {
       const { data } = await supabase
         .from("staff_business")
-        .select("id, business_id")
+        .select("id, business_id, business:businesses(name)")
         .eq("user_id", user!.id)
         .eq("is_active", true)
         .maybeSingle()
       if (data) {
         setStaffBusinessId(data.id)
         setBusinessId(data.business_id)
+        setBusinessName((data.business as any)?.name || "")
       }
       // Also check if they are a business owner (patron acting as staff)
       if (!data) {
         const { data: ownerData } = await supabase
           .from("business_owners")
-          .select("business_id")
+          .select("business_id, business:businesses(name)")
           .eq("user_id", user!.id)
           .maybeSingle()
         if (ownerData) {
           setBusinessId(ownerData.business_id)
+          setBusinessName((ownerData.business as any)?.name || "")
           // Find their staff_business entry
           const { data: sb } = await supabase
             .from("staff_business")
@@ -148,7 +153,7 @@ function useStaffData() {
     load()
   }, [user])
 
-  return { staffBusinessId, businessId, staffName, loading, user, supabase }
+  return { staffBusinessId, businessId, businessName, staffName, loading, user, supabase }
 }
 
 // ─── Tab 1: Genel Bakis ─────────────────────────────────────────────────────────
@@ -156,12 +161,14 @@ function useStaffData() {
 function OverviewTab({
   staffBusinessId,
   staffName,
+  businessName,
   supabase,
   onStatusChange,
   refreshKey,
 }: {
   staffBusinessId: string
   staffName: string
+  businessName: string
   supabase: ReturnType<typeof createClient>
   onStatusChange: () => void
   refreshKey?: number
@@ -191,7 +198,7 @@ function OverviewTab({
       .select("*, customer:users!appointments_customer_user_id_fkey(name, phone), services:appointment_services(service:services(name), price_snapshot, duration_snapshot)")
       .eq("staff_business_id", staffBusinessId)
       .eq("appointment_date", todayStr)
-      .in("status", ["pending", "confirmed", "completed"])
+      .in("status", ["Bekliyor", "Onaylandı", "Tamamlandı"])
       .order("start_time")
 
     const mapped: Appointment[] = (todayData || []).map((a: any) => {
@@ -225,7 +232,7 @@ function OverviewTab({
       .eq("staff_business_id", staffBusinessId)
       .gte("appointment_date", dateToYMD(weekStart))
       .lte("appointment_date", dateToYMD(weekEnd))
-      .in("status", ["pending", "confirmed", "completed"])
+      .in("status", ["Bekliyor", "Onaylandı", "Tamamlandı"])
     setWeekCount(wc || 0)
 
     // Pending count
@@ -233,7 +240,7 @@ function OverviewTab({
       .from("appointments")
       .select("id", { count: "exact", head: true })
       .eq("staff_business_id", staffBusinessId)
-      .eq("status", "pending")
+      .eq("status", "Bekliyor")
     setPendingCount(pc || 0)
 
     // Month completed count
@@ -241,7 +248,7 @@ function OverviewTab({
       .from("appointments")
       .select("id", { count: "exact", head: true })
       .eq("staff_business_id", staffBusinessId)
-      .eq("status", "completed")
+      .eq("status", "Tamamlandı")
       .gte("appointment_date", dateToYMD(monthStart))
       .lte("appointment_date", dateToYMD(monthEnd))
     setMonthCompleted(mc || 0)
@@ -259,24 +266,25 @@ function OverviewTab({
     if (newStatus === "cancelled") { update.cancelled_at = nowISO; update.cancelled_by = "staff" }
 
     const { error } = await supabase.from("appointments").update(update).eq("id", aptId)
-    if (newStatus === "no_show") {
+    if (newStatus === "Gelmedi") {
       await supabase.from("no_show_records").insert({ appointment_id: aptId, marked_by_staff_business_id: staffBusinessId })
     }
     if (error) { toast?.error ? toast.error("Islem basarisiz oldu.") : null; return }
 
     // Notify customer
     try {
-      const { createNotification } = await import("@/lib/notifications")
+      // KALDIRILDI: const { createNotification } = await import("@/lib/notifications")
       const { data: aptRow } = await supabase.from("appointments").select("customer_user_id, appointment_date, start_time").eq("id", aptId).maybeSingle()
       if (aptRow?.customer_user_id) {
-        const titleMap: Record<string, string> = { confirmed: "Randevunuz onaylandi", cancelled: "Randevunuz iptal edildi", completed: "Randevunuz tamamlandi", no_show: "Randevunuz no-show olarak isaretlendi" }
-        const typeMap: Record<string, string> = { confirmed: "appointment_confirmed", cancelled: "appointment_cancelled", completed: "appointment_confirmed", no_show: "appointment_cancelled" }
-        await createNotification(supabase, { userId: aptRow.customer_user_id, type: (typeMap[newStatus] || "system") as any, title: titleMap[newStatus] || "Randevu guncellendi", body: `${aptRow.appointment_date} tarihinde saat ${String(aptRow.start_time).slice(0, 5)}`, relatedId: aptId, relatedType: "appointment" })
+        const titleMap: Record<string, string> = { "Onaylandı": "Randevunuz onaylandi", "İptal": "Randevunuz iptal edildi", "Tamamlandı": "Randevunuz tamamlandi", "Gelmedi": "Randevunuz no-show olarak isaretlendi" }
+        const typeMap: Record<string, string> = { "Onaylandı": "appointment_confirmed", "İptal": "appointment_cancelled", "Tamamlandı": "appointment_confirmed", "Gelmedi": "appointment_cancelled" }
+        await createNotificationAction({ userId: aptRow.customer_user_id, type: (typeMap[newStatus] || "system") as any, title: titleMap[newStatus] || "Randevu guncellendi", body: `${aptRow.appointment_date} tarihinde saat ${String(aptRow.start_time).slice(0, 5)}`, relatedId: aptId, relatedType: "appointment" })
       }
     } catch (e) { console.error("[Notification]", e) }
 
-    // Audit
-    try { const { logAudit } = await import("@/lib/audit"); const { data: { user: authUser } } = await supabase.auth.getUser(); if (authUser) await logAudit(supabase, { userId: authUser.id, action: "updated", targetTable: "appointments", targetId: aptId }) } catch { }
+    try {
+      await logAuditAction({ action: "updated", targetTable: "appointments", targetId: aptId })
+    } catch (err) { console.error("[Audit]", err) }
 
 
     toast?.success ? toast.success("Randevu guncellendi.") : null
@@ -287,7 +295,7 @@ function OverviewTab({
   const dateLabel = `${now.getDate()} ${MONTHS_TR[now.getMonth()]} ${now.getFullYear()}, ${DAYS_FULL_TR[now.getDay()]}`
 
   const summaryCards = [
-    { label: "Bugunku Randevu", icon: Calendar, value: String(todayAppts.length), sub: todayAppts.length > 0 ? `Sonraki: ${todayAppts.find(a => a.status === "pending" || a.status === "confirmed")?.time || "—"}` : "Randevu yok", color: "text-primary" },
+    { label: "Bugunku Randevu", icon: Calendar, value: String(todayAppts.length), sub: todayAppts.length > 0 ? `Sonraki: ${todayAppts.find(a => a.status === "Bekliyor" || a.status === "Onaylandı")?.time || "—"}` : "Randevu yok", color: "text-primary" },
     { label: "Bu Hafta", icon: CalendarDays, value: String(weekCount), sub: "Toplam randevu", color: "text-primary" },
     { label: "Bekleyen Onay", icon: Clock, value: String(pendingCount), sub: "Onay bekliyor", color: "text-primary" },
     { label: "Tamamlanan (Ay)", icon: CheckCircle, value: String(monthCompleted), sub: "Bu ay", color: "text-primary" },
@@ -299,7 +307,10 @@ function OverviewTab({
     <div className="flex flex-col gap-6">
       {/* Welcome */}
       <div>
-        <h2 className="text-2xl font-semibold text-foreground">Merhaba, {staffName} <span role="img" aria-label="wave">&#128075;</span></h2>
+        <h2 className="text-2xl font-semibold text-foreground">
+          Merhaba, {staffName} <span role="img" aria-label="wave">&#128075;</span>
+          {businessName && <span className="text-muted-foreground font-normal ml-2"> — {businessName} Parçasısınız</span>}
+        </h2>
         <p className="mt-1 text-sm text-muted-foreground">{dateLabel} &middot; Bugun {todayAppts.length} randevunuz var</p>
       </div>
 
@@ -388,14 +399,14 @@ function OverviewTab({
 
                   {/* Actions */}
                   <div className="flex items-center justify-end gap-2">
-                    {apt.status === "pending" && (
-                      <button type="button" onClick={() => handleStatusUpdate(apt.id, "confirmed")} className="rounded-lg px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary-light">Onayla</button>
+                    {apt.status === "Bekliyor" && (
+                      <button type="button" onClick={() => handleStatusUpdate(apt.id, "Onaylandı")} className="rounded-lg px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary-light">Onayla</button>
                     )}
-                    {apt.status === "confirmed" && (
+                    {apt.status === "Onaylandı" && (
                       <>
-                        <button type="button" onClick={() => handleStatusUpdate(apt.id, "completed")} className="rounded-lg px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary-light">Tamamlandi</button>
+                        <button type="button" onClick={() => handleStatusUpdate(apt.id, "Tamamlandı")} className="rounded-lg px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary-light">Tamamlandı</button>
                         <button type="button" onClick={() => { setNoShowTarget(apt.id); setNoShowModalOpen(true) }} className="rounded-lg px-3 py-1.5 text-xs font-medium text-accent transition-colors hover:bg-badge-red-bg">No-Show</button>
-                        <button type="button" onClick={() => handleStatusUpdate(apt.id, "cancelled")} className="rounded-lg px-3 py-1.5 text-xs font-medium text-accent transition-colors hover:bg-badge-red-bg">Iptal</button>
+                        <button type="button" onClick={() => handleStatusUpdate(apt.id, "İptal")} className="rounded-lg px-3 py-1.5 text-xs font-medium text-accent transition-colors hover:bg-badge-red-bg">İptal</button>
                       </>
                     )}
                   </div>
@@ -414,7 +425,7 @@ function OverviewTab({
         footer={
           <>
             <RxButton variant="ghost" onClick={() => setNoShowModalOpen(false)}>Vazgec</RxButton>
-            <RxButton variant="danger" onClick={() => { if (noShowTarget) handleStatusUpdate(noShowTarget, "no_show"); setNoShowModalOpen(false) }}>No-Show Isaretle</RxButton>
+            <RxButton variant="danger" onClick={() => { if (noShowTarget) handleStatusUpdate(noShowTarget, "Gelmedi"); setNoShowModalOpen(false) }}>No-Show İşaretle</RxButton>
           </>
         }
       >
@@ -463,7 +474,7 @@ function CalendarTab({ staffBusinessId, supabase, refreshKey }: { staffBusinessI
         .eq("staff_business_id", staffBusinessId)
         .gte("appointment_date", dateToYMD(weekStart))
         .lte("appointment_date", dateToYMD(weekEnd))
-        .in("status", ["pending", "confirmed", "completed"])
+        .in("status", ["Bekliyor", "Onaylandı", "Tamamlandı"])
 
       const mapped: WeekAppointment[] = (data || []).map((a: any) => {
         const aptDate = new Date(a.appointment_date + "T00:00:00")
@@ -661,12 +672,12 @@ function AppointmentsTab({
   }, [staffBusinessId, supabase, refreshKey])
 
   const filters = [
-    { key: "all", label: "Tumu" },
-    { key: "pending", label: "Bekleyen" },
-    { key: "confirmed", label: "Onaylanan" },
-    { key: "completed", label: "Tamamlanan" },
-    { key: "cancelled", label: "Iptal Edilen" },
-    { key: "no_show", label: "No-Show" },
+    { key: "all", label: "Tümü" },
+    { key: "Bekliyor", label: "Bekleyen" },
+    { key: "Onaylandı", label: "Onaylanan" },
+    { key: "Tamamlandı", label: "Tamamlanan" },
+    { key: "İptal", label: "İptal Edilen" },
+    { key: "Gelmedi", label: "No-Show" },
   ]
 
   const filtered = appointments.filter((apt) => {
@@ -751,7 +762,7 @@ function AppointmentsTab({
 // ─── Main Component ─────────────────────────────────────────────────────────────
 
 export function StaffDashboard() {
-  const { staffBusinessId, staffName, loading, supabase } = useStaffData()
+  const { staffBusinessId, businessName, staffName, loading, supabase } = useStaffData()
   const [activeTab, setActiveTab] = useState<"overview" | "calendar" | "appointments">("overview")
   const [refreshKey, setRefreshKey] = useState(0)
 
@@ -808,7 +819,7 @@ export function StaffDashboard() {
         ))}
       </div>
 
-      {activeTab === "overview" && <OverviewTab staffBusinessId={staffBusinessId} staffName={staffName} supabase={supabase} onStatusChange={() => setRefreshKey(k => k + 1)} refreshKey={refreshKey} />}
+      {activeTab === "overview" && <OverviewTab staffBusinessId={staffBusinessId} staffName={staffName} businessName={businessName} supabase={supabase} onStatusChange={() => setRefreshKey(k => k + 1)} refreshKey={refreshKey} />}
       {activeTab === "calendar" && <CalendarTab staffBusinessId={staffBusinessId} supabase={supabase} refreshKey={refreshKey} />}
       {activeTab === "appointments" && <AppointmentsTab staffBusinessId={staffBusinessId} supabase={supabase} refreshKey={refreshKey} />}
     </>

@@ -1,4 +1,8 @@
 import { defineConfig, devices } from "@playwright/test"
+import { loadEnvConfig } from "@next/env"
+
+// .env.test ve .env dosyalarını yükle (test credentials)
+loadEnvConfig(process.cwd(), true)
 
 export default defineConfig({
     testDir: "./e2e",
@@ -20,3 +24,4 @@ export default defineConfig({
         reuseExistingServer: !process.env.CI,
     },
 })
+

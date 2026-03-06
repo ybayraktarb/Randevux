@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Loader2, Search, MoreHorizontal, ChevronLeft, ChevronRight, UserCheck, BanIcon, Edit2, Plus, X } from "lucide-react"
 import { cn } from "@/lib/utils"
+import * as Sentry from "@sentry/nextjs"
 import { RxAvatar } from "./rx-avatar"
 import { RxBadge } from "./rx-badge"
 import { RxButton } from "./rx-button"
@@ -35,8 +36,31 @@ export function UsersTab() {
 
     // Create User Modal State
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
-    const [createForm, setCreateForm] = useState({ name: "", email: "", password: "" })
+    const [createForm, setCreateForm] = useState({
+        name: "", email: "", password: "", role: "patron", phone: "",
+        businessName: "", moduleId: "", existingBusinessId: "", assignmentType: "new"
+    })
     const [createLoading, setCreateLoading] = useState(false)
+    const [modules, setModules] = useState<any[]>([])
+    const [businesses, setBusinesses] = useState<any[]>([])
+
+    useEffect(() => {
+        async function fetchDropdownData() {
+            const [modulesRes, businessesRes] = await Promise.all([
+                supabase.from('modules').select('id, display_name').eq('is_active', true),
+                supabase.from('businesses').select('id, name').eq('is_active', true)
+            ])
+
+            if (modulesRes.data) {
+                setModules(modulesRes.data)
+                if (modulesRes.data.length > 0) setCreateForm(prev => ({ ...prev, moduleId: modulesRes.data[0].id }))
+            }
+            if (businessesRes.data) {
+                setBusinesses(businessesRes.data)
+            }
+        }
+        fetchDropdownData()
+    }, [supabase])
 
     useEffect(() => {
         const delayDebounceFn = setTimeout(() => {
@@ -49,7 +73,7 @@ export function UsersTab() {
         setLoading(true)
         let query = supabase
             .from("users")
-            .select("id, name, email, phone, is_active, created_at, avatar_url", { count: 'exact' })
+            .select("id, name, email, phone, role, is_active, created_at, avatar_url", { count: 'exact' })
             .order("created_at", { ascending: false })
 
         if (searchQuery) {
@@ -108,18 +132,23 @@ export function UsersTab() {
         if (!userToAct) return
         setActionLoading(true)
 
-        const { error } = await supabase
-            .from("users")
-            .update({ is_active: userToAct.willBeActive })
-            .eq("id", userToAct.id)
+        try {
+            const { error } = await supabase
+                .from("users")
+                .update({ is_active: userToAct.willBeActive })
+                .eq("id", userToAct.id)
 
-        setActionLoading(false)
-        if (!error) {
+            if (error) throw error
+
             setIsConfirmModalOpen(false)
             setUserToAct(null)
             fetchUsers()
-        } else {
-            alert("İşlem sırasında bir hata oluştu: " + error.message)
+        } catch (error) {
+            console.error("İşlem hatası:", error)
+            Sentry.captureException(error)
+            alert("İşlem sırasında bir hata oluştu. Teknik ekip bilgilendirildi.")
+        } finally {
+            setActionLoading(false)
         }
     }
 
@@ -127,23 +156,28 @@ export function UsersTab() {
         e.preventDefault()
         setActionLoading(true)
 
-        // Super Admin only updating fields
-        const updates = {
-            name: editForm.name,
-            email: editForm.email
-        }
+        try {
+            const updates = {
+                name: editForm.name,
+                email: editForm.email,
+                role: editForm.role
+            }
 
-        const { error } = await supabase
-            .from("users")
-            .update(updates)
-            .eq("id", editForm.id)
+            const { error } = await supabase
+                .from("users")
+                .update(updates)
+                .eq("id", editForm.id)
 
-        setActionLoading(false)
-        if (!error) {
+            if (error) throw error
+
             setIsEditModalOpen(false)
             fetchUsers()
-        } else {
-            alert("Güncelleme hatası: " + error.message)
+        } catch (error) {
+            console.error("Güncelleme hatası:", error)
+            Sentry.captureException(error)
+            alert("Güncelleme sırasında bir hata oluştu. Teknik ekip bilgilendirildi.")
+        } finally {
+            setActionLoading(false)
         }
     }
 
@@ -153,23 +187,49 @@ export function UsersTab() {
             return
         }
 
+        if (createForm.role === "patron") {
+            if (createForm.assignmentType === "new" && (!createForm.businessName || !createForm.moduleId)) {
+                alert("Yeni işletme oluşturulurken İşletme Adı ve Modül seçimi zorunludur.")
+                return
+            }
+            if (createForm.assignmentType === "existing" && !createForm.existingBusinessId) {
+                alert("Lütfen atanacak mevcut işletmeyi seçin.")
+                return
+            }
+        }
+
         setCreateLoading(true)
 
         const formData = new FormData()
         formData.append("name", createForm.name)
         formData.append("email", createForm.email)
         formData.append("password", createForm.password)
+        formData.append("role", createForm.role)
+        if (createForm.phone) formData.append("phone", createForm.phone)
+
+        if (createForm.role === "patron") {
+            if (createForm.assignmentType === "new") {
+                formData.append("businessName", createForm.businessName)
+                formData.append("moduleId", createForm.moduleId)
+            } else {
+                formData.append("existingBusinessId", createForm.existingBusinessId)
+            }
+        }
 
         const result = await createUserAction(formData)
 
         setCreateLoading(false)
 
-        if (result?.error) {
-            alert("Hesap oluşturulamadı: " + result.error)
-        } else if (result?.success) {
+        if (!result.success) {
+            alert("Hesap oluşturulamadı: " + result.error.message) // DEĞİŞTİRİLDİ — ActionResult formatı
+        } else if (result.success) {
             alert("Kullanıcı hesabı başarıyla oluşturuldu! (Sonner toast eklenebilir)")
             setIsCreateModalOpen(false)
-            setCreateForm({ name: "", email: "", password: "" })
+            setCreateForm({
+                name: "", email: "", password: "", role: "patron", phone: "",
+                businessName: "", moduleId: modules[0]?.id || "",
+                existingBusinessId: "", assignmentType: "new"
+            })
             fetchUsers() // Tabloyu Yenile
         }
     }
@@ -439,7 +499,21 @@ export function UsersTab() {
             >
                 <div className="flex flex-col gap-4">
                     <div className="rounded-lg bg-primary-light/50 p-3 text-sm text-primary-dark">
-                        Oluşturulan bu hesap doğrudan giriş yapabilir ve işletmelerde **Owner (Patron)** olarak atanabilir.
+                        Oluşturulan bu hesap doğrudan giriş yapabilir ve işletmelerde Owner (Patron) olarak atanabilir.
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-sm font-medium text-foreground">Kullanıcı Rolü</label>
+                        <select
+                            value={createForm.role}
+                            onChange={(e) => setCreateForm({ ...createForm, role: e.target.value })}
+                            className="h-10 rounded-lg border border-input bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                            disabled={createLoading}
+                        >
+                            <option value="patron">Patron (İşletme Sahibi)</option>
+                            <option value="super_admin">Super Admin</option>
+                            <option value="user">Standart Kullanıcı</option>
+                        </select>
                     </div>
 
                     <RxInput
@@ -458,6 +532,14 @@ export function UsersTab() {
                         disabled={createLoading}
                     />
                     <RxInput
+                        label="Telefon Numarası"
+                        type="tel"
+                        placeholder="Örn: 5551234567"
+                        value={createForm.phone}
+                        onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })}
+                        disabled={createLoading}
+                    />
+                    <RxInput
                         label="Sistem Şifresi (*)"
                         type="password"
                         placeholder="En az 6 karakter"
@@ -465,6 +547,78 @@ export function UsersTab() {
                         onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
                         disabled={createLoading}
                     />
+
+                    {createForm.role === "patron" && (
+                        <div className="mt-2 flex flex-col gap-4 border-t pt-4 border-border">
+                            <h4 className="text-sm font-semibold text-foreground">İşletme Ataması</h4>
+
+                            <div className="flex gap-4">
+                                <label className="flex items-center gap-2 text-sm">
+                                    <input
+                                        type="radio"
+                                        name="assignmentType"
+                                        value="new"
+                                        checked={createForm.assignmentType === "new"}
+                                        onChange={() => setCreateForm({ ...createForm, assignmentType: "new" })}
+                                        disabled={createLoading}
+                                    />
+                                    Yeni İşletme Oluştur
+                                </label>
+                                <label className="flex items-center gap-2 text-sm">
+                                    <input
+                                        type="radio"
+                                        name="assignmentType"
+                                        value="existing"
+                                        checked={createForm.assignmentType === "existing"}
+                                        onChange={() => setCreateForm({ ...createForm, assignmentType: "existing" })}
+                                        disabled={createLoading || businesses.length === 0}
+                                    />
+                                    Mevcut İşletmeye Ata
+                                </label>
+                            </div>
+
+                            {createForm.assignmentType === "new" ? (
+                                <>
+                                    <RxInput
+                                        label="İşletme Adı (*)"
+                                        placeholder="Örn: Ahmet Erkek Kuaförü"
+                                        value={createForm.businessName}
+                                        onChange={(e) => setCreateForm({ ...createForm, businessName: e.target.value })}
+                                        disabled={createLoading}
+                                    />
+                                    <div className="flex flex-col gap-1.5">
+                                        <label className="text-sm font-medium text-foreground">Sektör / Modül (*)</label>
+                                        <select
+                                            value={createForm.moduleId}
+                                            onChange={(e) => setCreateForm({ ...createForm, moduleId: e.target.value })}
+                                            className="h-10 rounded-lg border border-input bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                                            disabled={createLoading || modules.length === 0}
+                                        >
+                                            {modules.map((m) => (
+                                                <option key={m.id} value={m.id}>{m.display_name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="text-sm font-medium text-foreground">Mevcut İşletme Seçin (*)</label>
+                                    <select
+                                        value={createForm.existingBusinessId}
+                                        onChange={(e) => setCreateForm({ ...createForm, existingBusinessId: e.target.value })}
+                                        className="h-10 rounded-lg border border-input bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                                        disabled={createLoading}
+                                    >
+                                        <option value="">İşletme Seçiniz...</option>
+                                        {businesses.map((b) => (
+                                            <option key={b.id} value={b.id}>{b.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     <div className="text-[11px] text-muted-foreground">
                         Not: Hesap açıldığında e-posta onayı beklenmeden direkt giriş yapılabilir.
                     </div>

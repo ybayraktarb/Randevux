@@ -7,9 +7,11 @@ import {
     UserCheck,
     Settings,
     ClipboardList,
-    Umbrella,
-    Building2,
     User,
+    Wallet,
+    Package,
+    Building2,
+    Umbrella
 } from "lucide-react"
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
@@ -29,6 +31,8 @@ export const patronNav: NavItem[] = [
     { label: "Hizmetler", icon: Scissors, href: "/hizmetler" },
     { label: "Takvim & Vardiyalar", icon: Clock, href: "/takvim" },
     { label: "Müşteriler", icon: UserCheck, href: "/musteriler" },
+    { label: "Ürünler & Depo", icon: Package, href: "/urunler" },
+    { label: "Finans & Muhasebe", icon: Wallet, href: "/finans" },
     { label: "Ayarlar", icon: Settings, href: "/ayarlar" },
 ]
 

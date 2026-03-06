@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import {
   Calendar,
@@ -13,6 +14,8 @@ import {
   Check,
   XIcon,
   Loader2,
+  PackageOpen,
+  AlertTriangle
 } from "lucide-react"
 import { RxAvatar } from "./rx-avatar"
 import { RxBadge } from "./rx-badge"
@@ -28,6 +31,8 @@ import {
 } from "recharts"
 import { createClient } from "@/lib/supabase/client"
 import { useCurrentUser } from "@/hooks/use-current-user"
+import { getDashboardStatsAction, type DashboardStats } from "@/app/actions/dash-stats.actions"
+import { AddAppointmentModal } from "./appointment-management"
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
 
@@ -37,7 +42,7 @@ interface TodayApt {
   customer: string
   service: string
   staff: string
-  status: "completed" | "ongoing" | "confirmed" | "pending" | "break"
+  status: "Tamamlandı" | "ongoing" | "Onaylandı" | "Bekliyor" | "break"
 }
 
 interface PendingItem {
@@ -97,8 +102,8 @@ function StatCard({ label, icon: Icon, value, trendText, trendValue, trendPositi
 
 function StatusBadge({ status }: { status: string }) {
   switch (status) {
-    case "completed":
-      return <RxBadge variant="success">{"Tamamlandi"}</RxBadge>
+    case "Tamamlandı":
+      return <RxBadge variant="success">{"Tamamlandı"}</RxBadge>
     case "ongoing":
       return (
         <span className="inline-flex items-center gap-1.5 rounded-md bg-badge-purple-bg px-2.5 py-0.5 text-xs font-medium text-badge-purple-text">
@@ -109,9 +114,9 @@ function StatusBadge({ status }: { status: string }) {
           {"Devam Ediyor"}
         </span>
       )
-    case "confirmed":
-      return <RxBadge variant="success">{"Onaylandi"}</RxBadge>
-    case "pending":
+    case "Onaylandı":
+      return <RxBadge variant="success">{"Onaylandı"}</RxBadge>
+    case "Bekliyor":
       return <RxBadge variant="warning">{"Bekliyor"}</RxBadge>
     default:
       return null
@@ -412,20 +417,40 @@ export function PatronDashboard() {
   const [totalRevenue, setTotalRevenue] = useState(0)
   const [totalAppointments, setTotalAppointments] = useState(0)
   const [noShowCount, setNoShowCount] = useState(0)
+  const [totalCustomers, setTotalCustomers] = useState(0)
+  const [vipCount, setVipCount] = useState(0)
+  const [showAddModal, setShowAddModal] = useState(false)
+
+  // Eksik Stok
+  const [lowStockItems, setLowStockItems] = useState<any[]>([])
 
   const supabase = createClient()
 
   useEffect(() => {
     if (!user) return
-    async function fetchBusinessId() {
+    let cancelled = false
+
+    async function init() {
+      // businessId'yi çek (RLS oturumu hazır olduktan sonra)
       const { data } = await supabase
         .from("business_owners")
         .select("business_id")
         .eq("user_id", user!.id)
         .maybeSingle()
-      if (data) setBusinessId(data.business_id)
+
+      if (cancelled) return
+
+      if (!data?.business_id) {
+        toast.error("İşletme bulunamadı. Lütfen sistem yöneticisiyle iletişime geçin.")
+        setLoading(false)
+        return
+      }
+
+      setBusinessId(data.business_id)
     }
-    fetchBusinessId()
+
+    init()
+    return () => { cancelled = true }
   }, [user, supabase])
 
   const fetchDashboard = useCallback(async () => {
@@ -458,7 +483,7 @@ export function PatronDashboard() {
           customer: cust?.name || "?",
           service: svcObj?.name || "?",
           staff: staffUser?.name || "?",
-          status: (a.status === "completed" ? "completed" : a.status === "confirmed" ? "confirmed" : "pending") as TodayApt["status"],
+          status: (a.status === "Tamamlandı" ? "Tamamlandı" : a.status === "Onaylandı" ? "Onaylandı" : "Bekliyor") as TodayApt["status"],
         }
       })
       setTodayApts(mappedToday)
@@ -468,7 +493,7 @@ export function PatronDashboard() {
         .from("appointments")
         .select("id, appointment_date, start_time, customer:users!appointments_customer_user_id_fkey(name), services:appointment_services(service:services(name)), staff:staff_business!appointments_staff_business_id_fkey(user:users(name))")
         .eq("business_id", businessId)
-        .eq("status", "pending")
+        .eq("status", "Bekliyor")
         .order("appointment_date")
         .limit(10)
 
@@ -497,7 +522,7 @@ export function PatronDashboard() {
         .from("appointments")
         .select("appointment_date, start_time, customer:users!appointments_customer_user_id_fkey(name), services:appointment_services(service:services(name)), staff:staff_business!appointments_staff_business_id_fkey(user:users(name))")
         .eq("business_id", businessId)
-        .eq("status", "no_show")
+        .eq("status", "Gelmedi")
         .order("appointment_date", { ascending: false })
         .limit(5)
 
@@ -517,55 +542,30 @@ export function PatronDashboard() {
       })
       setNoShowRecords(mappedNoShow)
 
-      // Monthly stats
-      const { data: monthApts } = await supabase
-        .from("appointments")
-        .select("id, status, total_price")
-        .eq("business_id", businessId)
-        .gte("appointment_date", monthStart)
-
-      const allMonthApts = monthApts || []
-      setTotalAppointments(allMonthApts.length)
-      setNoShowCount(allMonthApts.filter((a) => a.status === "no_show").length)
-      const revenue = allMonthApts
-        .filter((a) => a.status === "completed")
-        .reduce((sum, a) => sum + (Number(a.total_price) || 0), 0)
-      setTotalRevenue(revenue)
-
-      // Weekly revenue breakdown (4 weeks)
-      const weeklyRevenue: { week: string; revenue: number }[] = []
-      for (let w = 0; w < 4; w++) {
-        const weekStart = new Date(today.getFullYear(), today.getMonth(), 1 + w * 7)
-        const weekEnd = new Date(today.getFullYear(), today.getMonth(), Math.min(1 + (w + 1) * 7, new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()))
-        const weekApts = allMonthApts.filter((a) => {
-          // Simple week classification by index
-          return true
-        })
-        const weekRev = allMonthApts
-          .filter((a) => a.status === "completed")
-          .reduce((sum, a) => sum + (Number(a.total_price) || 0) / 4, 0) // Distribute evenly as approximation
-        weeklyRevenue.push({ week: `H${w + 1}`, revenue: Math.round(weekRev) })
-      }
-      setRevenueData(weeklyRevenue.length > 0 ? weeklyRevenue : [{ week: "H1", revenue: 0 }])
-
-      // Staff performance (appointment counts this month)
-      const { data: staffData } = await supabase
-        .from("staff_business")
-        .select("id, user:users(name)")
+      // Kritik Stoktaki Ürünleri Çek
+      const { data: stockData } = await supabase
+        .from("products")
+        .select("id, name, stock_quantity, min_stock_alert")
         .eq("business_id", businessId)
         .eq("is_active", true)
 
-      const maxApts = Math.max(1, allMonthApts.length)
-      const perfData: StaffPerf[] = (staffData || []).map((s) => {
-        const usr = Array.isArray(s.user) ? s.user[0] : s.user
-        const count = allMonthApts.filter((a) => (a as Record<string, unknown>).staff_business_id === s.id).length
-        return {
-          name: usr?.name || "?",
-          count,
-          percent: Math.round((count / maxApts) * 100),
-        }
-      })
-      setStaffPerf(perfData)
+      if (stockData) {
+        const lowStock = stockData.filter(p => p.stock_quantity <= p.min_stock_alert)
+        setLowStockItems(lowStock)
+      }
+
+      // Fetch aggregated stats from server action
+      const statsRes = await getDashboardStatsAction(businessId)
+      if (statsRes.success && statsRes.data) {
+        const s = statsRes.data as DashboardStats
+        setTotalRevenue(s.totalRevenue)
+        setTotalAppointments(s.totalAppointments)
+        setNoShowCount(s.noShowCount)
+        setTotalCustomers(s.totalCustomers)
+        setVipCount(s.vipCount)
+        setRevenueData(s.weeklyRevenue)
+        setStaffPerf(s.staffPerformance)
+      }
     } finally {
       setLoading(false)
     }
@@ -576,12 +576,12 @@ export function PatronDashboard() {
   }, [fetchDashboard])
 
   const handleApprove = async (id: string) => {
-    await supabase.from("appointments").update({ status: "confirmed" }).eq("id", id)
+    await supabase.from("appointments").update({ status: "Onaylandı" }).eq("id", id)
     setPendingItems((prev) => prev.filter((item) => item.id !== id))
   }
 
   const handleReject = async (id: string) => {
-    await supabase.from("appointments").update({ status: "cancelled" }).eq("id", id)
+    await supabase.from("appointments").update({ status: "İptal" }).eq("id", id)
     setPendingItems((prev) => prev.filter((item) => item.id !== id))
   }
 
@@ -606,18 +606,28 @@ export function PatronDashboard() {
           <h2 className="text-2xl font-semibold text-foreground">{greeting}, {userName} 👋</h2>
           <p className="mt-0.5 text-sm text-muted-foreground">{dateStr}</p>
         </div>
-        <RxButton variant="primary">
+        <RxButton variant="primary" onClick={() => setShowAddModal(true)}>
           <CalendarPlus className="size-4" />
           Yeni Randevu Ekle
         </RxButton>
       </div>
 
+      {showAddModal && businessId && (
+        <AddAppointmentModal
+          open={showAddModal}
+          onClose={() => setShowAddModal(false)}
+          businessId={businessId}
+          onAdded={fetchDashboard}
+        />
+      )}
+
       {/* Stat Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <StatCard label="Bu Ayki Gelir" icon={TrendingUp} value={`₺${totalRevenue.toLocaleString("tr-TR")}`} />
         <StatCard label="Toplam Randevu" icon={Calendar} value={String(totalAppointments)} trendText="bu ay" />
-        <StatCard label="No-Show" icon={UserX} value={String(noShowCount)} trendText="bu ay" />
-        <StatCard label="Bekleyen Onay" icon={Clock} value={String(pendingItems.length)} actionLabel="Hemen Incele" />
+        <StatCard label="Müşteri Sayısı" icon={RxAvatar} value={String(totalCustomers)} />
+        <StatCard label="VIP Müşteriler" icon={Check} value={String(vipCount)} />
+        <StatCard label="Bekleyen Onay" icon={Clock} value={String(pendingItems.length)} actionLabel="Incele" />
       </div>
 
       {/* Today's Appointments + Pending Approvals */}
@@ -625,8 +635,36 @@ export function PatronDashboard() {
         <div className="xl:col-span-3">
           <TodayAppointments appointments={todayApts} />
         </div>
-        <div className="xl:col-span-2">
+        <div className="xl:col-span-2 flex flex-col gap-6">
           <PendingApprovals items={pendingItems} onApprove={handleApprove} onReject={handleReject} />
+
+          {/* Low Stock Alerts */}
+          {lowStockItems.length > 0 && (
+            <div className="flex flex-col rounded-xl bg-card shadow-[0_2px_8px_rgba(0,0,0,0.06)] border border-destructive/20">
+              <div className="flex items-center justify-between border-b border-border px-5 py-4 bg-destructive/5 rounded-t-xl">
+                <div className="flex items-center gap-3">
+                  <h2 className="text-base font-semibold text-destructive">Kritik Stok Uyarıları</h2>
+                  <span className="flex size-5 items-center justify-center rounded-full bg-destructive text-[11px] font-bold text-destructive-foreground">{lowStockItems.length}</span>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 p-5 max-h-[300px] overflow-y-auto">
+                {lowStockItems.map(item => (
+                  <div key={item.id} className="flex justify-between items-center p-3 rounded-lg border border-border bg-card">
+                    <div className="flex items-center gap-3">
+                      <PackageOpen className="size-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">{item.name}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-muted-foreground mr-2">Min: {item.min_stock_alert}</span>
+                      <span className={cn("font-bold text-sm", item.stock_quantity === 0 ? "text-destructive" : "text-warning")}>
+                        {item.stock_quantity} Adet
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

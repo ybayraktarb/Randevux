@@ -21,11 +21,13 @@ import {
   MoreHorizontal,
   CheckCircle,
   Loader2,
+  Save,
 } from "lucide-react"
 import { RxAvatar } from "./rx-avatar"
 import { RxBadge } from "./rx-badge"
 import { RxButton } from "./rx-button"
 import { RxTextarea } from "./rx-input"
+import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import { useCurrentUser } from "@/hooks/use-current-user"
 
@@ -40,6 +42,8 @@ interface Customer {
   noShow: number
   lastAppointment: string
   status: "aktif" | "no-show-risk"
+  isVip?: boolean
+  internalNotes?: string
   createdAt?: string
 }
 
@@ -52,7 +56,7 @@ interface AppointmentHistory {
   staff: string
   time: string
   price: string
-  status: "confirmed" | "completed" | "pending" | "cancelled" | "no_show"
+  status: "Onaylandı" | "Bekliyor" | "Tamamlandı" | "İptal" | "Gelmedi"
 }
 
 interface StaffNote {
@@ -65,20 +69,22 @@ interface StaffNote {
 
 // ─── Tab 1: Musteri Listesi ─────────────────────────────────────────────────────
 
-function CustomerListTab({ customers, loading, totalCount, noShowRiskCount, onViewProfile }: {
+function CustomerListTab({ customers, loading, totalCount, noShowRiskCount, onViewProfile, onAddCustomer }: {
   customers: Customer[]
   loading: boolean
   totalCount: number
   noShowRiskCount: number
   onViewProfile: (c: Customer) => void
+  onAddCustomer: () => void
 }) {
   const [searchQuery, setSearchQuery] = useState("")
   const [filter, setFilter] = useState("all")
 
   const filtered = customers.filter((c) => {
     const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase()) || c.email.toLowerCase().includes(searchQuery.toLowerCase())
-    if (filter === "duzenli") return matchesSearch && c.status === "aktif" && c.totalAppointments >= 5
+    if (filter === "duzenli") return matchesSearch && c.totalAppointments >= 5
     if (filter === "no-show") return matchesSearch && c.status === "no-show-risk"
+    if (filter === "vip") return matchesSearch && c.isVip
     return matchesSearch
   })
 
@@ -106,7 +112,7 @@ function CustomerListTab({ customers, loading, totalCount, noShowRiskCount, onVi
               placeholder="Musteri ara..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-10 w-[300px] max-w-full rounded-lg border border-input bg-card pl-10 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
+              className="h-10 w-[240px] max-w-full rounded-lg border border-input bg-card pl-10 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
             />
           </div>
           <select
@@ -116,8 +122,12 @@ function CustomerListTab({ customers, loading, totalCount, noShowRiskCount, onVi
           >
             <option value="all">Tum Musteriler</option>
             <option value="duzenli">Duzenli</option>
+            <option value="vip">VIP Musteriler</option>
             <option value="no-show">No-Show Riski</option>
           </select>
+          <RxButton onClick={onAddCustomer}>
+            <Plus className="size-4 mr-2" /> Yeni Müşteri
+          </RxButton>
         </div>
       </div>
 
@@ -202,11 +212,14 @@ function CustomerListTab({ customers, loading, totalCount, noShowRiskCount, onVi
                   </td>
                   <td className="px-5 py-3 text-[13px] text-muted-foreground">{customer.lastAppointment}</td>
                   <td className="px-5 py-3">
-                    {customer.status === "aktif" ? (
-                      <RxBadge variant="success">Aktif</RxBadge>
-                    ) : (
-                      <RxBadge variant="danger">No-Show Riski</RxBadge>
-                    )}
+                    <div className="flex flex-col gap-1">
+                      {customer.isVip && <RxBadge variant="warning" className="w-fit">VIP</RxBadge>}
+                      {customer.status === "aktif" ? (
+                        <RxBadge variant="success">Aktif</RxBadge>
+                      ) : (
+                        <RxBadge variant="danger">No-Show Riski</RxBadge>
+                      )}
+                    </div>
                   </td>
                   <td className="px-5 py-3">
                     <button
@@ -238,6 +251,12 @@ function CustomerProfileTab({ customer, onBack, businessId }: { customer: Custom
   const [appointmentFilter, setAppointmentFilter] = useState<"all" | "upcoming" | "past">("all")
   const [appointments, setAppointments] = useState<AppointmentHistory[]>([])
   const [notes, setNotes] = useState<StaffNote[]>([])
+
+  // New CRM states
+  const [isVip, setIsVip] = useState(customer.isVip || false)
+  const [internalNotes, setInternalNotes] = useState(customer.internalNotes || "")
+  const [isSavingCrm, setIsSavingCrm] = useState(false)
+
   const [newNoteText, setNewNoteText] = useState("")
   const [linkedAppointmentId, setLinkedAppointmentId] = useState<string | null>(null)
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
@@ -335,8 +354,8 @@ function CustomerProfileTab({ customer, onBack, businessId }: { customer: Custom
   }, [customer.id, businessId, supabase])
 
   const filteredAppointments = appointments.filter((a) => {
-    if (appointmentFilter === "upcoming") return a.status === "confirmed" || a.status === "pending"
-    if (appointmentFilter === "past") return a.status === "completed"
+    if (appointmentFilter === "upcoming") return a.status === "Onaylandı" || a.status === "Bekliyor"
+    if (appointmentFilter === "past") return a.status === "Tamamlandı"
     return true
   })
 
@@ -425,10 +444,33 @@ function CustomerProfileTab({ customer, onBack, businessId }: { customer: Custom
   return (
     <div className="flex flex-col gap-6">
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-1.5 text-[13px]">
-        <button type="button" onClick={onBack} className="text-muted-foreground transition-colors hover:text-primary">Musteriler</button>
-        <ChevronRight className="size-3.5 text-muted-foreground" />
-        <span className="font-medium text-foreground">{customer.name}</span>
+      <nav className="flex items-center justify-between text-[13px]">
+        <div className="flex items-center gap-1.5">
+          <button type="button" onClick={onBack} className="text-muted-foreground transition-colors hover:text-primary">Musteriler</button>
+          <ChevronRight className="size-3.5 text-muted-foreground" />
+          <span className="font-medium text-foreground">{customer.name}</span>
+        </div>
+
+        {/* VIP Toggle and CRM Save */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={async () => {
+              const newVip = !isVip
+              setIsVip(newVip)
+              const { toggleVipStatusAction } = await import("@/app/actions/customer.actions")
+              const res = await toggleVipStatusAction(businessId, customer.id, newVip)
+              if (res.success) toast.success(newVip ? "Müşteri VIP yapıldı." : "VIP statüsü kaldırıldı.")
+              else toast.error("Hata oluştu.")
+            }}
+            className={cn(
+              "flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all",
+              isVip ? "bg-warning text-warning-foreground shadow-sm" : "bg-muted text-muted-foreground hover:bg-muted/70"
+            )}
+          >
+            <CheckCircle className={cn("size-3.5", isVip ? "block" : "hidden")} />
+            VIP {isVip ? "Müşteri" : "Yap"}
+          </button>
+        </div>
       </nav>
 
       {/* Two Column Layout */}
@@ -516,15 +558,41 @@ function CustomerProfileTab({ customer, onBack, businessId }: { customer: Custom
 
               <div className="my-4 h-px w-full bg-border" />
 
+              {/* Internal Notes area */}
+              <div className="mt-4 w-full">
+                <label className="text-xs font-semibold text-foreground uppercase tracking-wider">İşletme Özel Notu (Sabit)</label>
+                <textarea
+                  value={internalNotes}
+                  onChange={(e) => setInternalNotes(e.target.value)}
+                  placeholder="Müşteri hakkında sabit notlar (örn: alerji, tercih vb.)..."
+                  className="mt-2 min-h-[100px] w-full rounded-lg border border-input bg-card/50 p-2.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+                <RxButton
+                  size="sm"
+                  className="mt-2 w-full h-8 text-xs"
+                  variant="secondary"
+                  onClick={async () => {
+                    setIsSavingCrm(true)
+                    const { updateCustomerInternalNotesAction } = await import("@/app/actions/customer.actions")
+                    const res = await updateCustomerInternalNotesAction(businessId, customer.id, internalNotes)
+                    setIsSavingCrm(false)
+                    if (res.success) toast.success("Notlar kaydedildi.")
+                    else toast.error("Hata oluştu.")
+                  }}
+                  disabled={isSavingCrm}
+                >
+                  {isSavingCrm ? <Loader2 className="size-3 animate-spin mr-1.5" /> : <Save className="size-3 mr-1.5" />}
+                  Değişiklikleri Kaydet
+                </RxButton>
+              </div>
+
+              <div className="my-4 h-px w-full bg-border" />
+
               {/* Quick Actions */}
               <div className="flex w-full flex-col gap-2">
                 <RxButton size="sm" className="w-full justify-center">
-                  <CalendarPlus className="size-4" />
+                  <CalendarPlus className="size-4 mr-2" />
                   Randevu Olustur
-                </RxButton>
-                <RxButton size="sm" variant="ghost" className="w-full justify-center">
-                  <FileText className="size-4" />
-                  Musteri Notlari
                 </RxButton>
               </div>
             </div>
@@ -584,12 +652,12 @@ function CustomerProfileTab({ customer, onBack, businessId }: { customer: Custom
                   {/* Right */}
                   <div className="flex shrink-0 flex-col items-end gap-1">
                     <span className="text-sm font-semibold text-foreground">₺{apt.price}</span>
-                    {apt.status === "confirmed" || apt.status === "pending" ? (
-                      <RxBadge variant="purple">Onaylandi</RxBadge>
-                    ) : apt.status === "completed" ? (
-                      <RxBadge variant="success">Tamamlandi</RxBadge>
-                    ) : apt.status === "cancelled" ? (
-                      <RxBadge variant="gray">Iptal</RxBadge>
+                    {apt.status === "Onaylandı" || apt.status === "Bekliyor" ? (
+                      <RxBadge variant="purple">Onaylandı</RxBadge>
+                    ) : apt.status === "Tamamlandı" ? (
+                      <RxBadge variant="success">Tamamlandı</RxBadge>
+                    ) : apt.status === "İptal" ? (
+                      <RxBadge variant="gray">İptal</RxBadge>
                     ) : (
                       <RxBadge variant="danger">No-Show</RxBadge>
                     )}
@@ -769,51 +837,78 @@ export function CustomerProfile() {
     fetchBid()
   }, [user, supabase])
 
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [newName, setNewName] = useState("")
+  const [newEmail, setNewEmail] = useState("")
+  const [newPhone, setNewPhone] = useState("")
+  const [adding, setAdding] = useState(false)
+
   const fetchCustomers = useCallback(async () => {
     if (!businessId) return
     setLoading(true)
     try {
-      // Get all unique customers that have appointments with this business
-      const { data: aptData } = await supabase
-        .from("appointments")
-        .select("customer_user_id, status, appointment_date, customer:users!appointments_customer_user_id_fkey(id, name, email, phone, created_at)")
+      // Get all unique customers for this business including those from business_customers table
+      const { data: bcData } = await supabase
+        .from("business_customers")
+        .select(`
+          id,
+          first_name,
+          last_name,
+          phone,
+          is_vip, 
+          internal_notes, 
+          user:users(id, name, email, phone, created_at)
+        `)
         .eq("business_id", businessId)
 
-      const customerMap = new Map<string, { id: string; name: string; email: string; phone: string; createdAt: string; total: number; noShow: number; lastApt: string }>()
+      // Get appointments data for statistics
+      const { data: aptData } = await supabase
+        .from("appointments")
+        .select("customer_user_id, status, appointment_date")
+        .eq("business_id", businessId)
 
-        ; (aptData || []).forEach((a) => {
-          const cust = Array.isArray(a.customer) ? a.customer[0] : a.customer
-          if (!cust?.id) return
-          const existing = customerMap.get(cust.id)
-          if (existing) {
-            existing.total++
-            if (a.status === "no_show") existing.noShow++
-            if (a.appointment_date > existing.lastApt) existing.lastApt = a.appointment_date
-          } else {
-            customerMap.set(cust.id, {
-              id: cust.id,
-              name: cust.name || "?",
-              email: cust.email || "",
-              phone: cust.phone || "",
-              createdAt: cust.created_at || "",
-              total: 1,
-              noShow: a.status === "no_show" ? 1 : 0,
-              lastApt: a.appointment_date,
-            })
-          }
+      const statsMap = new Map<string, { total: number; noShow: number; lastApt: string }>()
+        ; (aptData || []).forEach(a => {
+          const id = a.customer_user_id
+          const existing = statsMap.get(id) || { total: 0, noShow: 0, lastApt: "" }
+          existing.total++
+          if (a.status === "no_show") existing.noShow++
+          if (a.appointment_date > existing.lastApt) existing.lastApt = a.appointment_date
+          statsMap.set(id, existing)
         })
 
-      const mapped: Customer[] = Array.from(customerMap.values()).map((c) => ({
-        id: c.id,
-        name: c.name,
-        email: c.email,
-        phone: c.phone,
-        totalAppointments: c.total,
-        noShow: c.noShow,
-        lastAppointment: new Date(c.lastApt).toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" }),
-        status: c.noShow >= 3 ? "no-show-risk" as const : "aktif" as const,
-        createdAt: c.createdAt,
-      }))
+      const mapped: Customer[] = (bcData || []).map((bc: any) => {
+        const u = bc.user?.[0] || bc.user
+
+        let customerId = bc.id // Fallback to business_customers ID for guests
+        let name = `${bc.first_name || ""} ${bc.last_name || ""}`.trim() || "Misafir Müşteri"
+        let email = ""
+        let phone = bc.phone || ""
+        let createdAt = ""
+
+        if (u) {
+          customerId = u.id
+          name = u.name || name
+          email = u.email || ""
+          phone = u.phone || phone
+          createdAt = u.created_at || ""
+        }
+
+        const stats = statsMap.get(customerId) || { total: 0, noShow: 0, lastApt: createdAt }
+        return {
+          id: customerId,
+          name,
+          email,
+          phone,
+          totalAppointments: stats.total,
+          noShow: stats.noShow,
+          lastAppointment: stats.lastApt ? new Date(stats.lastApt).toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" }) : "-",
+          status: stats.noShow >= 3 ? "no-show-risk" as const : "aktif" as const,
+          isVip: bc.is_vip,
+          internalNotes: bc.internal_notes,
+          createdAt,
+        }
+      }).filter(Boolean)
 
       mapped.sort((a, b) => b.totalAppointments - a.totalAppointments)
       setCustomers(mapped)
@@ -825,6 +920,27 @@ export function CustomerProfile() {
   useEffect(() => {
     fetchCustomers()
   }, [fetchCustomers])
+
+  const handleAddCustomer = async () => {
+    if (!newName.trim() || !businessId) {
+      toast.error("Müşteri adı zorunludur.")
+      return
+    }
+    setAdding(true)
+    const { addCustomerToBusinessAction } = await import("@/app/actions/customer.actions")
+    const res = await addCustomerToBusinessAction(businessId, newEmail || `${Date.now()}@randevuxx.local`, newName, newPhone)
+    setAdding(false)
+    if (res.success) {
+      toast.success("Müşteri başarıyla eklendi.")
+      setIsAddModalOpen(false)
+      setNewName("")
+      setNewEmail("")
+      setNewPhone("")
+      fetchCustomers()
+    } else {
+      toast.error(res.error?.message || "Hata")
+    }
+  }
 
   const handleViewProfile = (c: Customer) => {
     setSelectedCustomer(c)
@@ -866,10 +982,52 @@ export function CustomerProfile() {
           totalCount={customers.length}
           noShowRiskCount={noShowRiskCount}
           onViewProfile={handleViewProfile}
+          onAddCustomer={() => setIsAddModalOpen(true)}
         />
       )}
       {activeTab === "profile" && selectedCustomer && businessId && (
         <CustomerProfileTab customer={selectedCustomer} onBack={() => setActiveTab("list")} businessId={businessId} />
+      )}
+
+      {/* Add Customer Modal Skeleton */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-foreground/30" onClick={() => setIsAddModalOpen(false)} />
+          <div className="relative w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-2xl">
+            <h3 className="text-lg font-semibold text-foreground">Yeni Müşteri Ekle</h3>
+            <p className="text-sm text-muted-foreground mt-1">Sistemde adı, telefonu veya e-posta adresiyle yeni bir vaka (shadow profil) açabilirsiniz.</p>
+            <div className="mt-4 flex flex-col gap-4">
+              <input
+                type="text"
+                placeholder="Ad Soyad (Zorunlu)"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                className="h-10 rounded-lg border border-input bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+              <input
+                type="email"
+                placeholder="E-posta adresi (Opsiyonel)"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                className="h-10 rounded-lg border border-input bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+              <input
+                type="tel"
+                placeholder="Telefon (Opsiyonel)"
+                value={newPhone}
+                onChange={(e) => setNewPhone(e.target.value)}
+                className="h-10 rounded-lg border border-input bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+              <div className="flex justify-end gap-2">
+                <RxButton variant="ghost" size="sm" onClick={() => setIsAddModalOpen(false)}>İptal</RxButton>
+                <RxButton size="sm" onClick={handleAddCustomer} disabled={adding}>
+                  {adding && <Loader2 className="mr-2 size-4 animate-spin" />}
+                  Ekle
+                </RxButton>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

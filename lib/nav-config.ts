@@ -48,7 +48,7 @@ export const personelNav: NavItem[] = [
 // ─── Müşteri Navigation (4 items) ───────────────────────────────────────────────
 
 export const musteriNav: NavItem[] = [
-    { label: "Genel Bakış", icon: LayoutDashboard, href: "/musteri-panel" },
+    { label: "Keşfet", icon: LayoutDashboard, href: "/musteri-panel" },
     { label: "Randevularım", icon: Calendar, href: "/randevularim" },
     { label: "İşletmelerim", icon: Building2, href: "/isletme" },
     { label: "Profilim", icon: User, href: "/profil" },

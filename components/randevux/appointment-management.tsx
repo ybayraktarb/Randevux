@@ -448,49 +448,63 @@ export function AddAppointmentModal({ open, onClose, businessId, onAdded }: { op
     }
   }
 
+  const totalDuration = services
+    .filter(s => selectedServices.includes(s.id))
+    .reduce((acc, curr) => acc + curr.base_duration_minutes, 0)
+
   return (
     <div ref={overlayRef} className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4" onClick={(e) => { if (e.target === overlayRef.current) onClose() }} role="dialog" aria-modal="true" aria-label="Manuel Randevu Ekle">
-      <div className="w-full max-w-[560px] rounded-xl border border-border bg-card shadow-xl animate-in fade-in zoom-in-95 duration-200">
+      <div className="w-full max-w-[650px] rounded-3xl border border-gray-100 bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-300 overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <h2 className="text-lg font-semibold text-foreground">Manuel Randevu Ekle</h2>
-          <button onClick={onClose} className="rounded-lg p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" aria-label="Kapat"><X className="size-5" /></button>
+        <div className="flex items-center justify-between border-b border-gray-50 px-8 py-6 bg-gray-50/50">
+          <div>
+            <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">Manuel Randevu Ekle</h2>
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mt-1">İşletme Operasyon Paneli</p>
+          </div>
+          <button onClick={onClose} className="rounded-xl p-2 text-gray-400 transition-colors hover:bg-white hover:text-gray-900 border border-transparent hover:border-gray-100 shadow-sm" aria-label="Kapat"><X className="size-5" /></button>
         </div>
 
         {/* Body */}
-        <div className="max-h-[400px] overflow-y-auto px-5 py-5">
-          <div className="flex flex-col gap-4">
-            {/* Customer */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-sm font-medium text-foreground">Musteri Secimi</label>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground mr-1">Kayıtlı mı?</span>
-                  <button type="button" onClick={() => setIsGuest(false)} className={cn("px-2 py-1 text-xs rounded-md transition-colors", !isGuest ? "bg-primary text-primary-foreground font-medium" : "bg-muted text-muted-foreground hover:bg-muted/80")}>Evet</button>
-                  <button type="button" onClick={() => setIsGuest(true)} className={cn("px-2 py-1 text-xs rounded-md transition-colors", isGuest ? "bg-primary text-primary-foreground font-medium" : "bg-muted text-muted-foreground hover:bg-muted/80")}>Hayır (Misafir)</button>
+        <div className="overflow-y-auto px-8 py-8 custom-scrollbar">
+          <div className="flex flex-col gap-8">
+            {/* Customer Section */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-black text-gray-400 uppercase tracking-[0.15em]">Müşteri Bilgileri</h3>
+                <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-xl">
+                  <button type="button" onClick={() => setIsGuest(false)} className={cn("px-4 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all", !isGuest ? "bg-white text-gray-900 shadow-sm" : "text-gray-400 hover:text-gray-600")}>Kayıtlı</button>
+                  <button type="button" onClick={() => setIsGuest(true)} className={cn("px-4 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all", isGuest ? "bg-white text-gray-900 shadow-sm" : "text-gray-400 hover:text-gray-600")}>Misafir</button>
                 </div>
               </div>
 
               {!isGuest ? (
-                <>
+                <div className="relative">
                   {selectedCustomer ? (
-                    <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center gap-2 rounded-lg border border-primary bg-primary-light px-3 py-1.5 text-sm font-medium text-primary">
-                        {selectedCustomer.name}
-                        <button type="button" onClick={() => setSelectedCustomer(null)} className="rounded-full p-0.5 text-primary transition-colors hover:bg-primary/10"><X className="size-3.5" /></button>
-                      </span>
+                    <div className="flex items-center justify-between p-4 rounded-2xl bg-primary/5 border-2 border-primary/20">
+                      <div className="flex items-center gap-3">
+                        <RxAvatar name={selectedCustomer.name} size="sm" className="rounded-xl" />
+                        <span className="text-sm font-black text-gray-900">{selectedCustomer.name}</span>
+                      </div>
+                      <button type="button" onClick={() => setSelectedCustomer(null)} className="text-xs font-black text-primary hover:underline">DEĞİŞTİR</button>
                     </div>
                   ) : (
                     <div className="relative">
-                      <RxInput icon={<Search className="size-4" />} placeholder="Musteri ara..." value={searchValue} onChange={(e) => { setSearchValue(e.target.value); setShowDropdown(true) }} onFocus={() => setShowDropdown(true)} />
+                      <RxInput
+                        icon={<Search className="size-4" />}
+                        placeholder="Müşteri ismi veya telefonu..."
+                        value={searchValue}
+                        onChange={(e) => { setSearchValue(e.target.value); setShowDropdown(true) }}
+                        onFocus={() => setShowDropdown(true)}
+                        className="rounded-2xl border-2 border-gray-100 h-14 text-base"
+                      />
                       {showDropdown && customers.length > 0 && (
-                        <div className="absolute left-0 right-0 top-full z-10 mt-1 rounded-lg border border-border bg-card shadow-lg max-h-48 overflow-y-auto">
+                        <div className="absolute left-0 right-0 top-full z-10 mt-2 rounded-2xl border border-gray-100 bg-white shadow-2xl max-h-48 overflow-y-auto animate-in slide-in-from-top-2">
                           {customers.map((c) => (
-                            <button key={c.id} type="button" onClick={() => { setSelectedCustomer({ id: c.id, name: c.name }); setShowDropdown(false); setSearchValue("") }} className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-primary-light border-b border-border/50 last:border-0">
-                              <RxAvatar name={c.name} size="sm" />
+                            <button key={c.id} type="button" onClick={() => { setSelectedCustomer({ id: c.id, name: c.name }); setShowDropdown(false); setSearchValue("") }} className="flex w-full items-center gap-3 px-6 py-4 text-left transition-colors hover:bg-gray-50 border-b border-gray-50 last:border-0">
+                              <RxAvatar name={c.name} size="sm" className="rounded-lg" />
                               <div className="flex flex-1 flex-col">
-                                <span className="text-sm font-medium text-foreground">{c.name}</span>
-                                <span className="text-xs text-muted-foreground">{c.phone}</span>
+                                <span className="text-sm font-black text-gray-900">{c.name}</span>
+                                <span className="text-[11px] font-bold text-gray-400">{c.phone}</span>
                               </div>
                             </button>
                           ))}
@@ -498,73 +512,255 @@ export function AddAppointmentModal({ open, onClose, businessId, onAdded }: { op
                       )}
                     </div>
                   )}
-                </>
+                </div>
               ) : (
-                <div className="flex flex-col gap-3 p-3 bg-muted/20 border border-border rounded-lg">
-                  <div>
-                    <label className="text-xs text-muted-foreground mb-1 block">Ad Soyad *</label>
-                    <RxInput placeholder="Misafir ad soyad..." value={guestName} onChange={e => setGuestName(e.target.value)} />
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground mb-1 block">Telefon *</label>
-                    <RxInput placeholder="05XX XXX XX XX" value={guestPhone} onChange={e => setGuestPhone(e.target.value)} />
-                  </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <RxInput placeholder="İsim Soyisim" value={guestName} onChange={e => setGuestName(e.target.value)} className="rounded-2xl border-2 border-gray-100 h-14" />
+                  <RxInput placeholder="Telefon (05XX...)" value={guestPhone} onChange={e => setGuestPhone(e.target.value)} className="rounded-2xl border-2 border-gray-100 h-14" />
                 </div>
               )}
             </div>
 
-            {/* Services */}
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-foreground">Hizmet Secimi</label>
-              <div className="flex flex-col gap-2">
-                {services.map((svc) => (
-                  <label key={svc.id} className={cn("flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors", selectedServices.includes(svc.id) ? "border-primary bg-primary-light" : "border-border hover:border-primary/30")}>
-                    <input type="checkbox" className="size-4 rounded border-border text-primary accent-primary" checked={selectedServices.includes(svc.id)} onChange={() => toggleService(svc.id)} />
-                    <div className="flex flex-1 items-center justify-between">
-                      <div className="flex flex-col">
-                        <span className="text-sm font-medium text-foreground">{svc.name}</span>
-                        <span className="text-xs text-muted-foreground">{svc.base_duration_minutes} dk</span>
-                      </div>
-                      <span className="text-sm font-semibold text-foreground">₺{svc.base_price}</span>
-                    </div>
-                  </label>
-                ))}
+            {/* Services & Staff */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-4">
+                <h3 className="text-sm font-black text-gray-400 uppercase tracking-[0.15em]">Hizmet Seçimi</h3>
+                <div className="flex flex-col gap-3 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                  {services.map((svc) => {
+                    const isSelected = selectedServices.includes(svc.id)
+                    return (
+                      <button
+                        key={svc.id}
+                        type="button"
+                        onClick={() => toggleService(svc.id)}
+                        className={cn(
+                          "flex items-center justify-between p-4 rounded-2xl border-2 transition-all text-left",
+                          isSelected ? "border-primary bg-primary/5" : "border-gray-50 hover:border-gray-100 bg-gray-50/30"
+                        )}
+                      >
+                        <div className="space-y-0.5">
+                          <p className="text-xs font-black text-gray-900">{svc.name}</p>
+                          <p className="text-[10px] font-bold text-gray-400">{svc.base_duration_minutes} dk</p>
+                        </div>
+                        <p className="text-xs font-black text-gray-900">₺{svc.base_price}</p>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-sm font-black text-gray-400 uppercase tracking-[0.15em]">Personel & Tarih</h3>
+                <div className="space-y-4">
+                  <select
+                    value={selectedStaff}
+                    onChange={(e) => setSelectedStaff(e.target.value)}
+                    className="w-full h-14 rounded-2xl border-2 border-gray-100 bg-white px-4 font-bold text-sm text-gray-900 focus:outline-none focus:border-primary transition-all appearance-none"
+                    style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'currentColor\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M19 9l-7 7-7-7\' /%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1rem' }}
+                  >
+                    <option value="">Personel Seçin</option>
+                    {staffList.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="w-full h-14 rounded-2xl border-2 border-gray-100 bg-white px-4 font-bold text-sm text-gray-900 focus:outline-none focus:border-primary transition-all"
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Staff */}
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-foreground">Personel Secimi</label>
-              <select value={selectedStaff} onChange={(e) => setSelectedStaff(e.target.value)} className="flex h-10 w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground transition-all focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1">
-                <option value="">Personel secin</option>
-                {staffList.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-            </div>
-
-            {/* Date & Time */}
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <label className="mb-1.5 block text-sm font-medium text-foreground">Tarih</label>
-                <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="flex h-10 w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+            {/* 15-Minute Slot Selector Integration */}
+            {selectedStaff && selectedDate && selectedServices.length > 0 && (
+              <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-black text-gray-400 uppercase tracking-[0.15em]">Saat Seçimi</h3>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black text-primary bg-primary/10 px-3 py-1 rounded-full uppercase tracking-tighter">
+                      Toplam: {totalDuration} dk
+                    </span>
+                  </div>
+                </div>
+                <SlotSelector
+                  businessId={businessId}
+                  staffId={selectedStaff}
+                  date={selectedDate}
+                  duration={totalDuration}
+                  selectedTime={selectedTime}
+                  onSelect={setSelectedTime}
+                />
               </div>
-              <div className="flex-1">
-                <label className="mb-1.5 block text-sm font-medium text-foreground">Saat</label>
-                <input type="time" value={selectedTime} onChange={(e) => setSelectedTime(e.target.value)} className="flex h-10 w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
-              </div>
-            </div>
+            )}
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-3 border-t border-border px-5 py-4">
-          <RxButton variant="ghost" onClick={onClose}>Vazgec</RxButton>
-          <RxButton variant="primary" onClick={handleSubmit} disabled={saving || (isGuest ? (guestName.trim() === "" || guestPhone.trim() === "") : !selectedCustomer) || selectedServices.length === 0 || !selectedStaff || !selectedDate || !selectedTime}>
-            {saving ? <Loader2 className="size-4 animate-spin" /> : <CalendarPlus className="size-4" />}
-            {saving ? " Kaydediliyor..." : " Randevu Olustur"}
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-3 border-t border-gray-50 px-8 py-6 bg-gray-50/30">
+          <RxButton variant="ghost" onClick={onClose} className="rounded-2xl font-black text-[11px] uppercase tracking-widest text-gray-400">VAZGEÇ</RxButton>
+          <RxButton
+            variant="primary"
+            onClick={handleSubmit}
+            disabled={saving || (isGuest ? (guestName.trim() === "" || guestPhone.trim() === "") : !selectedCustomer) || selectedServices.length === 0 || !selectedStaff || !selectedDate || !selectedTime}
+            className="rounded-2xl font-black text-[11px] uppercase tracking-widest px-10 shadow-xl shadow-primary/20"
+          >
+            {saving ? <Loader2 className="size-4 animate-spin mr-2" /> : <Plus className="size-4 mr-2" />}
+            {saving ? "KAYDEDİLİYOR..." : "RANDEVU OLUŞTUR"}
           </RxButton>
         </div>
       </div>
     </div>
   )
+}
+
+function SlotSelector({
+  businessId,
+  staffId,
+  date,
+  duration,
+  selectedTime,
+  onSelect
+}: {
+  businessId: string;
+  staffId: string;
+  date: string;
+  duration: number;
+  selectedTime: string;
+  onSelect: (t: string) => void
+}) {
+  const [loading, setLoading] = useState(false)
+  const [slots, setSlots] = useState<{ time: string, isBusy: boolean, isSelectable: boolean }[]>([])
+  const supabase = createClient()
+
+  const generateAndCheckSlots = useCallback(async () => {
+    setLoading(true)
+    try {
+      // 1. Fetch Business Hours for the day of week
+      const dateObj = new Date(date)
+      const dayOfWeek = dateObj.getDay() // 0 is Sunday, 1 is Monday...
+
+      const { data: hoursData } = await supabase
+        .from("business_hours")
+        .select("open_time, close_time, is_open")
+        .eq("business_id", businessId)
+        .eq("day_of_week", dayOfWeek)
+        .maybeSingle()
+
+      if (!hoursData?.is_open) {
+        setSlots([])
+        return
+      }
+
+      // 2. Fetch Busy Slots
+      const { data: busyData } = await supabase
+        .from("appointments")
+        .select("start_time, end_time")
+        .eq("staff_business_id", staffId)
+        .eq("appointment_date", date)
+        .neq("status", "İptal")
+
+      const busyRanges = (busyData || []).map(b => ({
+        start: timeToMinutes(b.start_time),
+        end: timeToMinutes(b.end_time)
+      }))
+
+      // 3. Generate 15-min Intervals
+      const startMin = timeToMinutes(hoursData.open_time)
+      const endMin = timeToMinutes(hoursData.close_time)
+      const interval = 15
+      const generatedSlots = []
+
+      for (let m = startMin; m < endMin; m += interval) {
+        const timeStr = minutesToTime(m)
+        const slotEnd = m + duration
+
+        let isBusy = false
+        // Check if this specific point is busy
+        for (const range of busyRanges) {
+          if (m >= range.start && m < range.end) {
+            isBusy = true
+            break
+          }
+        }
+
+        // Check if the entire planned duration is selectable
+        let isSelectable = true
+        if (isBusy || slotEnd > endMin) {
+          isSelectable = false
+        } else {
+          for (const range of busyRanges) {
+            // Overlaps if [m, m+duration] intersects [range.start, range.end]
+            if (m < range.end && slotEnd > range.start) {
+              isSelectable = false
+              break
+            }
+          }
+        }
+
+        generatedSlots.push({
+          time: timeStr,
+          isBusy,
+          isSelectable
+        })
+      }
+
+      setSlots(generatedSlots)
+    } finally {
+      setLoading(false)
+    }
+  }, [businessId, staffId, date, duration, supabase])
+
+  useEffect(() => {
+    generateAndCheckSlots()
+  }, [generateAndCheckSlots])
+
+  if (loading) return (
+    <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 border-2 border-dashed border-gray-100 rounded-3xl p-8 items-center justify-center">
+      <Loader2 className="size-6 animate-spin text-primary col-span-full mx-auto" />
+    </div>
+  )
+
+  if (slots.length === 0) return (
+    <div className="p-8 bg-rose-50 border border-rose-100 rounded-3xl text-center">
+      <p className="text-sm font-bold text-rose-600">Bu tarihte çalışma saatleri bulunmamaktadır.</p>
+    </div>
+  )
+
+  return (
+    <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-2 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar p-2">
+      {slots.map(s => (
+        <button
+          key={s.time}
+          type="button"
+          disabled={!s.isSelectable}
+          onClick={() => onSelect(s.time)}
+          className={cn(
+            "h-12 flex items-center justify-center rounded-xl text-[11px] font-black transition-all border-2",
+            selectedTime === s.time
+              ? "bg-primary text-white border-primary shadow-lg shadow-primary/20 scale-105"
+              : s.isSelectable
+                ? "bg-white border-gray-100 hover:border-primary text-gray-900"
+                : s.isBusy
+                  ? "bg-rose-50 border-rose-50 text-rose-300 cursor-not-allowed"
+                  : "bg-gray-50 border-gray-50 text-gray-300 cursor-not-allowed"
+          )}
+        >
+          {s.time}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function timeToMinutes(t: string): number {
+  const [h, m] = t.split(":").map(Number)
+  return h * 60 + (m || 0)
+}
+
+function minutesToTime(m: number): string {
+  const h = Math.floor(m / 60)
+  const min = m % 60
+  return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`
 }
 
 // ─── Liste Gorunumu ─────────────────────────────────────────────────────────────

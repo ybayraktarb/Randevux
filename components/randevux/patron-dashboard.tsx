@@ -69,30 +69,54 @@ interface StaffPerf {
 
 // ─── Stat Card ──────────────────────────────────────────────────────────────────
 
-function StatCard({ label, icon: Icon, value, trendText, trendValue, trendPositive, actionLabel, onAction }: {
-  label: string; icon: React.ElementType; value: string; trendText?: string; trendValue?: string; trendPositive?: boolean; actionLabel?: string; onAction?: () => void
+function StatCard({ label, icon: Icon, value, trendText, trendValue, trendPositive, actionLabel, onAction, color = "primary" }: {
+  label: string; icon: React.ElementType; value: string; trendText?: string; trendValue?: string; trendPositive?: boolean; actionLabel?: string; onAction?: () => void; color?: string
 }) {
   return (
-    <div className="rounded-xl bg-card p-5 shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
-      <div className="flex items-start justify-between">
-        <span className="text-[13px] text-muted-foreground">{label}</span>
-        <div className="flex size-9 items-center justify-center rounded-full bg-primary-light">
-          <Icon className="size-[18px] text-primary" />
+    <div className="relative overflow-hidden group rounded-[32px] bg-white/80 backdrop-blur-xl border border-white/20 p-6 shadow-xl shadow-gray-200/50 transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10 hover:-translate-y-1">
+      {/* Background Glow */}
+      <div className={cn(
+        "absolute -right-8 -top-8 size-32 blur-3xl opacity-10 group-hover:opacity-20 transition-opacity",
+        color === "primary" ? "bg-primary" : "bg-emerald-500"
+      )} />
+
+      <div className="relative z-10">
+        <div className="flex items-start justify-between mb-4">
+          <div className={cn(
+            "flex size-12 items-center justify-center rounded-2xl shadow-inner-white",
+            color === "primary" ? "bg-primary/10 text-primary" : "bg-emerald-100 text-emerald-600"
+          )}>
+            <Icon className="size-6" />
+          </div>
+          {trendValue && (
+            <span className={cn(
+              "inline-flex items-center rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest",
+              trendPositive ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600 border border-rose-100"
+            )}>
+              {trendPositive ? "↑" : "↓"} {trendValue}
+            </span>
+          )}
         </div>
-      </div>
-      <p className="mt-2 text-[28px] font-semibold leading-tight text-foreground">{value}</p>
-      <div className="mt-2 flex items-center gap-1.5">
-        {trendValue && (
-          <span className={cn("inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-medium", trendPositive ? "bg-badge-green-bg text-badge-green-text" : "bg-badge-red-bg text-badge-red-text")}>
-            {trendValue}
-          </span>
-        )}
-        {trendText && <span className="text-[12px] text-muted-foreground">{trendText}</span>}
-        {actionLabel && (
-          <button type="button" onClick={onAction} className="inline-flex items-center rounded-md bg-accent px-2 py-0.5 text-[11px] font-medium text-accent-foreground transition-colors hover:opacity-90">
-            {actionLabel}
-          </button>
-        )}
+
+        <div className="space-y-1">
+          <p className="text-[11px] font-black uppercase tracking-[0.15em] text-gray-400">{label}</p>
+          <div className="flex items-baseline gap-2">
+            <h3 className="text-3xl font-black text-gray-900 tracking-tight">{value}</h3>
+          </div>
+        </div>
+
+        <div className="mt-4 flex items-center justify-between">
+          <span className="text-[12px] font-bold text-gray-400">{trendText || "Genel Durum"}</span>
+          {actionLabel && (
+            <button
+              type="button"
+              onClick={onAction}
+              className="text-[10px] font-black uppercase tracking-widest text-primary hover:text-primary-hover transition-colors"
+            >
+              {actionLabel} →
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -126,67 +150,97 @@ function StatusBadge({ status }: { status: string }) {
 // ─── Today's Appointments ───────────────────────────────────────────────────────
 
 function TodayAppointments({ appointments }: { appointments: TodayApt[] }) {
-  const today = new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long" })
-
   return (
-    <div className="flex flex-col rounded-xl bg-card shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
+    <div className="flex flex-col rounded-[32px] bg-white border border-gray-100 shadow-xl shadow-gray-200/40 overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-border px-5 py-4">
-        <div className="flex items-center gap-3">
-          <h2 className="text-base font-semibold text-foreground">{"Bugunku Randevular"}</h2>
-          <span className="rounded-md bg-primary-light px-2.5 py-0.5 text-xs font-medium text-primary">{today}</span>
+      <div className="flex items-center justify-between px-8 py-6 bg-gray-50/50 border-b border-gray-100">
+        <div className="flex items-center gap-4">
+          <div className="size-10 rounded-2xl bg-primary/10 flex items-center justify-center">
+            <Calendar className="size-5 text-primary" />
+          </div>
+          <div>
+            <h2 className="text-lg font-black text-gray-900 tracking-tight leading-none">Bugünkü Akış</h2>
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mt-1">Operasyonel Takvim</p>
+          </div>
         </div>
-        <button type="button" className="flex items-center gap-1 text-sm font-medium text-primary transition-colors hover:text-primary-hover">
-          {"Tumunu Gor"} <ArrowRight className="size-3.5" />
-        </button>
+        <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-gray-100">
+          <Clock className="size-3.5 text-gray-400" />
+          <span className="text-xs font-black text-gray-900">{new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}</span>
+        </div>
       </div>
 
       {/* Timeline */}
-      <div className="flex flex-col px-5 py-4">
+      <div className="flex flex-col p-8 gap-0 relative">
+        {/* Central Line */}
+        <div className="absolute left-[59px] top-8 bottom-8 w-px bg-gray-100" />
+
         {appointments.length === 0 && (
-          <div className="flex flex-col items-center gap-2 py-8">
-            <Calendar className="size-8 text-muted-foreground/40" />
-            <p className="text-sm text-muted-foreground">Bugun randevu bulunmuyor</p>
+          <div className="flex flex-col items-center gap-4 py-16">
+            <div className="size-20 rounded-[32px] bg-gray-50 flex items-center justify-center">
+              <PackageOpen className="size-10 text-gray-200" />
+            </div>
+            <p className="text-sm font-bold text-gray-400">Henüz bir randevu bulunmuyor</p>
           </div>
         )}
+
         {appointments.map((apt, index) => {
           const isBreak = apt.status === "break"
           const isOngoing = apt.status === "ongoing"
-          const isLast = index === appointments.length - 1
+          const isDone = apt.status === "Tamamlandı"
 
           return (
-            <div key={`${apt.time}-${index}`} className="flex gap-4">
-              {/* Time */}
-              <div className="w-12 shrink-0 pt-3 text-right">
-                <span className="text-[13px] text-muted-foreground">{apt.time}</span>
+            <div key={`${apt.id}-${index}`} className="flex gap-8 group relative pb-8 last:pb-0">
+              {/* Time Label */}
+              <div className="w-12 pt-1 text-right">
+                <span className={cn(
+                  "text-[13px] font-black tracking-tighter",
+                  isOngoing ? "text-primary" : "text-gray-400"
+                )}>
+                  {apt.time}
+                </span>
               </div>
 
-              {/* Timeline connector */}
-              <div className="relative flex flex-col items-center">
-                <div className={cn("mt-3.5 size-2.5 shrink-0 rounded-full ring-2", isOngoing ? "bg-primary ring-primary/30" : isBreak ? "bg-muted-foreground/30 ring-muted/50" : "bg-border ring-card")} />
-                {!isLast && <div className="w-px flex-1 bg-border" />}
+              {/* Node */}
+              <div className="relative z-10">
+                <div className={cn(
+                  "size-3 rounded-full border-2 transition-all duration-500 mt-[6px]",
+                  isOngoing
+                    ? "bg-primary border-primary ring-4 ring-primary/20 scale-125"
+                    : isDone
+                      ? "bg-emerald-500 border-emerald-500"
+                      : "bg-white border-gray-200 group-hover:border-primary"
+                )} />
               </div>
 
-              {/* Content */}
-              <div className={cn("mb-3 flex-1 pb-3")}>
+              {/* Card Container */}
+              <div className="flex-1">
                 {isBreak ? (
-                  <div className="mt-1.5 rounded-lg border border-dashed border-muted-foreground/30 px-4 py-2.5">
-                    <span className="text-[13px] text-muted-foreground">{"Ogle Molasi"}</span>
+                  <div className="p-4 rounded-2xl bg-gray-50/50 border border-dashed border-gray-200">
+                    <span className="text-[11px] font-black uppercase tracking-widest text-gray-400">Öğle Molası</span>
                   </div>
                 ) : (
-                  <div className="mt-1.5 rounded-lg border border-border bg-card p-3 transition-colors hover:border-primary/20">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-3">
-                        <RxAvatar name={apt.customer} size="sm" />
-                        <div className="flex flex-col">
-                          <span className="text-sm font-semibold text-foreground">{apt.customer}</span>
-                          <span className="text-[13px] text-muted-foreground">{apt.service}</span>
+                  <div className={cn(
+                    "p-5 rounded-3xl border-2 transition-all duration-500",
+                    isOngoing
+                      ? "bg-white border-primary shadow-xl shadow-primary/5 -translate-y-1"
+                      : "bg-white border-gray-50 hover:border-gray-200 hover:shadow-lg"
+                  )}>
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-4">
+                        <RxAvatar name={apt.customer} size="sm" className="size-10 rounded-xl" />
+                        <div className="space-y-0.5">
+                          <h4 className="text-sm font-black text-gray-900">{apt.customer}</h4>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] font-bold text-gray-400">{apt.service}</span>
+                            <span className="size-1 rounded-full bg-gray-200" />
+                            <span className="text-[11px] font-black text-primary uppercase tracking-widest">{apt.staff}</span>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="hidden rounded-md bg-primary-light px-2 py-0.5 text-[11px] font-medium text-muted-foreground sm:inline-flex">{apt.staff}</span>
+
+                      <div className="flex items-center gap-4">
                         <StatusBadge status={apt.status} />
-                        <button type="button" className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted" aria-label="Daha fazla">
+                        <button type="button" className="size-8 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 hover:bg-primary/10 hover:text-primary transition-all">
                           <MoreHorizontal className="size-4" />
                         </button>
                       </div>
@@ -210,40 +264,44 @@ function PendingApprovals({ items, onApprove, onReject }: {
   onReject: (id: string) => void
 }) {
   return (
-    <div className="flex flex-col rounded-xl bg-card shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
+    <div className="flex flex-col rounded-[32px] bg-white border border-gray-100 shadow-xl shadow-gray-200/40 overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-border px-5 py-4">
+      <div className="flex items-center justify-between px-8 py-6 bg-gray-50/50 border-b border-gray-100">
         <div className="flex items-center gap-3">
-          <h2 className="text-base font-semibold text-foreground">{"Bekleyen Onaylar"}</h2>
-          <span className="flex size-5 items-center justify-center rounded-full bg-accent text-[11px] font-bold text-accent-foreground">{items.length}</span>
+          <h2 className="text-lg font-black text-gray-900 tracking-tight">Bekleyen Onaylar</h2>
+          <span className="flex size-6 items-center justify-center rounded-xl bg-accent/20 text-[11px] font-black text-accent-foreground border border-accent/20">{items.length}</span>
         </div>
       </div>
 
       {/* Cards */}
-      <div className="flex flex-col gap-3 p-5">
+      <div className="flex flex-col gap-4 p-8">
         {items.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-8">
-            <Check className="size-8 text-success" />
-            <p className="text-sm text-muted-foreground">{"Bekleyen onay bulunmuyor"}</p>
+          <div className="flex flex-col items-center gap-4 py-8">
+            <div className="size-16 rounded-full bg-emerald-50 flex items-center justify-center">
+              <Check className="size-8 text-emerald-500" />
+            </div>
+            <p className="text-sm font-bold text-gray-400">{"Sıranız tertemiz!"}</p>
           </div>
         ) : (
           items.map((item) => (
-            <div key={item.id} className="rounded-lg border-l-[3px] border-l-accent border border-border bg-card p-4">
-              <div className="flex flex-col gap-2">
+            <div key={item.id} className="rounded-3xl border-2 border-gray-50 bg-white p-5 hover:border-gray-200 transition-all hover:shadow-lg">
+              <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-foreground">{item.customer}</span>
+                  <span className="text-base font-black text-gray-900">{item.customer}</span>
+                  <div className="px-3 py-1 rounded-lg bg-gray-50 text-[10px] font-black text-gray-400 uppercase tracking-widest border border-gray-100">
+                    {item.time}
+                  </div>
                 </div>
-                <div className="flex flex-col gap-0.5 text-[13px] text-muted-foreground">
-                  <span>{item.service}</span>
-                  <span>{item.date} - {item.time}</span>
-                  <span>{item.staff}</span>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-sm font-bold text-gray-400">{item.service}</span>
+                  <span className="text-[11px] font-black text-primary uppercase tracking-widest">{item.staff}</span>
                 </div>
-                <div className="mt-1 flex items-center gap-2">
-                  <RxButton size="sm" variant="primary" onClick={() => onApprove(item.id)}>
-                    <Check className="size-3.5" /> Onayla
+                <div className="flex items-center gap-2 pt-2 border-t border-gray-50">
+                  <RxButton size="sm" variant="primary" onClick={() => onApprove(item.id)} className="rounded-xl flex-1 font-black text-[10px] uppercase tracking-widest">
+                    ONAYLA
                   </RxButton>
-                  <RxButton size="sm" variant="danger" onClick={() => onReject(item.id)}>
-                    <XIcon className="size-3.5" /> Reddet
+                  <RxButton size="sm" variant="danger" onClick={() => onReject(item.id)} className="rounded-xl flex-1 font-black text-[10px] uppercase tracking-widest">
+                    REDDET
                   </RxButton>
                 </div>
               </div>
@@ -252,10 +310,10 @@ function PendingApprovals({ items, onApprove, onReject }: {
         )}
 
         {/* Info Banner */}
-        <div className="mt-1 rounded-lg bg-primary-light px-4 py-3">
-          <p className="text-[13px] text-muted-foreground">
-            {"Manuel onay modu aktif. Otomatik onaya gecmek icin "}
-            <button type="button" className="font-medium text-primary hover:underline">Ayarlar</button>
+        <div className="rounded-2xl bg-indigo-50/50 border border-indigo-100 p-4">
+          <p className="text-[11px] font-bold text-indigo-600 leading-relaxed">
+            {"Manuel onay modu aktif. Otomatik onaya geçmek için "}
+            <button type="button" className="font-black underline decoration-2 underline-offset-4">Ayarlar</button>
             {"'a gidin."}
           </p>
         </div>
@@ -269,9 +327,9 @@ function PendingApprovals({ items, onApprove, onReject }: {
 function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number }>; label?: string }) {
   if (active && payload && payload.length) {
     return (
-      <div className="rounded-lg border border-border bg-card px-3 py-2 shadow-md">
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="text-sm font-semibold text-foreground">
+      <div className="rounded-2xl border border-gray-100 bg-white/80 backdrop-blur-xl px-4 py-3 shadow-2xl shadow-gray-200/50">
+        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{label}</p>
+        <p className="text-sm font-black text-gray-900">
           {new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", minimumFractionDigits: 0 }).format(payload[0].value)}
         </p>
       </div>
@@ -282,34 +340,35 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
 
 function RevenueChart({ revenueData, totalRevenue }: { revenueData: { week: string; revenue: number }[]; totalRevenue: number }) {
   return (
-    <div className="flex flex-col rounded-xl bg-card shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
-      <div className="border-b border-border px-5 py-4">
-        <h2 className="text-base font-semibold text-foreground">{"Bu Ay Gelir"}</h2>
-        <p className="mt-0.5 text-[13px] text-muted-foreground">
-          {new Date().toLocaleDateString("tr-TR", { month: "long", year: "numeric" })} Gelir Trendi
-        </p>
+    <div className="flex flex-col rounded-[32px] bg-white border border-gray-100 shadow-xl shadow-gray-200/40 overflow-hidden">
+      <div className="px-8 py-6 bg-gray-50/50 border-b border-gray-100">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-black text-gray-900 tracking-tight leading-none">Gelir Analizi</h2>
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mt-1">Aylık Performans Trendi</p>
+          </div>
+          <div className="flex flex-col items-end">
+            <span className="text-xl font-black text-emerald-500 tracking-tighter">₺{totalRevenue.toLocaleString("tr-TR")}</span>
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">TOPLAM</span>
+          </div>
+        </div>
       </div>
-      <div className="px-5 pt-4 pb-2">
-        <ResponsiveContainer width="100%" height={200}>
-          <AreaChart data={revenueData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+      <div className="px-4 pt-8 pb-4">
+        <ResponsiveContainer width="100%" height={220}>
+          <AreaChart data={revenueData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
             <defs>
               <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#6C63FF" stopOpacity={0.3} />
+                <stop offset="5%" stopColor="#6C63FF" stopOpacity={0.2} />
                 <stop offset="95%" stopColor="#6C63FF" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
-            <XAxis dataKey="week" tick={{ fontSize: 12, fill: "#6B7280" }} tickLine={false} axisLine={false} />
-            <YAxis tick={{ fontSize: 12, fill: "#6B7280" }} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+            <CartesianGrid strokeDasharray="4 4" stroke="#F3F4F6" vertical={false} />
+            <XAxis dataKey="week" tick={{ fontSize: 10, fill: "#9CA3AF", fontWeight: 700 }} tickLine={false} axisLine={false} dy={10} />
+            <YAxis tick={{ fontSize: 10, fill: "#9CA3AF", fontWeight: 700 }} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
             <RechartsTooltip content={<CustomTooltip />} />
-            <Area type="monotone" dataKey="revenue" stroke="#6C63FF" strokeWidth={2.5} fill="url(#colorRevenue)" />
+            <Area type="monotone" dataKey="revenue" stroke="#6C63FF" strokeWidth={3} fill="url(#colorRevenue)" />
           </AreaChart>
         </ResponsiveContainer>
-      </div>
-      <div className="flex items-center gap-4 border-t border-border px-5 py-3">
-        <span className="text-sm font-semibold text-foreground">
-          {"Toplam: ₺"}{totalRevenue.toLocaleString("tr-TR")}
-        </span>
       </div>
     </div>
   )
@@ -317,36 +376,120 @@ function RevenueChart({ revenueData, totalRevenue }: { revenueData: { week: stri
 
 // ─── Staff Performance ──────────────────────────────────────────────────────────
 
-function StaffPerformance({ staffPerf }: { staffPerf: StaffPerf[] }) {
+interface EfficiencyMetric {
+  name: string
+  completionRate: number
+  totalHours: number
+}
+
+function StaffEfficiencyScorecards({ efficiency }: { efficiency: EfficiencyMetric[] }) {
   return (
-    <div className="flex flex-col rounded-xl bg-card shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
-      <div className="border-b border-border px-5 py-4">
-        <h2 className="text-base font-semibold text-foreground">{"Personel Dagilimi"}</h2>
+    <div className="flex flex-col rounded-[32px] bg-white border border-gray-100 shadow-xl shadow-gray-200/40 overflow-hidden h-full">
+      <div className="px-8 py-6 bg-gray-50/50 border-b border-gray-100">
+        <div>
+          <h2 className="text-lg font-black text-gray-900 tracking-tight leading-none">Personel Verimliliği</h2>
+          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mt-1">Performans Karnesi</p>
+        </div>
       </div>
-      <div className="flex flex-col gap-5 p-5">
-        {staffPerf.length === 0 && (
-          <p className="text-sm text-muted-foreground text-center py-4">Veri yok</p>
+      <div className="p-8 space-y-8">
+        {efficiency.length === 0 && (
+          <p className="text-sm font-bold text-gray-400 text-center py-10">Veri yok</p>
         )}
-        {staffPerf.map((staff) => (
-          <div key={staff.name} className="flex items-center gap-3">
-            <RxAvatar name={staff.name} size="sm" />
-            <div className="flex flex-1 flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-foreground">{staff.name}</span>
-                <span className="text-[13px] text-muted-foreground">{staff.count} randevu</span>
+        {efficiency.map((staff) => (
+          <div key={staff.name} className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <RxAvatar name={staff.name} size="sm" className="size-10 rounded-xl" />
+                <span className="text-sm font-black text-gray-900 tracking-tight">{staff.name}</span>
               </div>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-border">
-                <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${staff.percent}%` }} />
+              <div className="text-right">
+                <span className="text-lg font-black text-primary">%{staff.completionRate}</span>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">TAMAMLAMA</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 rounded-2xl bg-gray-50/50 border border-gray-100">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">TOPLAM MESAİ</p>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-xl font-black text-gray-900">{staff.totalHours}</span>
+                  <span className="text-[11px] font-bold text-gray-400">Saat</span>
+                </div>
+              </div>
+              <div className="p-4 rounded-2xl bg-emerald-50/50 border border-emerald-100">
+                <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">DURUM</p>
+                <span className="text-[11px] font-black text-emerald-600 uppercase">Yüksek Verim</span>
               </div>
             </div>
           </div>
         ))}
       </div>
-      <div className="border-t border-border px-5 py-3">
-        <button type="button" className="flex items-center gap-1 text-sm font-medium text-primary transition-colors hover:text-primary-hover">
-          {"Detayli Rapor"} <ArrowRight className="size-3.5" />
-        </button>
+    </div>
+  )
+}
+
+// ─── Service Utilization ────────────────────────────────────────────────────────
+
+interface ServiceMetric {
+  name: string
+  count: number
+  revenue: number
+}
+
+function ServiceUtilization({ services }: { services: ServiceMetric[] }) {
+  const maxCount = Math.max(...services.map(s => s.count), 1)
+
+  return (
+    <div className="flex flex-col rounded-[32px] bg-white border border-gray-100 shadow-xl shadow-gray-200/40 overflow-hidden h-full">
+      <div className="px-8 py-6 bg-gray-50/50 border-b border-gray-100">
+        <div>
+          <h2 className="text-lg font-black text-gray-900 tracking-tight leading-none">Hizmet Analitiği</h2>
+          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mt-1">Popüler Hizmetler ve Gelir</p>
+        </div>
       </div>
+      <div className="p-8 space-y-6">
+        {services.length === 0 && (
+          <p className="text-sm font-bold text-gray-400 text-center py-10">Veri yok</p>
+        )}
+        {services.map((svc) => (
+          <div key={svc.name} className="space-y-2">
+            <div className="flex items-center justify-between group">
+              <div className="flex items-center gap-3">
+                <div className="size-8 rounded-lg bg-primary/5 flex items-center justify-center">
+                  <PackageOpen className="size-4 text-primary" />
+                </div>
+                <span className="text-sm font-black text-gray-900 tracking-tight group-hover:text-primary transition-colors">{svc.name}</span>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="text-right">
+                  <span className="text-sm font-black text-gray-900">₺{svc.revenue.toLocaleString("tr-TR")}</span>
+                  <p className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">GELİR</p>
+                </div>
+                <div className="size-10 rounded-xl bg-gray-50 flex flex-col items-center justify-center">
+                  <span className="text-sm font-black text-gray-900">{svc.count}</span>
+                  <p className="text-[8px] font-black text-gray-400 uppercase">ADET</p>
+                </div>
+              </div>
+            </div>
+            <div className="h-1.5 w-full bg-gray-50 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-primary rounded-full transition-all duration-1000"
+                style={{ width: `${(svc.count / maxCount) * 100}%` }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+      {services.length > 0 && (
+        <div className="px-8 py-6 bg-gray-50/30 border-t border-gray-50 mt-auto">
+          <div className="flex items-center gap-3 p-4 rounded-2xl bg-indigo-50/50 border border-indigo-100">
+            <TrendingUp className="size-5 text-indigo-500 shrink-0" />
+            <p className="text-[11px] font-bold text-indigo-600 leading-relaxed">
+              <strong>{services[0].name}</strong> bu ay en çok tercih edilen hizmetiniz oldu. Bu alana özel kampanyalar değerlendirilebilir.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -355,49 +498,63 @@ function StaffPerformance({ staffPerf }: { staffPerf: StaffPerf[] }) {
 
 function NoShowRecords({ records }: { records: NoShowRecord[] }) {
   return (
-    <div className="rounded-xl bg-card shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
+    <div className="flex flex-col rounded-[32px] bg-white border border-gray-100 shadow-xl shadow-gray-200/40 overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-border px-5 py-4">
-        <h2 className="text-base font-semibold text-foreground">{"Son No-Show Kayitlari"}</h2>
-        <button type="button" className="flex items-center gap-1 text-sm font-medium text-primary transition-colors hover:text-primary-hover">
-          {"Tumunu Gor"} <ArrowRight className="size-3.5" />
-        </button>
+      <div className="flex items-center justify-between px-8 py-6 bg-gray-50/50 border-b border-gray-100">
+        <div>
+          <h2 className="text-lg font-black text-gray-900 tracking-tight leading-none">No-Show Kayıtları</h2>
+          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mt-1">İşletme Kara Listesi</p>
+        </div>
+        <button type="button" className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline underline-offset-4">Tümünü Gör</button>
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-border">
-              <th className="px-5 py-3 text-left text-[13px] font-medium text-muted-foreground">{"Musteri"}</th>
-              <th className="hidden px-5 py-3 text-left text-[13px] font-medium text-muted-foreground sm:table-cell">{"Hizmet"}</th>
-              <th className="hidden px-5 py-3 text-left text-[13px] font-medium text-muted-foreground md:table-cell">{"Tarih"}</th>
-              <th className="hidden px-5 py-3 text-left text-[13px] font-medium text-muted-foreground lg:table-cell">{"Personel"}</th>
-              <th className="px-5 py-3 text-right text-[13px] font-medium text-muted-foreground">{"Islem"}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {records.length === 0 && (
-              <tr><td colSpan={5} className="px-5 py-8 text-center text-sm text-muted-foreground">No-show kaydi yok</td></tr>
-            )}
-            {records.map((record, index) => (
-              <tr key={index} className="border-b border-border last:border-b-0 transition-colors hover:bg-primary-light/50">
-                <td className="px-5 py-3">
-                  <div className="flex items-center gap-2.5">
-                    <UserX className="size-4 shrink-0 text-accent" />
-                    <span className="text-sm font-medium text-foreground">{record.customer}</span>
+      {/* List */}
+      <div className="flex flex-col divide-y divide-gray-50">
+        {records.length === 0 ? (
+          <div className="flex flex-col items-center gap-4 py-16">
+            <div className="size-20 rounded-[32px] bg-emerald-50 flex items-center justify-center">
+              <Check className="size-10 text-emerald-500" />
+            </div>
+            <p className="text-sm font-bold text-gray-400">Harika! Son zamanlarda no-show yok.</p>
+          </div>
+        ) : (
+          records.map((record, index) => (
+            <div key={index} className="px-8 py-5 flex items-center justify-between hover:bg-gray-50/50 transition-colors group">
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <RxAvatar name={record.customer} size="sm" className="size-12 rounded-2xl group-hover:scale-105 transition-transform" />
+                  <div className="absolute -bottom-1 -right-1 size-5 bg-rose-500 border-2 border-white rounded-full flex items-center justify-center">
+                    <UserX className="size-3 text-white" />
                   </div>
-                </td>
-                <td className="hidden px-5 py-3 text-sm text-muted-foreground sm:table-cell">{record.service}</td>
-                <td className="hidden px-5 py-3 text-sm text-muted-foreground md:table-cell">{record.date}</td>
-                <td className="hidden px-5 py-3 text-sm text-muted-foreground lg:table-cell">{record.staff}</td>
-                <td className="px-5 py-3 text-right">
-                  <RxButton variant="ghost" size="sm">Not Ekle</RxButton>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                </div>
+                <div>
+                  <h4 className="text-sm font-black text-gray-900 leading-none">{record.customer}</h4>
+                  <p className="text-[11px] font-bold text-gray-400 mt-1">{record.service} • {record.date}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <div className="hidden sm:flex flex-col items-end">
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">PERSONEL</span>
+                  <span className="text-[11px] font-black text-gray-900">{record.staff}</span>
+                </div>
+                <button type="button" className="size-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 hover:bg-primary/10 hover:text-primary border border-transparent hover:border-primary/10 transition-all">
+                  <MoreHorizontal className="size-5" />
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Footer Info */}
+      <div className="p-8 bg-gray-50/30 border-t border-gray-50">
+        <div className="flex items-center gap-3 p-4 rounded-2xl bg-rose-50/50 border border-rose-100">
+          <AlertTriangle className="size-5 text-rose-500 shrink-0" />
+          <p className="text-[11px] font-bold text-rose-600 leading-relaxed">
+            {"Bu müşteriler randevusuna gelmedi. Bir sonraki randevularında ön ödeme talep edebilirsiniz."}
+          </p>
+        </div>
       </div>
     </div>
   )
@@ -420,6 +577,10 @@ export function PatronDashboard() {
   const [totalCustomers, setTotalCustomers] = useState(0)
   const [vipCount, setVipCount] = useState(0)
   const [showAddModal, setShowAddModal] = useState(false)
+
+  // Stats - Step 12
+  const [serviceUtilization, setServiceUtilization] = useState<DashboardStats["serviceUtilization"]>([])
+  const [staffEfficiency, setStaffEfficiency] = useState<DashboardStats["staffEfficiency"]>([])
 
   // Eksik Stok
   const [lowStockItems, setLowStockItems] = useState<any[]>([])
@@ -565,6 +726,8 @@ export function PatronDashboard() {
         setVipCount(s.vipCount)
         setRevenueData(s.weeklyRevenue)
         setStaffPerf(s.staffPerformance)
+        setServiceUtilization(s.serviceUtilization)
+        setStaffEfficiency(s.staffEfficiency)
       }
     } finally {
       setLoading(false)
@@ -599,17 +762,29 @@ export function PatronDashboard() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-10 py-6">
       {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-semibold text-foreground">{greeting}, {userName} 👋</h2>
-          <p className="mt-0.5 text-sm text-muted-foreground">{dateStr}</p>
+      <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between px-2">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600">Sistem Aktif</span>
+          </div>
+          <h2 className="text-4xl font-black text-gray-900 tracking-tight leading-none">
+            {greeting}, <span className="text-primary">{userName}</span>
+          </h2>
+          <p className="text-base font-bold text-gray-400 capitalize">{dateStr}</p>
         </div>
-        <RxButton variant="primary" onClick={() => setShowAddModal(true)}>
-          <CalendarPlus className="size-4" />
-          Yeni Randevu Ekle
-        </RxButton>
+        <div className="flex gap-3">
+          <RxButton variant="secondary" className="rounded-2xl border-2 font-black uppercase tracking-widest text-[11px]">
+            <Calendar className="size-4 mr-2" />
+            Rapor Al
+          </RxButton>
+          <RxButton variant="primary" onClick={() => setShowAddModal(true)} className="rounded-2xl shadow-xl shadow-primary/20 hover:shadow-primary/40 font-black uppercase tracking-widest text-[11px] px-8">
+            <CalendarPlus className="size-4 mr-2" />
+            Yeni Randevu
+          </RxButton>
+        </div>
       </div>
 
       {showAddModal && businessId && (
@@ -622,12 +797,12 @@ export function PatronDashboard() {
       )}
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        <StatCard label="Bu Ayki Gelir" icon={TrendingUp} value={`₺${totalRevenue.toLocaleString("tr-TR")}`} />
-        <StatCard label="Toplam Randevu" icon={Calendar} value={String(totalAppointments)} trendText="bu ay" />
-        <StatCard label="Müşteri Sayısı" icon={RxAvatar} value={String(totalCustomers)} />
-        <StatCard label="VIP Müşteriler" icon={Check} value={String(vipCount)} />
-        <StatCard label="Bekleyen Onay" icon={Clock} value={String(pendingItems.length)} actionLabel="Incele" />
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-5">
+        <StatCard label="Aylık Gelir" icon={TrendingUp} value={`₺${totalRevenue.toLocaleString("tr-TR")}`} trendValue="%12" trendPositive trendText="Geçen aya göre" />
+        <StatCard label="Randevu" icon={Calendar} value={String(totalAppointments)} trendValue="8" trendPositive trendText="Bugün beklenen" />
+        <StatCard label="Müşteri" icon={RxAvatar} value={String(totalCustomers)} color="success" />
+        <StatCard label="VIP" icon={Check} value={String(vipCount)} color="success" />
+        <StatCard label="Onay Bekleyen" icon={Clock} value={String(pendingItems.length)} actionLabel="Yönet" color="primary" />
       </div>
 
       {/* Today's Appointments + Pending Approvals */}
@@ -668,18 +843,26 @@ export function PatronDashboard() {
         </div>
       </div>
 
-      {/* Revenue Chart + Staff Performance */}
+      {/* Revenue Chart + Service Utilization */}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-9">
         <div className="xl:col-span-5">
           <RevenueChart revenueData={revenueData} totalRevenue={totalRevenue} />
         </div>
         <div className="xl:col-span-4">
-          <StaffPerformance staffPerf={staffPerf} />
+          <ServiceUtilization services={serviceUtilization} />
         </div>
       </div>
 
-      {/* No-Show Records */}
-      <NoShowRecords records={noShowRecords} />
+      {/* Staff Efficiency + No Show Records */}
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-9">
+        <div className="xl:col-span-4">
+          <StaffEfficiencyScorecards efficiency={staffEfficiency} />
+        </div>
+        <div className="xl:col-span-5">
+          <NoShowRecords records={noShowRecords} />
+        </div>
+      </div>
+
     </div>
   )
 }

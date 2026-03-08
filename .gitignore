@@ -3,19 +3,64 @@ __v0_runtime_loader.js
 __v0_devtools.tsx
 __v0_jsx-dev-runtime.ts
 
-# Common ignores
+# Dependencies
 node_modules/
 .next/
-.env*.local
-.DS_Store
+out/
+build/
 
+# IDE & OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
 
 # Environment variables
 .env
 .env.local
+.env.development.local
+.env.test.local
+.env.production.local
 .env*.local
-.env.production
-.env.development
-
-# Sentry Config File
 .env.sentry-build-plugin
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+*.log
+
+# Testing
+/playwright-report/
+/test-results/
+/test-report/
+/coverage/
+
+# TypeScript & Build
+*.tsbuildinfo
+next-env.d.ts
+
+# Scratch Scripts (Root level JS/MJS tools)
+/backfill_customer_ids.js
+/check_appointments_schema.js
+/check_db.js
+/check_patrons_root.js
+/debug.mjs
+/inspect_db.mjs
+/inspect_db_detailed.mjs
+/test-db.mjs
+/test-get-transactions.mjs
+/test-rel.mjs
+/test-rls.mjs
+/test_check_business_codes.mjs
+/test_db_schema.mjs
+/test_join_fix.js
+/test_join_logic.mjs
+/test_pg_policies.mjs
+/update_patron_name.js
+/verify_sprint13.js
+/verify_sprint13_v2.js
+/verify_staff_active.js
+/verify_user_names.js

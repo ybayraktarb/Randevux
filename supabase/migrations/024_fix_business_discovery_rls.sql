@@ -12,7 +12,7 @@ CREATE POLICY "bc_select_self"
   USING (user_id = auth.uid());
 
 -- 3. Business Arama ve Görünürlük İzni (Kısıtlı)
--- Sadece katıldığınız işletmeleri veya kodunu bildiğiniz işletmeleri görebilirsiniz.
+-- Sadece katıldığınız işletmel eri veya kodunu bildiğiniz işletmeleri görebilirsiniz.
 DROP POLICY IF EXISTS "business_select_authenticated" ON public.businesses;
 DROP POLICY IF EXISTS "business_select_by_code" ON public.businesses;
 DROP POLICY IF EXISTS "business_select_restricted" ON public.businesses;

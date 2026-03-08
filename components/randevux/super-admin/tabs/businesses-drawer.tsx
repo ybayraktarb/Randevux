@@ -7,10 +7,12 @@ import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer,
     BarChart, Bar, Tooltip as RechartsTooltip,
 } from "recharts"
-import { Loader2, X } from "lucide-react"
+import { Loader2, X, Sparkles, PackageCheck, Zap } from "lucide-react"
 import { RxAvatar } from "../../rx-avatar"
 import { RxBadge } from "../../rx-badge"
 import { RxButton } from "../../rx-button"
+import { getBusinessFeaturesAction, toggleBusinessFeatureAction } from "@/app/actions/admin.actions"
+import { toast } from "sonner"
 
 interface Business {
     id: string
@@ -37,10 +39,36 @@ interface DrawerProps {
 
 export function BusinessesDrawer({ business, isOpen, onClose, onStatusChange }: DrawerProps) {
     const supabase = createClient()
-    const [drawerTab, setDrawerTab] = useState<"general" | "staff" | "stats">("general")
+    const [drawerTab, setDrawerTab] = useState<"general" | "staff" | "stats" | "packages">("general")
     const [drawerStaff, setDrawerStaff] = useState<any[]>([])
     const [weeklyBarData, setWeeklyBarData] = useState<any[]>([])
     const [revenueStats, setRevenueStats] = useState({ revenue: 0, appts: 0, noShows: 0 })
+    const [features, setFeatures] = useState<any[]>([])
+    const [loadingFeatures, setLoadingFeatures] = useState(false)
+
+    async function fetchFeatures() {
+        setLoadingFeatures(true)
+        const res = await getBusinessFeaturesAction(business.id)
+        if (res.success) setFeatures(res.data || [])
+        setLoadingFeatures(false)
+    }
+
+    async function handleToggleFeature(featureId: string, currentStatus: boolean) {
+        const res = await toggleBusinessFeatureAction(business.id, featureId, !currentStatus)
+        if (res.success) {
+            toast.success("Özellik durumu güncellendi")
+            fetchFeatures()
+        } else {
+            toast.error(res.error || "Güncelleme başarısız")
+        }
+    }
+
+    useEffect(() => {
+        if (!isOpen || !business) return
+        if (drawerTab === "packages") {
+            fetchFeatures()
+        }
+    }, [drawerTab, isOpen, business?.id])
 
     useEffect(() => {
         if (!isOpen || !business) return
@@ -48,6 +76,7 @@ export function BusinessesDrawer({ business, isOpen, onClose, onStatusChange }: 
         setDrawerStaff([])
         setWeeklyBarData([])
         setRevenueStats({ revenue: 0, appts: business.appts, noShows: 0 })
+        setFeatures([])
 
         supabase.from("staff_business").select("id, is_active, users(name)").eq("business_id", business.id)
             .then(({ data: staffData }) => {
@@ -113,8 +142,8 @@ export function BusinessesDrawer({ business, isOpen, onClose, onStatusChange }: 
 
                 {/* Tabs */}
                 <div className="flex border-b border-border">
-                    {(["general", "staff", "stats"] as const).map((tab) => {
-                        const labels = { general: "Genel", staff: "Personel", stats: "İstatistik" }
+                    {(["general", "staff", "stats", "packages"] as const).map((tab) => {
+                        const labels = { general: "Genel", staff: "Personel", stats: "İstatistik", packages: "Paketler" }
                         return (
                             <button key={tab} type="button" onClick={() => setDrawerTab(tab)}
                                 className={cn("flex-1 py-3 text-sm font-medium transition-colors",
@@ -228,6 +257,83 @@ export function BusinessesDrawer({ business, isOpen, onClose, onStatusChange }: 
                                         </BarChart>
                                     </ResponsiveContainer>
                                 </div>
+                            </div>
+                        </div>
+                    )}
+                    {drawerTab === "packages" && (
+                        <div className="flex flex-col gap-6">
+                            <div className="rounded-xl bg-primary/5 p-4 border border-primary/10">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <Sparkles className="size-5 text-primary animate-pulse" />
+                                    <h4 className="text-sm font-bold text-foreground">Özellik Paketleri</h4>
+                                </div>
+                                <p className="text-xs text-muted-foreground leading-relaxed">
+                                    Bu işletme için aktif edilebilecek ek özellikleri buradan yönetebilirsiniz. Aktif edilen özellikler anında işletme paneline yansır.
+                                </p>
+                            </div>
+
+                            {loadingFeatures ? (
+                                <div className="flex justify-center py-12">
+                                    <Loader2 className="size-8 animate-spin text-primary/40" />
+                                </div>
+                            ) : (
+                                <div className="flex flex-col gap-3">
+                                    {features.map((f) => (
+                                        <div key={f.id} className={cn(
+                                            "group p-4 rounded-2xl border transition-all duration-300",
+                                            f.isEnabled
+                                                ? "bg-card border-primary/20 shadow-sm"
+                                                : "bg-muted/30 border-border/50 hover:bg-muted/50"
+                                        )}>
+                                            <div className="flex items-start justify-between gap-4">
+                                                <div className="flex items-start gap-4">
+                                                    <div className={cn(
+                                                        "p-2.5 rounded-xl",
+                                                        f.isEnabled ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                                                    )}>
+                                                        {f.key === 'ai_assistant' && <Zap className="size-5" />}
+                                                        {f.key === 'advanced_analytics' && <Sparkles className="size-5" />}
+                                                        {f.key === 'online_payment' && <PackageCheck className="size-5" />}
+                                                    </div>
+                                                    <div className="flex flex-col gap-1">
+                                                        <h5 className="text-[15px] font-bold text-foreground">{f.name}</h5>
+                                                        <p className="text-xs text-muted-foreground leading-snug">{f.description}</p>
+                                                        {f.validUntil && (
+                                                            <div className="mt-2 flex items-center gap-1 text-[10px] font-medium text-emerald-600 bg-emerald-50 w-fit px-2 py-0.5 rounded-full">
+                                                                Şuna kadar geçerli: {new Date(f.validUntil).toLocaleDateString('tr-TR')}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleToggleFeature(f.id, f.isEnabled)}
+                                                    className={cn(
+                                                        "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors duration-200 focus:outline-none",
+                                                        f.isEnabled ? "bg-primary" : "bg-muted-foreground/30"
+                                                    )}
+                                                >
+                                                    <span className={cn(
+                                                        "pointer-events-none inline-block size-5 transform rounded-full bg-white shadow-lg ring-0 transition-transform duration-200",
+                                                        f.isEnabled ? "translate-x-5" : "translate-x-0.5"
+                                                    )} style={{ marginTop: "2px" }} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {features.length === 0 && (
+                                        <div className="text-center py-12 text-muted-foreground">
+                                            Tanımlı sistem özelliği bulunamadı.
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            <div className="mt-4 p-4 rounded-xl border border-dashed border-border bg-muted/10 text-center">
+                                <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-semibold">
+                                    Ödeme ve Üyelik Geçmişi Çok Yakında
+                                </p>
                             </div>
                         </div>
                     )}

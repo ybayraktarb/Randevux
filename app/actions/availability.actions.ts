@@ -34,8 +34,11 @@ export async function getAvailableSlotsAction(params: SlotParams) {
 
         if (isClosed) return { success: true, slots: [] }
 
-        // 2. Gün bilgilerini çöz (JS getDay: 0=Pazar, 1=Pzt...)
-        const dayOfWeek = new Date(date).getDay()
+        // 3. Gün bilgilerini çöz (Timezone hatasını önlemek için manuel parçala)
+        // new Date(date) bazen yerel saat dilimine göre bir önceki günü verebilir.
+        const [year, month, day] = date.split("-").map(Number)
+        const dateObj = new Date(year, month - 1, day)
+        const dayOfWeek = dateObj.getDay()
 
         // 3. İlgili personelleri belirle (ANY ise hizmeti verebilen herkesi al)
         let staffIds: string[] = []
@@ -160,8 +163,8 @@ export async function getAvailableSlotsAction(params: SlotParams) {
 
         return { success: true, slots }
     } catch (err: any) {
-        console.error("Availability Engine Error:", err)
+        console.error("Availability Engine Error:", JSON.stringify(err, null, 2))
         Sentry.captureException(err)
-        return { success: false, error: err.message }
+        return { success: false, error: "Müsaitlik bilgisi alınamadı." }
     }
 }

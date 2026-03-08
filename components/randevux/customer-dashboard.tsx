@@ -36,6 +36,7 @@ import {
 import { RxAvatar } from "./rx-avatar"
 import { RxBadge } from "./rx-badge"
 import { RxButton } from "./rx-button"
+import { DiscoveryTab } from "../booking/DiscoveryTab"
 import { useRouter } from "next/navigation"
 import { useCurrentUser } from "@/hooks/use-current-user"
 import { createClient } from "@/lib/supabase/client"
@@ -63,7 +64,8 @@ function getGreeting() {
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
 
-type TabView = "genel" | "randevularim" | "isletmelerim" | "profil"
+export type TabView = "kesfet" | "genel" | "randevularim" | "isletmelerim" | "profil"
+const defaultTab: TabView = "kesfet"
 
 interface Appointment {
   id: string
@@ -614,21 +616,23 @@ function OverviewTab({
   notifications,
   onMarkAsRead,
   onViewDetails,
-  onReview
+  onReview,
+  router,
 }: {
-  upcoming: Appointment[],
-  past: Appointment[],
-  businesses: Business[],
-  onNavigate: (tab: TabView) => void,
-  onCancel: (id: string, businessId: string, fullDate: Date) => void,
-  userName: string,
-  onJoinBusiness: (code: string) => Promise<void>,
-  onRebook: (businessId: string, services: string) => void,
-  onLeave: (id: string) => Promise<void>,
-  notifications: any[],
-  onMarkAsRead: (id: string) => Promise<void>,
-  onViewDetails: (id: string) => void,
+  upcoming: Appointment[]
+  past: Appointment[]
+  businesses: Business[]
+  onNavigate: (tab: TabView) => void
+  onCancel: (id: string, businessId: string, fullDate: Date) => void
+  userName: string
+  onJoinBusiness: (code: string) => Promise<void>
+  onRebook: (businessId: string, services: string) => void
+  onLeave: (id: string) => Promise<void>
+  notifications: any[]
+  onMarkAsRead: (id: string) => Promise<void>
+  onViewDetails: (id: string) => void
   onReview?: (apt: Appointment) => void
+  router: any
 }) {
   const [showJoinForm, setShowJoinForm] = useState(false)
   const [showScanner, setShowScanner] = useState(false)
@@ -677,7 +681,10 @@ function OverviewTab({
   return (
     <div className="flex flex-col gap-8 pb-10">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">{getGreeting()}, {userName || "Misafir"} 👋</h1>
+        <div>
+          <h2 className="text-lg font-black text-gray-900">Genel Bakış</h2>
+          <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider">Randevularını ve işletmelerini yönet</p>
+        </div>
         <div className="flex items-center gap-3">
           <ThemeToggle />
           <NotificationBell
@@ -690,34 +697,7 @@ function OverviewTab({
         </div>
       </div>
 
-      {/* Hero: Next Appointment */}
-      {upcoming.length > 0 && (
-        <section className="animate-in slide-in-from-bottom-2 fade-in duration-500">
-          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-primary-hover p-6 text-primary-foreground shadow-lg">
-            <div
-              className="relative z-10 flex flex-col gap-4 cursor-pointer"
-              onClick={() => onViewDetails(upcoming[0].id)}
-            >
-              <div className="flex items-center gap-2 text-primary-foreground/80">
-                <CalendarDays className="size-5" />
-                <span className="font-medium text-sm">Sıradaki Randevunuz</span>
-              </div>
-              <div className="flex flex-col gap-1">
-                <h3 className="text-2xl font-bold">{upcoming[0].businessName}</h3>
-                <p className="text-primary-foreground/90">{upcoming[0].services}</p>
-              </div>
-              <div className="flex items-center gap-4 text-sm font-medium mt-2 bg-black/10 w-fit px-4 py-2 rounded-lg backdrop-blur-sm">
-                <span className="flex items-center gap-1.5"><Calendar className="size-4" /> {upcoming[0].date}</span>
-                <span className="w-1 h-1 rounded-full bg-primary-foreground/50" />
-                <span className="flex items-center gap-1.5"><Clock className="size-4" /> {upcoming[0].time}</span>
-              </div>
-            </div>
-            {/* Dekoratif Çemberler */}
-            <div className="absolute -right-8 -top-12 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
-            <div className="absolute -bottom-16 right-16 h-32 w-32 rounded-full bg-black/10 blur-xl" />
-          </div>
-        </section>
-      )}
+      {/* Hero: Next Appointment removed as it's now on Discovery/Home tab */}
 
       {/* Upcoming Appointments (excluding the first one if shown in Hero) */}
       <section className="flex flex-col gap-4">
@@ -775,7 +755,7 @@ function OverviewTab({
               <span className="text-center text-xs text-muted-foreground">
                 {b.category}
               </span>
-              <RxButton size="sm" className="w-full" onClick={() => window.location.href = `/isletme/${b.id}`}>
+              <RxButton size="sm" className="w-full" onClick={() => router.push(`/isletme/${b.id}`)}>
                 Profili Gor
               </RxButton>
               <RxButton
@@ -1117,7 +1097,7 @@ function BusinessesTab({ businesses, onJoinBusiness, onLeave }: { businesses: Bu
 
 // ─── Main Dashboard ─────────────────────────────────────────────────────────────
 
-export function CustomerDashboard({ defaultTab = "genel" }: { defaultTab?: "genel" | "randevularim" | "isletmelerim" | "profil" }) {
+export function CustomerDashboard({ defaultTab = "kesfet" }: { defaultTab?: TabView }) {
   const router = useRouter()
   const { user } = useCurrentUser()
   const supabase = createClient()
@@ -1142,6 +1122,7 @@ export function CustomerDashboard({ defaultTab = "genel" }: { defaultTab?: "gene
 
   // Sprint 5: Family & Stats
   const [familyProfiles, setFamilyProfiles] = useState<any[]>([])
+  const [activeTab, setActiveTab] = useState<TabView>(defaultTab)
   const [stats, setStats] = useState<any>(null)
   const [loadingFamily, setLoadingFamily] = useState(false)
   const [loadingStats, setLoadingStats] = useState(false)
@@ -1445,11 +1426,12 @@ export function CustomerDashboard({ defaultTab = "genel" }: { defaultTab?: "gene
     }
   }
 
-  const handleNavigate = (tab: "genel" | "randevularim" | "isletmelerim" | "profil") => {
+  const handleNavigate = (tab: TabView) => {
     if (tab === "genel") router.push("/musteri-panel")
     if (tab === "randevularim") router.push("/randevularim")
     if (tab === "isletmelerim") router.push("/isletme")
     if (tab === "profil") router.push("/profil")
+    if (tab === "kesfet") router.push("/kesfet") // Assuming a route for discovery
   }
 
   const handleRebook = (businessId: string, services: string) => {
@@ -1517,12 +1499,19 @@ export function CustomerDashboard({ defaultTab = "genel" }: { defaultTab?: "gene
 
   return (
     <>
-      {defaultTab === "genel" && (
+      {activeTab === "kesfet" && (
+        <DiscoveryTab
+          userName={userName}
+          upcomingAppointment={upcoming[0]}
+          onViewDetails={handleViewDetails}
+        />
+      )}
+      {activeTab === "genel" && (
         <OverviewTab
           upcoming={upcoming}
           past={past}
           businesses={businesses}
-          onNavigate={handleNavigate}
+          onNavigate={setActiveTab}
           onCancel={handleCancelAppointment}
           userName={userName}
           onJoinBusiness={handleJoinBusiness}
@@ -1532,9 +1521,10 @@ export function CustomerDashboard({ defaultTab = "genel" }: { defaultTab?: "gene
           onMarkAsRead={handleMarkAsRead}
           onViewDetails={handleViewDetails}
           onReview={handleOpenReviewModal}
+          router={router}
         />
       )}
-      {defaultTab === "randevularim" && (
+      {activeTab === "randevularim" && (
         <AppointmentsTab
           allAppointments={appointments}
           onCancel={handleCancelAppointment}
@@ -1543,14 +1533,14 @@ export function CustomerDashboard({ defaultTab = "genel" }: { defaultTab?: "gene
           onReview={handleOpenReviewModal}
         />
       )}
-      {defaultTab === "isletmelerim" && (
+      {activeTab === "isletmelerim" && (
         <BusinessesTab
           businesses={businesses}
           onJoinBusiness={handleJoinBusiness}
           onLeave={handleLeaveBusiness}
         />
       )}
-      {defaultTab === "profil" && (
+      {activeTab === "profil" && (
         <ProfilTab
           profile={profile}
           onUpdate={handleUpdateProfile}

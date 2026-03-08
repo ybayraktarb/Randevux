@@ -262,3 +262,53 @@ export async function updateUserProfileAction(
         return { success: false, error: { message: err.message || "Bilinmeyen bir hata oluştu." } }
     }
 }
+
+/**
+ * Müşterinin son 3 başarılı randevusunu getirir. (Hızlı Tekrar Al özelliği için)
+ */
+export async function getQuickRebookDataAction() {
+    try {
+        const supabase = await createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+
+        if (!user) return { success: false, error: "Oturum açılmamış." }
+
+        const { data, error } = await supabase
+            .from("appointments")
+            .select(`
+                id,
+                appointment_date,
+                business_id,
+                business:businesses(name, logo_url, category),
+                services:appointment_services(service:services(name, id))
+            `)
+            .eq("customer_user_id", user.id)
+            .order("appointment_date", { ascending: false })
+            .limit(3)
+
+        if (error) throw error
+
+        const formatted = (data || []).map((a: any) => {
+            const b = Array.isArray(a.business) ? a.business[0] : a.business
+            const s = Array.isArray(a.services) ? a.services : []
+            const serviceNames = s.map((svc: any) => svc.service?.name).filter(Boolean).join(", ")
+            const serviceIds = s.map((svc: any) => svc.service?.id).filter(Boolean).join(",")
+
+            return {
+                id: a.id,
+                businessId: a.business_id,
+                businessName: b?.name || "İşletme",
+                businessLogo: b?.logo_url,
+                category: b?.category || "Genel",
+                serviceNames,
+                serviceIds,
+                lastDate: a.appointment_date
+            }
+        })
+
+        return { success: true, data: formatted }
+    } catch (err: any) {
+        Sentry.captureException(err)
+        return { success: false, error: err.message || "Randevu geçmişi alınamadı." }
+    }
+}

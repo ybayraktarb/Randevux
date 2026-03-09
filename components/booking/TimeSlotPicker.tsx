@@ -6,6 +6,7 @@ import { Clock, Sun, Sunset, Moon, Loader2 } from "lucide-react"
 export interface TimeSlot {
     time: string
     status: "available" | "booked" | "break"
+    staffId?: string
 }
 
 interface TimeSlotPickerProps {

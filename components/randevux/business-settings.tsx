@@ -7,8 +7,7 @@ import { useCurrentUser } from "@/hooks/use-current-user"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
 import { logAuditAction } from "@/app/actions/audit.actions" // DEĞİŞTİRİLDİ
-import { Loader2, Save, Lock, User, Building2, Calendar, RefreshCw, Copy, QrCode, Download, Clock, CalendarOff, Plus, Trash2, ChevronDown } from "lucide-react"
-import QRCode from "react-qr-code"
+import { RxBadge } from "./rx-badge"
 import {
     addClosedDateAction, removeClosedDateAction, getClosedDatesAction,
     upsertBusinessHoursAction, getBusinessHoursAction,
@@ -20,7 +19,7 @@ export function BusinessSettings() {
     const supabase = createClient()
 
     const [loading, setLoading] = useState(true)
-    const [activeTab, setActiveTab] = useState<"business" | "appointment" | "profile" | "hours" | "closed">("business")
+    const [activeTab, setActiveTab] = useState<"business" | "appointment" | "profile" | "hours" | "closed" | "announcements">("business")
 
     // Business fields
     const [businessId, setBusinessId] = useState<string | null>(null)
@@ -172,6 +171,7 @@ export function BusinessSettings() {
         { key: "business" as const, label: "İşletme", icon: Building2 },
         { key: "hours" as const, label: "Çalışma Saatleri", icon: Clock },
         { key: "closed" as const, label: "Kapalı Günler", icon: CalendarOff },
+        { key: "announcements" as const, label: "Duyurular", icon: QrCode },
         { key: "appointment" as const, label: "Randevu Ayarları", icon: Calendar },
         { key: "profile" as const, label: "Profil", icon: User },
     ]
@@ -185,7 +185,7 @@ export function BusinessSettings() {
             {/* Tab bar */}
             <div className="flex gap-1 flex-wrap rounded-lg border border-border bg-card p-1">
                 {tabs.map(t => (
-                    <button key={t.key} type="button" onClick={() => setActiveTab(t.key)} className={cn("flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors", activeTab === t.key ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-primary-light")}>
+                    <button key={t.key} type="button" onClick={() => setActiveTab(t.key as any)} className={cn("flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors", activeTab === t.key ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-primary-light")}>
                         <t.icon className="size-4" />{t.label}
                     </button>
                 ))}
@@ -311,7 +311,7 @@ export function BusinessSettings() {
             {/* Profile Tab */}
             {activeTab === "profile" && (
                 <div className="flex flex-col gap-6">
-                    <div className="rounded-xl border border-border bg-card p-6 shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
+                    <div className="rounded-xl border border-border bg-card p-6 shadow-[0_2px_8_rgba(0,0,0,0.06)]">
                         <div className="flex items-center gap-2 mb-5"><User className="size-5 text-primary" /><h2 className="text-lg font-semibold text-foreground">Profil Bilgileri</h2></div>
                         <div className="flex flex-col gap-4 max-w-md">
                             <div className="flex flex-col gap-1.5">
@@ -356,6 +356,10 @@ export function BusinessSettings() {
 
             {activeTab === "closed" && businessId && (
                 <ClosedDatesTab businessId={businessId} />
+            )}
+
+            {activeTab === "announcements" && businessId && (
+                <AnnouncementsTab businessId={businessId} />
             )}
         </div>
     )
@@ -562,3 +566,226 @@ function ClosedDatesTab({ businessId }: { businessId: string }) {
         </div>
     )
 }
+
+// ─── Announcements Tab ───────────────────────────────────────────────────────
+
+import { getAllAnnouncementsAction, upsertAnnouncementAction, deleteAnnouncementAction, type BusinessAnnouncement } from "@/app/actions/announcement.actions"
+
+function AnnouncementsTab({ businessId }: { businessId: string }) {
+    const [announcements, setAnnouncements] = useState<BusinessAnnouncement[]>([])
+    const [loading, setLoading] = useState(true)
+    const [isModalOpen, setIsModalOpen] = useState(false)
+    const [editingItem, setEditingItem] = useState<BusinessAnnouncement | null>(null)
+
+    const fetchAnnouncements = useCallback(async () => {
+        setLoading(true)
+        const res = await getAllAnnouncementsAction(businessId)
+        if (res.success && res.data) {
+            setAnnouncements(res.data)
+        }
+        setLoading(false)
+    }, [businessId])
+
+    useEffect(() => {
+        fetchAnnouncements()
+    }, [fetchAnnouncements])
+
+    const handleDelete = async (id: string) => {
+        if (!confirm("Bu duyuruyu silmek istediğinize emin misiniz?")) return
+        const res = await deleteAnnouncementAction(id)
+        if (res.success) {
+            toast.success("Duyuru silindi.")
+            fetchAnnouncements()
+        } else {
+            toast.error("Hata: " + res.error)
+        }
+    }
+
+    return (
+        <div className="flex flex-col gap-6">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h2 className="text-lg font-semibold text-foreground">Duyuru ve Kampanyalar</h2>
+                    <p className="text-xs text-muted-foreground mt-0.5">Randevu sayfasında müşterilerinize göstermek istediğiniz duyuruları yönetin.</p>
+                </div>
+                <RxButton variant="primary" onClick={() => { setEditingItem(null); setIsModalOpen(true) }} size="sm">
+                    <Plus className="size-4 mr-1" /> Yeni Duyuru
+                </RxButton>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4">
+                {loading ? (
+                    <div className="flex justify-center py-12"><Loader2 className="size-6 animate-spin text-primary" /></div>
+                ) : announcements.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-border bg-muted/20 py-16 text-center">
+                        <QrCode className="size-10 mx-auto text-muted-foreground/30 mb-3" />
+                        <p className="text-sm text-muted-foreground">Henüz duyuru veya kampanya eklemediniz.</p>
+                    </div>
+                ) : (
+                    announcements.map((item) => (
+                        <div key={item.id} className={cn(
+                            "group relative overflow-hidden rounded-2xl border bg-card p-5 transition-all hover:shadow-md",
+                            item.is_active ? "border-border" : "border-dashed border-border/60 opacity-60 bg-muted/30"
+                        )}>
+                            <div className="flex items-start justify-between gap-4">
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <h3 className="font-semibold text-foreground">{item.title}</h3>
+                                        {!item.is_active && <RxBadge variant="warning" className="text-[10px] px-1.5 py-0">Taslak</RxBadge>}
+                                    </div>
+                                    <p className="text-sm text-muted-foreground line-clamp-2">{item.content}</p>
+
+                                    <div className="flex items-center gap-4 mt-3">
+                                        {(item.start_date || item.end_date) && (
+                                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                                <Calendar className="size-3" />
+                                                <span>
+                                                    {item.start_date ? new Date(item.start_date).toLocaleDateString("tr-TR") : "..."}
+                                                    {" - "}
+                                                    {item.end_date ? new Date(item.end_date).toLocaleDateString("tr-TR") : "..."}
+                                                </span>
+                                            </div>
+                                        )}
+                                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                            <TrendingUp className="size-3" />
+                                            <span>Öncelik: {item.priority}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button onClick={() => { setEditingItem(item); setIsModalOpen(true) }} className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors" title="Düzenle">
+                                        <Edit2 className="size-4" />
+                                    </button>
+                                    <button onClick={() => handleDelete(item.id)} className="p-2 rounded-lg hover:bg-destructive/10 hover:text-destructive text-muted-foreground transition-colors" title="Sil">
+                                        <Trash2 className="size-4" />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    ))
+                )}
+            </div>
+
+            {isModalOpen && (
+                <AnnouncementModal
+                    open={isModalOpen}
+                    onClose={() => setIsModalOpen(false)}
+                    businessId={businessId}
+                    item={editingItem}
+                    onSaved={fetchAnnouncements}
+                />
+            )}
+        </div>
+    )
+}
+
+function AnnouncementModal({ open, onClose, businessId, item, onSaved }: { open: boolean, onClose: () => void, businessId: string, item: BusinessAnnouncement | null, onSaved: () => void }) {
+    const [loading, setLoading] = useState(false)
+    const [form, setForm] = useState({
+        title: item?.title || "",
+        content: item?.content || "",
+        start_date: item?.start_date ? new Date(item.start_date).toISOString().split("T")[0] : "",
+        end_date: item?.end_date ? new Date(item.end_date).toISOString().split("T")[0] : "",
+        priority: item?.priority || 0,
+        is_active: item?.is_active ?? true
+    })
+
+    const handleSave = async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (!form.title) { toast.error("Başlık zorunludur."); return }
+
+        setLoading(true)
+        console.log("Saving Announcement:", { ...item, ...form, business_id: businessId })
+
+        const payload: any = {
+            ...form,
+            business_id: businessId,
+            start_date: form.start_date ? new Date(form.start_date).toISOString() : null,
+            end_date: form.end_date ? new Date(form.end_date).toISOString() : null
+        }
+
+        if (item?.id) {
+            payload.id = item.id
+        }
+
+        const res = await upsertAnnouncementAction(payload)
+        setLoading(false)
+        if (res.success) {
+            toast.success("Duyuru başarıyla kaydedildi.")
+            onSaved()
+            onClose()
+        } else {
+            console.error("Save Error:", res.error)
+            toast.error("Kaydedilemedi: " + res.error)
+        }
+    }
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/30 backdrop-blur-sm p-4">
+            <div className="w-full max-w-lg bg-card rounded-[32px] shadow-2xl relative overflow-hidden border border-border">
+                <div className="flex items-center justify-between border-b border-border px-8 py-5">
+                    <h2 className="text-xl font-bold text-foreground">{item ? "Duyuruyu Düzenle" : "Yeni Duyuru"}</h2>
+                    <button onClick={onClose} className="p-2 rounded-xl hover:bg-muted text-muted-foreground transition-colors"><X className="size-5" /></button>
+                </div>
+                <form onSubmit={handleSave} className="p-8 flex flex-col gap-5">
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-sm font-bold text-muted-foreground">Başlık *</label>
+                        <input required type="text" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} className="h-12 rounded-2xl border border-input bg-card px-4 text-sm font-medium focus:ring-2 focus:ring-primary/20 outline-none transition-all" placeholder="Kampanya İsmi veya Duyuru Başlığı" />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-sm font-bold text-muted-foreground">İçerik</label>
+                        <textarea rows={3} value={form.content} onChange={e => setForm(f => ({ ...f, content: e.target.value }))} className="rounded-2xl border border-input bg-card px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20 outline-none resize-none transition-all" placeholder="Müşterilere verilecek detaylı bilgi..." />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-sm font-bold text-muted-foreground">Başlangıç</label>
+                            <input type="date" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} className="h-12 rounded-2xl border border-input bg-card px-4 text-sm font-medium focus:ring-2 focus:ring-primary/20 outline-none transition-all" />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-sm font-bold text-muted-foreground">Bitiş</label>
+                            <input type="date" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} className="h-12 rounded-2xl border border-input bg-card px-4 text-sm font-medium focus:ring-2 focus:ring-primary/20 outline-none transition-all" />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-sm font-bold text-muted-foreground">Öncelik (0-100)</label>
+                            <input type="number" value={form.priority} onChange={e => setForm(f => ({ ...f, priority: Number(e.target.value) }))} className="h-12 rounded-2xl border border-input bg-card px-4 text-sm font-medium focus:ring-2 focus:ring-primary/20 outline-none transition-all" />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-sm font-bold text-muted-foreground">Durum</label>
+                            <div className="flex items-center gap-3 h-12">
+                                <button
+                                    type="button"
+                                    onClick={() => setForm(f => ({ ...f, is_active: !f.is_active }))}
+                                    className={cn(
+                                        "relative h-7 w-12 rounded-full transition-all duration-300",
+                                        form.is_active ? "bg-primary shadow-[0_0_12px_rgba(var(--primary),0.3)]" : "bg-muted-foreground/30"
+                                    )}
+                                >
+                                    <div className={cn(
+                                        "absolute top-1 size-5 rounded-full bg-white shadow-lg transition-all duration-300",
+                                        form.is_active ? "left-6" : "left-1"
+                                    )} />
+                                </button>
+                                <span className={cn("text-sm font-bold tracking-tight", form.is_active ? "text-primary" : "text-muted-foreground")}>
+                                    {form.is_active ? "Aktif" : "Taslak"}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex justify-end gap-3 mt-4 border-t border-border pt-4">
+                        <RxButton type="button" variant="ghost" onClick={onClose}>Vazgeç</RxButton>
+                        <RxButton type="submit" variant="primary" loading={loading} className="px-8">
+                            <Save className="size-4 mr-2" /> Kaydet
+                        </RxButton>
+                    </div>
+                </form>
+            </div>
+        </div>
+    )
+}
+
+import { TrendingUp, Edit2, X, Loader2, Save, Lock, User, Building2, Calendar, RefreshCw, Copy, QrCode, Download, Clock, CalendarOff, Plus, Trash2, ChevronDown } from "lucide-react"
+import QRCode from "react-qr-code"

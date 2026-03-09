@@ -543,8 +543,8 @@ export function CommandCenterCalendar({ businessId }: { businessId?: string }) {
 
                             {/* Mini Calendar Grid */}
                             <div className="grid grid-cols-7 gap-1 text-center">
-                                {['P', 'S', 'Ç', 'P', 'C', 'Ct', 'Pz'].map(day => (
-                                    <div key={day} className="text-[10px] font-bold text-muted-foreground py-1">{day}</div>
+                                {['P', 'S', 'Ç', 'P', 'C', 'Ct', 'Pz'].map((day, idx) => (
+                                    <div key={`${day}-${idx}`} className="text-[10px] font-bold text-muted-foreground py-1">{day}</div>
                                 ))}
                                 {(() => {
                                     const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)

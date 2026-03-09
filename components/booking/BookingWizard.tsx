@@ -13,7 +13,9 @@ import {
     CheckCircle2,
     Clock,
     ArrowRight,
-    Info
+    Info,
+    AlertCircle,
+    Star
 } from "lucide-react"
 import { DateCarousel } from "./DateCarousel"
 import { TimeSlotPicker, type TimeSlot } from "./TimeSlotPicker"
@@ -24,6 +26,7 @@ import { format } from "date-fns"
 import { toast } from "sonner"
 import { useRouter, useSearchParams } from "next/navigation"
 import { getFamilyProfilesAction } from "@/app/actions/family.actions"
+import { getActiveAnnouncementsAction, type BusinessAnnouncement } from "@/app/actions/announcement.actions"
 
 interface Service {
     id: string
@@ -38,11 +41,15 @@ interface Staff {
     name: string
     avatar_url?: string
     serviceIds: string[]
+    expertiseLevel?: string
+    calendarColor?: string
+    averageRating?: number
 }
 
 interface BookingWizardProps {
     businessId: string
     businessName: string
+    businessHours?: any[]
     initialServices: Service[]
     initialStaff: Staff[]
 }
@@ -58,6 +65,7 @@ interface FamilyProfile {
 export function BookingWizard({
     businessId,
     businessName,
+    businessHours = [],
     initialServices,
     initialStaff,
 }: BookingWizardProps) {
@@ -71,26 +79,34 @@ export function BookingWizard({
     const [customerNote, setCustomerNote] = useState("")
     const [familyProfiles, setFamilyProfiles] = useState<FamilyProfile[]>([])
     const [selectedProfileId, setSelectedProfileId] = useState<string | "ME">("ME")
+    const [announcements, setAnnouncements] = useState<BusinessAnnouncement[]>([])
 
     const [slots, setSlots] = useState<TimeSlot[]>([])
     const [loadingSlots, setLoadingSlots] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
 
-    // Pre-fill from URL and fetch family
+    // Pre-fill from URL and fetch family & announcements
     useEffect(() => {
         const servicesParam = searchParams.get("services")
         if (servicesParam) {
             setSelectedServices(servicesParam.split(","))
         }
 
-        async function loadFamily() {
-            const res = await getFamilyProfilesAction()
-            if (res.success && res.data) {
-                setFamilyProfiles(res.data)
+        async function loadInitialData() {
+            const [familyRes, annRes] = await Promise.all([
+                getFamilyProfilesAction(),
+                getActiveAnnouncementsAction(businessId)
+            ])
+
+            if (familyRes.success && familyRes.data) {
+                setFamilyProfiles(familyRes.data)
+            }
+            if (annRes.success && annRes.data) {
+                setAnnouncements(annRes.data)
             }
         }
-        loadFamily()
-    }, [searchParams])
+        loadInitialData()
+    }, [searchParams, businessId])
 
     // Memoized derived data
     const chosenServices = useMemo(() =>
@@ -114,6 +130,13 @@ export function BookingWizard({
     const totalPrice = useMemo(() =>
         chosenServices.reduce((sum, s) => sum + Number(s.base_price), 0),
         [chosenServices])
+
+    const availableDays = useMemo(() => {
+        if (!businessHours || businessHours.length === 0) return [1, 2, 3, 4, 5, 6]
+        return businessHours
+            .filter(h => h.is_open)
+            .map(h => h.day_of_week)
+    }, [businessHours])
 
     const totalDuration = useMemo(() =>
         chosenServices.reduce((sum, s) => sum + s.base_duration_minutes, 0),
@@ -156,10 +179,40 @@ export function BookingWizard({
     const handleCreateBooking = async () => {
         if (!selectedTime) return
         setIsSubmitting(true)
+        console.log("BookingWizard: Starting booking submission", {
+            selectedStaff,
+            selectedTime,
+            selectedDate: format(selectedDate, "yyyy-MM-dd"),
+            selectedServices
+        })
         try {
-            const res = await createBookingAction({
+            // Find the candidate staff ID if "ANY" is selected
+            let finalStaffId = selectedStaff === "ANY" || !selectedStaff ? "" : selectedStaff
+
+            if (selectedStaff === "ANY") {
+                const currentSlot = slots.find(s => s.time === selectedTime)
+                console.log("BookingWizard: Any Staff selected, found slot:", currentSlot)
+                if (currentSlot?.staffId) {
+                    finalStaffId = currentSlot.staffId
+                } else {
+                    console.error("BookingWizard: No staffId found for ANY slot")
+                    toast.error("Bu saat dilimi için uygun personel bulunamadı.")
+                    setIsSubmitting(false)
+                    return
+                }
+            }
+
+            console.log("BookingWizard: Final Staff ID for submission:", finalStaffId)
+
+            if (!finalStaffId) {
+                toast.error("Lütfen bir personel seçin.")
+                setIsSubmitting(false)
+                return
+            }
+
+            const payload = {
                 businessId,
-                staffBusinessId: selectedStaff === "ANY" || !selectedStaff ? "" : selectedStaff,
+                staffBusinessId: finalStaffId,
                 serviceIds: selectedServices,
                 appointmentDate: format(selectedDate, "yyyy-MM-dd"),
                 startTime: selectedTime,
@@ -167,17 +220,44 @@ export function BookingWizard({
                 totalDuration,
                 customerNote,
                 familyProfileId: selectedProfileId === "ME" ? null : selectedProfileId
-            })
+            }
+            console.log("BookingWizard: Calling createBookingAction with payload:", payload)
+
+            const res = await createBookingAction(payload)
+            console.log("BookingWizard: createBookingAction response:", res)
 
             if (res.success) {
+                toast.success("Randevunuz başarıyla oluşturuldu!")
                 setStep("success")
             } else {
+                console.error("BookingWizard: createBookingAction reported failure:", res.error)
                 toast.error(res.error || "Randevu oluşturulamadı.")
             }
-        } catch (err) {
-            toast.error("Beklenmedik bir hata oluştu.")
+        } catch (err: any) {
+            console.error("BookingWizard: Unexpected error in handleCreateBooking:", err)
+            toast.error("Beklenmedik bir hata oluştu: " + (err.message || "Bilinmiyor"))
         } finally {
             setIsSubmitting(false)
+        }
+    }
+
+    // --- Step Components ---
+
+    const handleProfileComplete = () => {
+        if (selectedServices.length > 0) {
+            setStep("staff")
+        } else {
+            setStep("services")
+        }
+    }
+
+    const handleStaffBack = () => {
+        const servicesParam = searchParams.get("services")
+        if (servicesParam) {
+            // If they came from storefront with services, go back to profile (skip services selection)
+            setStep("profile")
+        } else {
+            setStep("services")
         }
     }
 
@@ -234,7 +314,7 @@ export function BookingWizard({
 
             <div className="pt-8 flex justify-end">
                 <RxButton
-                    onClick={() => setStep("services")}
+                    onClick={handleProfileComplete}
                     className="rounded-full px-10 h-14 text-lg font-bold gap-2 shadow-2xl shadow-primary/30"
                 >
                     Devam Et <ChevronRight className="size-5" />
@@ -298,7 +378,10 @@ export function BookingWizard({
                 })}
             </div>
 
-            <div className="pt-8 flex justify-end">
+            <div className="pt-8 flex justify-between">
+                <RxButton variant="ghost" onClick={() => setStep("profile")} className="rounded-full px-8 h-14 font-bold gap-2">
+                    <ChevronLeft className="size-5" /> Geri
+                </RxButton>
                 <RxButton
                     disabled={selectedServices.length === 0}
                     onClick={() => setStep("staff")}
@@ -346,24 +429,26 @@ export function BookingWizard({
                 </button>
 
                 {/* Individual Staff */}
-                {initialStaff.map((staff) => {
+                {matchedStaff.map((staff) => {
                     const isSelected = selectedStaff === staff.id
-                    const canProvideServices = selectedServices.every(id => staff.serviceIds.includes(id))
 
                     return (
                         <button
                             key={staff.id}
-                            disabled={!canProvideServices}
                             onClick={() => setSelectedStaff(staff.id)}
                             className={cn(
-                                "flex flex-col items-center justify-center p-8 rounded-3xl border transition-all duration-300 gap-4 group relative",
+                                "flex flex-col items-center justify-center p-8 rounded-3xl border transition-all duration-300 gap-4 group relative overflow-hidden",
                                 isSelected
                                     ? "bg-primary border-primary shadow-xl shadow-primary/10"
-                                    : canProvideServices
-                                        ? "bg-card border-border hover:border-primary/50 hover:bg-primary/5"
-                                        : "bg-muted/50 border-border/50 opacity-60 grayscale cursor-not-allowed"
+                                    : "bg-card border-border hover:border-primary/50 hover:bg-primary/5"
                             )}
                         >
+                            {/* Color Strip */}
+                            <div
+                                className="absolute top-0 left-0 right-0 h-1.5 opacity-60"
+                                style={{ backgroundColor: staff.calendarColor || '#3b82f6' }}
+                            />
+
                             <div className="relative">
                                 <RxAvatar name={staff.name} size="lg" />
                                 {isSelected && (
@@ -374,21 +459,48 @@ export function BookingWizard({
                             </div>
                             <div className="text-center">
                                 <p className={cn("text-lg font-bold", isSelected ? "text-primary-foreground" : "text-foreground")}>{staff.name}</p>
-                                <p className={cn("text-sm", isSelected ? "text-primary-foreground/70" : "text-muted-foreground")}>
-                                    {canProvideServices ? "Uzman Personel" : "Seçili hizmetleri vermiyor"}
-                                </p>
-                            </div>
 
-                            {!canProvideServices && (
-                                <div className="absolute top-4 right-4 group-hover:block hidden">
-                                    <div className="bg-foreground/90 text-white text-[10px] py-1 px-2 rounded-lg backdrop-blur-sm">
-                                        Hizmet Eksik
-                                    </div>
+                                <div className="flex flex-col items-center gap-1.5 mt-1">
+                                    {staff.expertiseLevel && (
+                                        <span className={cn(
+                                            "text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full",
+                                            isSelected ? "bg-primary-foreground/20 text-primary-foreground" : "bg-primary/10 text-primary"
+                                        )}>
+                                            {staff.expertiseLevel}
+                                        </span>
+                                    )}
+
+                                    {staff.averageRating !== undefined && staff.averageRating > 0 && (
+                                        <div className={cn(
+                                            "flex items-center gap-1 text-xs font-bold",
+                                            isSelected ? "text-primary-foreground" : "text-amber-500"
+                                        )}>
+                                            <Star className={cn("size-3", isSelected ? "fill-primary-foreground" : "fill-amber-500")} />
+                                            {staff.averageRating}
+                                        </div>
+                                    )}
+
+                                    {!staff.expertiseLevel && (
+                                        <p className={cn("text-sm", isSelected ? "text-primary-foreground/70" : "text-muted-foreground")}>
+                                            Uzman Personel
+                                        </p>
+                                    )}
                                 </div>
-                            )}
+                            </div>
                         </button>
                     )
                 })}
+
+                {selectedServices.length > 0 && matchedStaff.length === 0 && (
+                    <div className="sm:col-span-2 p-12 text-center border-2 border-dashed border-red-200 rounded-3xl bg-red-50/30">
+                        <AlertCircle className="size-12 text-red-400 mx-auto mb-4 opacity-50" />
+                        <p className="font-bold text-lg text-red-900">Uygun Personel Bulunamadı</p>
+                        <p className="text-red-700/70 text-sm mt-2 max-w-sm mx-auto">
+                            Seçtiğiniz hizmetlerin tamamını aynı anda sunabilen bir uzmanımız bulunmuyor.
+                            Lütfen hizmet sayısını azaltmayı veya hizmetleri ayrı ayrı randevu alarak planlamayı deneyin.
+                        </p>
+                    </div>
+                )}
 
                 {initialStaff.length === 0 && (
                     <div className="sm:col-span-2 p-12 text-center border-2 border-dashed rounded-3xl bg-muted/20">
@@ -400,7 +512,7 @@ export function BookingWizard({
             </div>
 
             <div className="pt-8 flex justify-between">
-                <RxButton variant="ghost" onClick={() => setStep("services")} className="rounded-full px-8 h-14 font-bold gap-2">
+                <RxButton variant="ghost" onClick={handleStaffBack} className="rounded-full px-8 h-14 font-bold gap-2">
                     <ChevronLeft className="size-5" /> Geri
                 </RxButton>
                 <RxButton
@@ -428,7 +540,12 @@ export function BookingWizard({
 
             <div className="space-y-2">
                 <p className="text-sm font-black uppercase tracking-[0.1em] text-muted-foreground ml-1">Randevu Günü</p>
-                <DateCarousel selectedDate={selectedDate} onDateSelect={setSelectedDate} />
+                <DateCarousel
+                    selectedDate={selectedDate}
+                    onDateSelect={setSelectedDate}
+                    availableDays={availableDays}
+                    daysCount={60} // Extended from 30 to 60
+                />
             </div>
 
             <div className="space-y-4">
@@ -548,10 +665,17 @@ export function BookingWizard({
                     {/* Main Wizard Area */}
                     <div className="flex-1 w-full bg-card rounded-[40px] border border-border/50 p-8 md:p-12 shadow-2xl shadow-foreground/5 min-h-[600px]">
                         {/* Header / Info */}
-                        <div className="mb-12 flex justify-between items-center bg-muted/30 p-4 rounded-3xl md:hidden">
+                        <div className="mb-8 flex justify-between items-center bg-muted/30 p-4 rounded-3xl md:hidden">
                             <span className="font-bold text-primary">{businessName}</span>
                             <span className="text-xs text-muted-foreground uppercase font-black tracking-widest">{step}</span>
                         </div>
+
+                        {/* Announcements Section */}
+                        {announcements.length > 0 && step !== "confirm" && (
+                            <div className="mb-10">
+                                <AnnouncementBanner announcements={announcements} />
+                            </div>
+                        )}
 
                         {step === "profile" && <ProfileStep />}
                         {step === "services" && <ServicesStep />}
@@ -613,3 +737,47 @@ function Loader2({ className }: { className?: string }) {
         </svg>
     )
 }
+
+/**
+ * Müşteri için şık bir kampanya/duyuru banner'ı
+ */
+function AnnouncementBanner({ announcements }: { announcements: BusinessAnnouncement[] }) {
+    // Birden fazla varsa en yüksek önelikliyi veya en yeniyi gösterelim (şimdilik listeleyelim)
+    return (
+        <div className="flex flex-col gap-3">
+            {announcements.map((ann) => (
+                <div
+                    key={ann.id}
+                    className="relative overflow-hidden group rounded-[32px] bg-gradient-to-br from-primary/10 via-background to-primary/5 border border-primary/20 p-6 transition-all hover:shadow-lg hover:shadow-primary/5"
+                >
+                    {/* Decorative element */}
+                    <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <TrendingUp className="size-20 text-primary rotate-12" />
+                    </div>
+
+                    <div className="relative z-10 flex items-start gap-4">
+                        <div className="size-12 rounded-2xl bg-primary flex items-center justify-center shrink-0 shadow-lg shadow-primary/20">
+                            <QrCode className="size-6 text-white" />
+                        </div>
+                        <div className="flex-1">
+                            <h4 className="font-black text-lg text-foreground mb-1 group-hover:text-primary transition-colors">
+                                {ann.title}
+                            </h4>
+                            <p className="text-sm text-muted-foreground font-medium leading-relaxed">
+                                {ann.content}
+                            </p>
+                            {ann.end_date && (
+                                <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 border border-primary/10 text-[10px] font-black uppercase tracking-widest text-primary">
+                                    <Clock className="size-3" />
+                                    Son Tarih: {new Date(ann.end_date).toLocaleDateString("tr-TR")}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            ))}
+        </div>
+    )
+}
+
+import { TrendingUp, QrCode } from "lucide-react"

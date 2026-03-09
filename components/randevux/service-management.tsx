@@ -43,6 +43,7 @@ interface ServiceItem {
   // UI-only derived fields
   staffCount: number
   staffNames: string[]
+  staffIds: string[]
 }
 
 interface StaffMemberData {
@@ -110,7 +111,7 @@ function ServiceDetailDrawer({ service, open, onClose, staffMembers, onSave }: {
   open: boolean
   onClose: () => void
   staffMembers: StaffMemberData[]
-  onSave: (id: string, data: { name: string; description: string; base_duration_minutes: number; base_price: number; buffer_time_minutes: number; is_active: boolean }) => Promise<void>
+  onSave: (id: string, data: { name: string; description: string; base_duration_minutes: number; base_price: number; buffer_time_minutes: number; is_active: boolean; staffIds: string[] }) => Promise<void>
 }) {
   const drawerRef = useRef<HTMLDivElement>(null)
 
@@ -135,6 +136,7 @@ function ServiceDetailDrawer({ service, open, onClose, staffMembers, onSave }: {
   const [editDuration, setEditDuration] = useState(0)
   const [editPrice, setEditPrice] = useState(0)
   const [editBuffer, setEditBuffer] = useState(0)
+  const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -146,6 +148,7 @@ function ServiceDetailDrawer({ service, open, onClose, staffMembers, onSave }: {
       setEditDuration(service.base_duration_minutes)
       setEditPrice(service.base_price)
       setEditBuffer(service.buffer_time_minutes)
+      setSelectedStaffIds(service.staffIds || [])
     }
   }, [service])
 
@@ -161,6 +164,7 @@ function ServiceDetailDrawer({ service, open, onClose, staffMembers, onSave }: {
         base_price: editPrice,
         buffer_time_minutes: bufferActive ? editBuffer : 0,
         is_active: statusActive,
+        staffIds: selectedStaffIds,
       })
       onClose()
     } finally {
@@ -286,27 +290,57 @@ function ServiceDetailDrawer({ service, open, onClose, staffMembers, onSave }: {
               </div>
             </div>
 
-            {/* Personel Bazli Fiyatlar */}
+            {/* Personel Atamasi */}
             <div className="rounded-lg border border-border bg-card p-4">
-              <h3 className="text-[15px] font-semibold text-foreground">Personel Bazli Fiyatlar</h3>
-              <p className="mt-1 text-[13px] text-muted-foreground">Personel kendi fiyatini belirleyebilir modunda ise burada farkli fiyatlar gorebilirsiniz.</p>
-              <div className="mt-4 flex flex-col gap-3">
-                {staffMembers.map((staff) => (
-                  <div key={staff.id} className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <RxAvatar name={staff.user?.name || "?"} size="sm" />
-                      <div className="flex flex-col">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-[15px] font-semibold text-foreground">Hizmeti Verecek Personeller</h3>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedStaffIds(staffMembers.map(s => s.id))}
+                    className="text-[11px] text-primary hover:underline"
+                  >
+                    Tumunu Sec
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedStaffIds([])}
+                    className="text-[11px] text-muted-foreground hover:underline"
+                  >
+                    Temizle
+                  </button>
+                </div>
+              </div>
+              <div className="flex flex-col gap-3">
+                {staffMembers.map((staff) => {
+                  const isChecked = selectedStaffIds.includes(staff.id)
+                  return (
+                    <label
+                      key={staff.id}
+                      className={cn(
+                        "flex items-center justify-between rounded-lg border border-border px-4 py-3 cursor-pointer transition-colors",
+                        isChecked ? "border-primary/40 bg-primary-light/30" : "hover:bg-muted/30"
+                      )}
+                    >
+                      <div className="flex items-center gap-3">
+                        <RxAvatar name={staff.user?.name || "?"} size="sm" />
                         <span className="text-sm font-medium text-foreground">{staff.user?.name || "?"}</span>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">{"₺"}{service.base_price}</span>
-                      <span className="rounded-md bg-primary-light px-2 py-0.5 text-[11px] font-medium text-primary">
-                        {staff.can_set_own_price ? "Kendi fiyati" : "Patron fiyati gecerli"}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedStaffIds(prev => [...prev, staff.id])
+                          } else {
+                            setSelectedStaffIds(prev => prev.filter(id => id !== staff.id))
+                          }
+                        }}
+                        className="size-4 rounded border-border text-primary accent-primary"
+                      />
+                    </label>
+                  )
+                })}
               </div>
             </div>
           </div>
@@ -335,7 +369,7 @@ function ServiceListTab({ onAddNew, services, staffMembers, loading, onToggleSta
   staffMembers: StaffMemberData[]
   loading: boolean
   onToggleStatus: (id: string, currentActive: boolean) => void
-  onUpdateService: (id: string, data: { name: string; description: string; base_duration_minutes: number; base_price: number; buffer_time_minutes: number; is_active: boolean }) => Promise<void>
+  onUpdateService: (id: string, data: { name: string; description: string; base_duration_minutes: number; base_price: number; buffer_time_minutes: number; is_active: boolean; staffIds: string[] }) => Promise<void>
   onRefresh: () => void
 }) {
   const [searchQuery, setSearchQuery] = useState("")
@@ -548,7 +582,7 @@ function ServiceListTab({ onAddNew, services, staffMembers, loading, onToggleSta
 function AddServiceTab({ onCancel, staffMembers, onSubmit }: {
   onCancel: () => void
   staffMembers: StaffMemberData[]
-  onSubmit: (data: { name: string; description: string; base_duration_minutes: number; base_price: number; buffer_time_minutes: number }) => Promise<void>
+  onSubmit: (data: { name: string; description: string; base_duration_minutes: number; base_price: number; buffer_time_minutes: number; staffIds: string[] }) => Promise<void>
 }) {
   const [formName, setFormName] = useState("")
   const [formDescription, setFormDescription] = useState("")
@@ -575,6 +609,7 @@ function AddServiceTab({ onCancel, staffMembers, onSubmit }: {
         base_duration_minutes: Number(formDuration) || 30,
         base_price: Number(formPrice) || 0,
         buffer_time_minutes: bufferEnabled ? (Number(formBuffer) || 0) : 0,
+        staffIds: staffMembers.filter((_, i) => selectedStaff[i]).map(s => s.id),
       })
       onCancel() // Switch back to list tab
     } finally {
@@ -829,6 +864,7 @@ export function ServiceManagement() {
           ...svc,
           staffCount: assignedStaff.length,
           staffNames: assignedStaff.map((s) => s.user?.name || "?"),
+          staffIds: assignedStaffIds,
         }
       })
       setServices(mappedServices)
@@ -857,14 +893,56 @@ export function ServiceManagement() {
     }
   }
 
-  const handleUpdateService = async (id: string, data: { name: string; description: string; base_duration_minutes: number; base_price: number; buffer_time_minutes: number; is_active: boolean }) => {
-    await supabase.from("services").update(data).eq("id", id)
+  const handleUpdateService = async (id: string, data: { name: string; description: string; base_duration_minutes: number; base_price: number; buffer_time_minutes: number; is_active: boolean; staffIds: string[] }) => {
+    const { staffIds, ...serviceData } = data
+
+    // 1. Update core service info
+    await supabase.from("services").update(serviceData).eq("id", id)
+
+    // 2. Sync staff mappings
+    // Get existing mappings
+    const { data: existing } = await supabase.from("staff_services").select("staff_business_id").eq("service_id", id)
+    const existingStaffIds = (existing || []).map(e => e.staff_business_id)
+
+    // Identify to add and to remove
+    const toAdd = staffIds.filter(sid => !existingStaffIds.includes(sid))
+    const toRemove = existingStaffIds.filter(sid => !staffIds.includes(sid))
+
+    if (toAdd.length > 0) {
+      await supabase.from("staff_services").insert(toAdd.map(sid => ({
+        staff_business_id: sid,
+        service_id: id,
+        is_active: true
+      })))
+    }
+
+    if (toRemove.length > 0) {
+      await supabase.from("staff_services").delete().eq("service_id", id).in("staff_business_id", toRemove)
+    }
+
     await fetchServices()
   }
 
-  const handleAddService = async (data: { name: string; description: string; base_duration_minutes: number; base_price: number; buffer_time_minutes: number }) => {
+  const handleAddService = async (data: { name: string; description: string; base_duration_minutes: number; base_price: number; buffer_time_minutes: number; staffIds: string[] }) => {
     if (!businessId) return
-    await supabase.from("services").insert({ ...data, business_id: businessId })
+    const { staffIds, ...serviceData } = data
+
+    // 1. Insert Service
+    const { data: newSvc, error } = await supabase
+      .from("services")
+      .insert({ ...serviceData, business_id: businessId })
+      .select("id")
+      .single()
+
+    if (!error && newSvc && staffIds.length > 0) {
+      // 2. Insert Staff Mappings
+      await supabase.from("staff_services").insert(staffIds.map(sid => ({
+        staff_business_id: sid,
+        service_id: newSvc.id,
+        is_active: true
+      })))
+    }
+
     await fetchServices()
     setActiveTab("list")
   }

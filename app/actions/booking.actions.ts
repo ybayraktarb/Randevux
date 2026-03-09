@@ -8,8 +8,8 @@ export async function getBookingDataAction(businessId: string) {
     try {
         const supabase = await createClient()
 
-        // Paraell fetch services and staff
-        const [servicesRes, staffRes, businessRes] = await Promise.all([
+        // Paraell fetch services, staff and their service mappings
+        const [servicesRes, staffRes, staffServicesRes, businessRes, businessHoursRes] = await Promise.all([
             supabase
                 .from("services")
                 .select("*")
@@ -20,16 +20,25 @@ export async function getBookingDataAction(businessId: string) {
                 .select(`
           id,
           is_active,
-          user:users(id, name, avatar_url),
-          staff_services(service_id)
+          expertise_level,
+          calendar_color,
+          user:users(id, name, avatar_url)
         `)
                 .eq("business_id", businessId)
+                .eq("is_active", true),
+            supabase
+                .from("staff_services")
+                .select("staff_business_id, service_id")
                 .eq("is_active", true),
             supabase
                 .from("businesses")
                 .select("name")
                 .eq("id", businessId)
-                .single()
+                .single(),
+            supabase
+                .from("business_hours")
+                .select("*")
+                .eq("business_id", businessId)
         ])
 
         if (servicesRes.error) {
@@ -45,18 +54,48 @@ export async function getBookingDataAction(businessId: string) {
             throw businessRes.error
         }
 
+        // Create a map of staff to their service IDs
+        const staffSvcMap: Record<string, string[]> = {}
+        if (staffServicesRes.data) {
+            staffServicesRes.data.forEach((ss: any) => {
+                if (!staffSvcMap[ss.staff_business_id]) staffSvcMap[ss.staff_business_id] = []
+                staffSvcMap[ss.staff_business_id].push(ss.service_id)
+            })
+        }
+
         // Format staff data for easier consumption
-        const formattedStaff = staffRes.data.map((s: any) => {
+        const formattedStaff = await Promise.all(staffRes.data.map(async (s: any) => {
             if (!s.user) {
                 console.warn(`Staff record ${s.id} has no accessible user data (RLS issue?)`)
             }
+
+            // Optional: Fetch simple rating for customer view
+            // In a high-traffic app, we'd cache this or store it on the staff profile
+            let averageRating = 0
+            const { data: reviews } = await supabase
+                .from("business_reviews")
+                .select("rating")
+                .in("appointment_id", (
+                    await supabase
+                        .from("appointments")
+                        .select("id")
+                        .eq("staff_business_id", s.id)
+                ).data?.map(a => a.id) || [])
+
+            if (reviews && reviews.length > 0) {
+                averageRating = reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length
+            }
+
             return {
                 id: s.id,
                 name: s.user?.name || "İsimsiz Personel",
                 avatar_url: s.user?.avatar_url,
-                serviceIds: s.staff_services?.map((ss: any) => ss.service_id) || []
+                serviceIds: staffSvcMap[s.id] || [],
+                expertiseLevel: s.expertise_level,
+                calendarColor: s.calendar_color,
+                averageRating: Number(averageRating.toFixed(1))
             }
-        })
+        }))
 
         console.log(`getBookingDataAction: Found ${servicesRes.data.length} services and ${formattedStaff.length} staff members.`)
 
@@ -64,6 +103,7 @@ export async function getBookingDataAction(businessId: string) {
             success: true,
             data: {
                 businessName: businessRes.data.name,
+                businessHours: businessHoursRes.data || [],
                 services: servicesRes.data,
                 staffList: formattedStaff
             }
@@ -86,11 +126,28 @@ export async function createBookingAction(data: {
     customerNote?: string
     familyProfileId?: string | null
 }) {
+    console.log("createBookingAction: Received request", { ...data, customerNote: "..." })
+    console.log("createBookingAction - ENV CHECK:", {
+        url: process.env.NEXT_PUBLIC_SUPABASE_URL,
+        hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    })
     try {
         const supabase = await createClient()
         const { data: { user } } = await supabase.auth.getUser()
 
         if (!user) throw new Error("Oturum açmanız gerekiyor.")
+
+        // Verify user exists in public.users to prevent FK issues
+        const { data: userExists } = await supabase
+            .from("users")
+            .select("id")
+            .eq("id", user.id)
+            .single()
+
+        if (!userExists) {
+            console.error(`createBookingAction: User ${user.id} not found in public.users table`)
+            throw new Error("Kullanıcı profili bulunamadı. Lütfen destekle iletişime geçin.")
+        }
 
         // 1. Calculate end time
         const [hh, mm] = data.startTime.split(":").map(Number)
@@ -103,27 +160,34 @@ export async function createBookingAction(data: {
         const endTimeStr = `${endHH}:${endMM}:00`
 
         // 2. Insert Appointment
+        const aptData = {
+            business_id: data.businessId,
+            customer_user_id: user.id,
+            staff_business_id: data.staffBusinessId,
+            appointment_date: data.appointmentDate,
+            start_time: startTimeStr,
+            end_time: endTimeStr,
+            total_price: data.totalPrice,
+            total_duration_minutes: data.totalDuration,
+            customer_note: data.customerNote || "",
+            status: "Bekliyor"
+        }
+        console.log("createBookingAction: Inserting appointment", aptData)
+
         const { data: apt, error: aptError } = await supabase
             .from("appointments")
-            .insert({
-                business_id: data.businessId,
-                customer_user_id: user.id,
-                staff_business_id: data.staffBusinessId,
-                appointment_date: data.appointmentDate,
-                start_time: startTimeStr,
-                end_time: endTimeStr,
-                total_price: data.totalPrice,
-                total_duration_minutes: data.totalDuration,
-                customer_note: data.customerNote || "",
-                status: "pending" // CustomersUsually start as pending or confirmed based on business settings
-            })
+            .insert(aptData)
             .select("id")
             .single()
 
-        if (aptError) throw aptError
+        if (aptError) {
+            console.error("createBookingAction: Appointment Insert Error", JSON.stringify(aptError, null, 2))
+            throw aptError
+        }
+
+        console.log(`createBookingAction: Created appointment ${apt.id}. Mapping services...`)
 
         // 3. Insert Appointment Services (Snapshots)
-        // Fetch service details for snapshots
         const { data: services } = await supabase
             .from("services")
             .select("*")
@@ -143,14 +207,18 @@ export async function createBookingAction(data: {
             .from("appointment_services")
             .insert(aptServices)
 
-        if (svcError) throw svcError
+        if (svcError) {
+            console.error("createBookingAction: Appointment Services Insert Error", JSON.stringify(svcError, null, 2))
+            throw svcError
+        }
 
+        console.log("createBookingAction: Success!")
         revalidatePath("/(customer)/randevularim", "page")
 
         return { success: true, appointmentId: apt.id }
     } catch (err: any) {
         console.error("createBookingAction Error:", err)
         Sentry.captureException(err)
-        return { success: false, error: err.message }
+        return { success: false, error: err.message || "Randevu kaydedilirken bir hata oluştu." }
     }
 }

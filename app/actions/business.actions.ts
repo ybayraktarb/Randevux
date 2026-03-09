@@ -95,18 +95,30 @@ export async function getBusinessStorefrontAction(businessId: string) {
             businessRes,
             servicesRes,
             staffRes,
+            staffServicesRes, // NEW: Fetch staff services
             hoursRes,
             reviewsRes,
             favoriteRes,
-            connectionRes
+            connectionRes,
+            announcementsRes
         ] = await Promise.all([
             supabase.from("businesses").select("*, module:modules(display_name)").eq("id", businessId).single(),
             supabase.from("services").select("*").eq("business_id", businessId).eq("is_active", true).order("category"),
             supabase.from("staff_business").select("*, user:users(id, name, avatar_url)").eq("business_id", businessId).eq("is_active", true),
+            supabase.from("staff_services").select("staff_business_id, service_id").eq("is_active", true), // NEW: Only active staff services
             supabase.from("business_hours").select("*").eq("business_id", businessId).order("day_of_week"),
             supabase.from("business_reviews").select("*, user:users(name, avatar_url)").eq("business_id", businessId).order("created_at", { ascending: false }).limit(10),
-            user ? supabase.from("user_favorites").select("id").eq("business_id", businessId).eq("user_id", user.id).maybeSingle() : Promise.resolve({ data: null }),
-            user ? supabase.from("business_customers").select("id").eq("business_id", businessId).eq("user_id", user.id).maybeSingle() : Promise.resolve({ data: null })
+            user ? supabase.from("user_favorites").select("id").eq("business_id", businessId).eq("user_id", user.id).maybeSingle() : Promise.resolve({ data: null, error: null }),
+            user ? supabase.from("business_customers").select("id").eq("business_id", businessId).eq("user_id", user.id).maybeSingle() : Promise.resolve({ data: null, error: null }),
+            supabase
+                .from("business_announcements")
+                .select("*")
+                .eq("business_id", businessId)
+                .eq("is_active", true)
+                .or(`start_date.is.null,start_date.lte.${new Date().toISOString()}`)
+                .or(`end_date.is.null,end_date.gte.${new Date().toISOString()}`)
+                .order("priority", { ascending: false })
+                .order("created_at", { ascending: false })
         ])
 
         if (businessRes.error) throw businessRes.error
@@ -123,6 +135,15 @@ export async function getBusinessStorefrontAction(businessId: string) {
         const business = businessRes.data
         const ratings = reviewsRes.data?.map(r => r.rating) || []
         const avgRating = ratings.length > 0 ? ratings.reduce((a, b) => a + b, 0) / ratings.length : 5.0
+
+        // Create a map of staff to their service IDs
+        const staffSvcMap: Record<string, string[]> = {}
+        if (staffServicesRes.data) {
+            staffServicesRes.data.forEach((ss: any) => {
+                if (!staffSvcMap[ss.staff_business_id]) staffSvcMap[ss.staff_business_id] = []
+                staffSvcMap[ss.staff_business_id].push(ss.service_id)
+            })
+        }
 
         return {
             success: true,
@@ -154,12 +175,13 @@ export async function getBusinessStorefrontAction(businessId: string) {
                     name: s.user?.name || "Personel",
                     specialty: s.role === 'manager' ? "İşletme Müdürü" : "Uzman",
                     avatar_url: s.user?.avatar_url,
+                    serviceIds: staffSvcMap[s.id] || [], // NEW: Attached service IDs
                     rating: "5.0",
                     online: true
                 })),
                 workingHours: (hoursRes.data || []).map(h => {
                     const dayNames: Record<number, string> = {
-                        1: "Pazartesi", 2: "Salı", 3: "Çarşamba", 4: "Perşembe", 5: "Cuma", 6: "Cumartesi", 7: "Pazar"
+                        1: "Pazartesi", 2: "Salı", 3: "Çarşamba", 4: "Perşembe", 5: "Cuma", 6: "Cumartesi", 0: "Pazar"
                     }
                     return {
                         day: dayNames[h.day_of_week] || "Gün",
@@ -175,7 +197,8 @@ export async function getBusinessStorefrontAction(businessId: string) {
                     rating: r.rating,
                     comment: r.comment,
                     createdAt: r.created_at
-                }))
+                })),
+                announcements: announcementsRes.data || []
             }
         }
     } catch (err: any) {

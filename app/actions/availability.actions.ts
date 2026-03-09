@@ -13,6 +13,7 @@ interface SlotParams {
 export interface TimeSlot {
     time: string
     status: "available" | "booked" | "break"
+    staffId?: string // NEW: Candidate staff member for this slot
 }
 
 /**
@@ -70,14 +71,16 @@ export async function getAvailableSlotsAction(params: SlotParams) {
             workTemplatesRes,
             breaksRes,
             appointmentsRes,
-            leavesRes
+            leavesRes,
+            businessHoursRes // NEW: Fetch general business hours
         ] = await Promise.all([
             supabase.from("services").select("id, base_duration_minutes, buffer_time_minutes").in("id", serviceIds),
             supabase.from("staff_services").select("staff_business_id, service_id, custom_duration_minutes").in("staff_business_id", staffIds).in("service_id", serviceIds),
             supabase.from("work_schedule_templates").select("*").in("staff_business_id", staffIds).eq("day_of_week", dayOfWeek).eq("is_working", true),
             supabase.from("break_schedules").select("*").in("staff_business_id", staffIds).eq("day_of_week", dayOfWeek),
             supabase.from("appointments").select("staff_business_id, start_time, end_time").in("staff_business_id", staffIds).eq("appointment_date", date).not("status", "in", '("İptal", "Gelmedi")'),
-            supabase.from("leave_requests").select("staff_business_id, request_type, start_time, end_time").in("staff_business_id", staffIds).eq("date", date).eq("status", "approved")
+            supabase.from("leave_requests").select("staff_business_id, request_type, start_time, end_time").in("staff_business_id", staffIds).eq("date", date).eq("status", "approved"),
+            supabase.from("business_hours").select("*").eq("business_id", businessId).eq("day_of_week", dayOfWeek)
         ])
 
         // 5. Her personel için toplam süreyi ve buffer'ı hesapla
@@ -100,10 +103,21 @@ export async function getAvailableSlotsAction(params: SlotParams) {
         // Çalışma saatleri sınırlarını bul
         let earliestStart = 24 * 60
         let latestEnd = 0
-        workTemplatesRes.data?.forEach(w => {
-            earliestStart = Math.min(earliestStart, toMin(w.start_time))
-            latestEnd = Math.max(latestEnd, toMin(w.end_time))
-        })
+
+        // Business hours fallback check
+        const businessDay = businessHoursRes.data?.[0]
+        if (businessDay && !businessDay.is_open) return { success: true, slots: [] }
+
+        // Determine global start/end for the loop
+        if (workTemplatesRes.data && workTemplatesRes.data.length > 0) {
+            workTemplatesRes.data.forEach(w => {
+                earliestStart = Math.min(earliestStart, toMin(w.start_time))
+                latestEnd = Math.max(latestEnd, toMin(w.end_time))
+            })
+        } else if (businessDay) {
+            earliestStart = toMin(businessDay.open_time)
+            latestEnd = toMin(businessDay.close_time)
+        }
 
         if (earliestStart >= latestEnd) return { success: true, slots: [] }
 
@@ -116,6 +130,7 @@ export async function getAvailableSlotsAction(params: SlotParams) {
             }
 
             let slotAvailable = false
+            let candidateStaffId: string | undefined
 
             for (const sId of staffIds) {
                 // Bu personelin bu hizmetler için toplam süresi (custom duration varsa o)
@@ -132,9 +147,14 @@ export async function getAvailableSlotsAction(params: SlotParams) {
                 const fullSlotNeeded = staffTotalDuration + totalBuffer
 
                 // Personelin çalışma saatleri uygun mu?
-                const template = workTemplatesRes.data?.find(w => w.staff_business_id === sId)
-                if (!template) continue
-                if (time < toMin(template.start_time) || time + fullSlotNeeded > toMin(template.end_time)) continue
+                let template = workTemplatesRes.data?.find(w => w.staff_business_id === sId)
+
+                // Fallback to business hours if no template exists for this staff
+                const startTime = template ? toMin(template.start_time) : (businessDay ? toMin(businessDay.open_time) : null)
+                const endTime = template ? toMin(template.end_time) : (businessDay ? toMin(businessDay.close_time) : null)
+
+                if (startTime === null || endTime === null) continue
+                if (time < startTime || time + fullSlotNeeded > endTime) continue
 
                 // İzin kontrolü
                 const hasFullLeave = leavesRes.data?.some(l => l.staff_business_id === sId && l.request_type === "full_day")
@@ -152,12 +172,14 @@ export async function getAvailableSlotsAction(params: SlotParams) {
 
                 // Eğer buraya kadar geldiyse bu personel musait
                 slotAvailable = true
+                candidateStaffId = sId
                 break
             }
 
             slots.push({
                 time: toStr(time),
-                status: slotAvailable ? "available" : "booked"
+                status: slotAvailable ? "available" : "booked",
+                staffId: slotAvailable ? candidateStaffId : undefined
             })
         }
 

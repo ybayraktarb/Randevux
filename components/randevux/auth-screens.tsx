@@ -198,16 +198,24 @@ export function LoginScreen() {
     setError(null)
     setLoading(true)
     try {
+      const cleanEmail = email.trim()
+      if (!cleanEmail || !password) {
+        setError("Lütfen e-posta ve şifrenizi girin.")
+        setLoading(false)
+        return
+      }
+
       const { error: authError } = await supabase.auth.signInWithPassword({
-        email,
+        email: cleanEmail,
         password,
       })
       if (authError) {
-        console.error("AUTH HATASI:", authError.message)
         if (authError.message.includes("Invalid login")) {
-          setError("E-posta veya şifre hatalı. (Şifreyi doğru yazdığınızdan emin olun, min 8 karakter olmalı.)")
+          setError("E-posta veya şifre hatalı. Lütfen bilgilerinizi kontrol edin. Eğer bir işletmeye davet edildiyseniz veya giriş yapamıyorsanız, lütfen 'Şifremi Unuttum' linkini kullanarak yeni bir şifre belirlemeyi deneyin.")
         } else if (authError.message.includes("Email not confirmed")) {
           setError("Lütfen e-posta adresinizi onaylayın veya yöneticiyle iletişime geçin.")
+        } else if (authError.status === 429) {
+          setError("Çok fazla başarısız deneme yaptınız. Lütfen bir süre sonra tekrar deneyin.")
         } else {
           setError(authError.message)
         }
@@ -378,8 +386,9 @@ export function RegisterFlow() {
 
     setLoading(true)
     try {
+      const cleanEmail = email.trim()
       const { error: signUpError } = await supabase.auth.signUp({
-        email,
+        email: cleanEmail,
         password,
         options: {
           data: {

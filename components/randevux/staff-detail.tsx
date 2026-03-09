@@ -2,14 +2,17 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { createClient } from "@/lib/supabase/client"
+import { cn } from "@/lib/utils"
 import {
     X, Loader2, User, Wrench, Clock, Plus, Trash2, Check, ShieldAlert,
-    Phone, Mail, Calendar, Save, ArrowLeft, ChevronDown, Umbrella, CalendarOff, CheckCircle2, XCircle
+    Phone, Mail, Calendar, Save, ArrowLeft, ChevronDown, Umbrella, CalendarOff, CheckCircle2, XCircle, Info, ListFilter
 } from "lucide-react"
 import { RxButton } from "@/components/randevux/rx-button"
 import { RxAvatar } from "@/components/randevux/rx-avatar"
 import { RxBadge } from "@/components/randevux/rx-badge"
+import { RxModal } from "@/components/randevux/rx-modal"
 import { toast } from "sonner"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
     assignStaffServiceAction,
     removeStaffServiceAction,
@@ -25,9 +28,17 @@ import {
     addStaffLeaveAction,
     removeStaffLeaveAction,
     getStaffLeavesAction,
+    reviewStaffLeaveAction,
     type LeaveRecord,
     type LeaveType,
 } from "@/app/actions/staff-leave.actions"
+import {
+    updateStaffDetailAction,
+    getStaffFutureAppointmentsCount,
+    getActiveStaffForTransfer,
+    transferStaffAppointmentsAction,
+    deleteStaffAction
+} from "@/app/actions/staff.actions"
 
 // ─── types ────────────────────────────────────────────────────
 
@@ -41,9 +52,12 @@ type StaffUser = {
 
 type StaffRecord = {
     id: string                // staff_business.id
+    business_id?: string
     role: string
     is_active: boolean
     created_at: string
+    expertise_level: string | null
+    calendar_color: string | null
     user: StaffUser | null
 }
 
@@ -174,6 +188,35 @@ export function StaffDetail({ staff, businessId, onClose }: StaffDetailProps) {
 
 function ProfileTab({ staff }: { staff: StaffRecord }) {
     const u = staff.user
+    const [activeStaff, setActiveStaff] = useState<{ id: string; user: { name: string } }[]>([])
+    const [isTransferModalOpen, setIsTransferModalOpen] = useState(false)
+    const [targetStaffId, setTargetStaffId] = useState<string>("")
+    const [isTransferring, setIsTransferring] = useState(false)
+
+    // Randevu aktarımı için personelleri yükle
+    const loadActiveStaff = async () => {
+        if (!staff.business_id) return
+        const res = await getActiveStaffForTransfer(staff.business_id, staff.id)
+        if (res.success && res.data) {
+            setActiveStaff(res.data as any)
+        }
+    }
+
+    const handleTransfer = async () => {
+        if (!targetStaffId) {
+            toast.error("Lütfen randevuların aktarılacağı personeli seçin.")
+            return
+        }
+        setIsTransferring(true)
+        const res = await transferStaffAppointmentsAction(staff.id, targetStaffId, staff.business_id!)
+        if (res.success) {
+            toast.success(`${res.data?.count} randevu başarıyla aktarıldı.`)
+            setIsTransferModalOpen(false)
+        } else {
+            toast.error(res.error?.message || "Aktarım başarısız oldu.")
+        }
+        setIsTransferring(false)
+    }
     return (
         <div className="flex flex-col gap-6">
             <div className="flex flex-col items-center gap-3 py-4">
@@ -213,6 +256,203 @@ function ProfileTab({ staff }: { staff: StaffRecord }) {
                             {new Date(staff.created_at).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" })}
                         </p>
                     </div>
+                </div>
+            </div>
+
+            <div className="flex flex-col gap-4 border-t border-border pt-6">
+                <h4 className="text-sm font-semibold text-foreground">Görsel Kimlik ve Uzmanlık</h4>
+                <div className="flex flex-col gap-4">
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-sm font-medium text-foreground">Uzmanlık Seviyesi</label>
+                        <select
+                            defaultValue={staff.expertise_level || "Mid-Level"}
+                            onChange={async (e) => {
+                                const res = await updateStaffDetailAction(staff.id, { expertise_level: e.target.value })
+                                if (res.success) toast.success("Uzmanlık güncellendi.")
+                                else toast.error(res.error?.message || "Hata")
+                            }}
+                            className="h-10 rounded-lg border border-input bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                        >
+                            <option value="Junior">Junior</option>
+                            <option value="Mid-Level">Mid-Level</option>
+                            <option value="Senior">Senior</option>
+                            <option value="Master">Master</option>
+                        </select>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-sm font-medium text-foreground">Takvim Rengi</label>
+                        <div className="flex flex-wrap gap-2">
+                            {["#3b82f6", "#ef4444", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899"].map(color => (
+                                <button
+                                    key={color}
+                                    type="button"
+                                    onClick={async () => {
+                                        const res = await updateStaffDetailAction(staff.id, { calendar_color: color })
+                                        if (res.success) toast.success("Renk güncellendi.")
+                                        else toast.error(res.error?.message || "Hata")
+                                    }}
+                                    className={`size-8 rounded-full border-2 transition-all ${(staff.calendar_color || "#3b82f6") === color ? "border-foreground scale-110 shadow-sm" : "border-transparent"}`}
+                                    style={{ backgroundColor: color }}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="flex flex-col gap-4 border-t border-border pt-6 mb-8">
+                <h4 className="text-sm font-semibold text-foreground">Durum Yönetimi</h4>
+                <div className="rounded-xl border border-border bg-card p-4">
+                    <div className="flex items-center justify-between mb-4">
+                        <div>
+                            <p className="text-sm font-medium text-foreground">Personel Durumu</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                                {staff.is_active ? "Personel şu an aktif ve randevu alabilir." : "Personel pasif durumda, randevu alınamaz."}
+                            </p>
+                        </div>
+                        <button
+                            onClick={async () => {
+                                if (staff.is_active) {
+                                    // Deactivating: check future appointments
+                                    const resCount = await getStaffFutureAppointmentsCount(staff.id)
+                                    if (resCount.success && (resCount.count ?? 0) > 0) {
+                                        if (!confirm(`Bu personelin gelecekte ${resCount.count} adet randevusu bulunmaktadır. Pasife alırsanız bu randevular için takvimde boşluk görünebilir ancak personel yeni randevu alamaz. Devam etmek istiyor musunuz?`)) {
+                                            return
+                                        }
+                                    }
+                                }
+
+                                const res = await updateStaffDetailAction(staff.id, { is_active: !staff.is_active })
+                                if (res.success) toast.success(staff.is_active ? "Personel pasife alındı." : "Personel aktifleştirildi.")
+                                else toast.error(res.error?.message || "Durum güncellenemedi.")
+                            }}
+                            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${staff.is_active ? "bg-success" : "bg-muted"}`}
+                        >
+                            <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${staff.is_active ? "translate-x-5" : "translate-x-0"}`} />
+                        </button>
+                    </div>
+
+                    {!staff.is_active && (
+                        <Alert variant="destructive" className="mt-4 bg-danger/5 border-danger/20">
+                            <Info className="size-4" />
+                            <AlertTitle>Personel Pasif</AlertTitle>
+                            <AlertDescription>
+                                Personel pasif durumdayken müşteriler bu personelden randevu alamazlar.
+                                Takvimde bu personel için ayrılmış saatler gizlenecektir.
+                            </AlertDescription>
+                        </Alert>
+                    )}
+
+                    {staff.is_active && (
+                        <div className="mt-4">
+                            <RxButton
+                                variant="secondary"
+                                size="sm"
+                                className="w-full justify-start"
+                                onClick={() => {
+                                    loadActiveStaff()
+                                    setIsTransferModalOpen(true)
+                                }}
+                            >
+                                <ListFilter className="mr-2 h-4 w-4" /> Randevuları Başka Personele Aktar
+                            </RxButton>
+                        </div>
+                    )}
+
+                    {/* Transfer Modal */}
+                    <RxModal
+                        open={isTransferModalOpen}
+                        onClose={() => setIsTransferModalOpen(false)}
+                        title="Randevuları Aktar"
+                        footer={
+                            <div className="flex gap-2">
+                                <RxButton variant="ghost" onClick={() => setIsTransferModalOpen(false)}>Vazgeç</RxButton>
+                                <RxButton
+                                    onClick={handleTransfer}
+                                    disabled={!targetStaffId || isTransferring}
+                                >
+                                    {isTransferring ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                    Aktarımı Onayla
+                                </RxButton>
+                            </div>
+                        }
+                    >
+                        <div className="space-y-4">
+                            <Alert className="bg-blue-50/50 border-blue-100">
+                                <Info className="size-4 text-blue-500" />
+                                <AlertTitle>Bilgi</AlertTitle>
+                                <AlertDescription>
+                                    Bu işlem, personelin bugünden sonraki tüm "Bekliyor" ve "Onaylandı" durumundaki randevularını seçeceğiniz kişiye aktarır.
+                                </AlertDescription>
+                            </Alert>
+
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Hedef Personel Seçin</label>
+                                {activeStaff.length === 0 ? (
+                                    <p className="text-xs text-muted-foreground py-2 italic">Aktarım yapılabilecek başka aktif personel bulunamadı.</p>
+                                ) : (
+                                    <div className="grid gap-2">
+                                        {activeStaff.map(s => (
+                                            <button
+                                                key={s.id}
+                                                onClick={() => setTargetStaffId(s.id)}
+                                                className={cn(
+                                                    "flex items-center justify-between p-3 rounded-xl border text-sm transition-all text-left",
+                                                    targetStaffId === s.id
+                                                        ? "bg-primary/5 border-primary shadow-sm ring-1 ring-primary"
+                                                        : "bg-card border-border hover:border-primary/40"
+                                                )}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <RxAvatar name={s.user.name} size="sm" />
+                                                    <span className="font-semibold">{s.user.name}</span>
+                                                </div>
+                                                {targetStaffId === s.id && <CheckCircle2 className="size-4 text-primary" />}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </RxModal>
+                </div>
+            </div>
+
+            {/* Danger Zone */}
+            <div className="flex flex-col gap-4 border-t border-border pt-6 mt-2">
+                <div className="flex items-center gap-2 px-1">
+                    <ShieldAlert className="size-4 text-destructive" />
+                    <h4 className="text-sm font-semibold text-destructive">Tehlikeli Alan</h4>
+                </div>
+                <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4">
+                    <p className="text-xs text-destructive/80 mb-4 leading-relaxed">
+                        Personeli kaldırmak, onun işletme ile olan tüm bağını koparır. Geçmiş randevular raporlarda görünmeye devam eder ancak personel paneline erişemez ve yeni randevu alamaz.
+                    </p>
+                    <RxButton
+                        variant="ghost"
+                        size="sm"
+                        className="w-full text-destructive hover:bg-destructive/10 hover:text-destructive border border-destructive/20"
+                        onClick={async () => {
+                            const resCount = await getStaffFutureAppointmentsCount(staff.id)
+                            if (resCount.success && (resCount.count ?? 0) > 0) {
+                                toast.error(`Bu personelin gelecekte ${resCount.count} randevusu var. Lütfen önce bu randevuları aktarın.`)
+                                return
+                            }
+
+                            if (confirm(`${staff.user?.name} isimli personeli kalıcı olarak kaldırmak istediğinize emin misiniz?`)) {
+                                const res = await deleteStaffAction(staff.id)
+                                if (res.success) {
+                                    toast.success("Personel başarıyla kaldırıldı.")
+                                    onClose()
+                                } else {
+                                    toast.error(res.error?.message || "Kaldırma işlemi sırasında bir hata oluştu.")
+                                }
+                            }
+                        }}
+                    >
+                        <Trash2 className="mr-2 size-4" /> Personeli İşletmeden Kaldır
+                    </RxButton>
                 </div>
             </div>
         </div>
@@ -475,6 +715,7 @@ function ScheduleTab({
     const [loading, setLoading] = useState(true)
     const [savingSchedule, setSavingSchedule] = useState(false)
     const [savingBreaks, setSavingBreaks] = useState(false)
+    const [isSyncModalOpen, setIsSyncModalOpen] = useState(false)
 
     useEffect(() => {
         async function load() {
@@ -531,6 +772,39 @@ function ScheduleTab({
         setBreaks((prev) => prev.map((b) => (b._id === id ? { ...b, [field]: value } : b)))
     }
 
+    function handleBulkSync(sourceDayKey: number, targetKeys: number[], opts: { hours: boolean; breaks: boolean }) {
+        const sourceSchedule = schedule.find(d => d.day_of_week === sourceDayKey)
+        if (!sourceSchedule) return
+
+        setSchedule(prev => prev.map(d => {
+            if (targetKeys.includes(d.day_of_week) && opts.hours) {
+                return { ...d, start_time: sourceSchedule.start_time, end_time: sourceSchedule.end_time, is_working: sourceSchedule.is_working }
+            }
+            return d
+        }))
+
+        if (opts.breaks) {
+            const sourceBreaks = breaks.filter(b => b.day_of_week === sourceDayKey)
+            setBreaks(prev => {
+                // Remove existing breaks from target days
+                const filtered = prev.filter(b => !targetKeys.includes(b.day_of_week))
+                // Add new breaks for each target day
+                const newBreaks: BreakBlock[] = []
+                targetKeys.forEach(tKey => {
+                    sourceBreaks.forEach(sb => {
+                        newBreaks.push({
+                            ...sb,
+                            day_of_week: tKey,
+                            _id: Math.random().toString(36).substr(2, 9)
+                        })
+                    })
+                })
+                return [...filtered, ...newBreaks]
+            })
+        }
+        toast.success("Seçilen günlere bilgiler kopyalandı.")
+    }
+
     async function saveSchedule() {
         setSavingSchedule(true)
         const res = await updateStaffWorkSchedulesAction(staffBusinessId, schedule)
@@ -560,10 +834,43 @@ function ScheduleTab({
                         <h3 className="text-sm font-semibold text-foreground">Haftalık Çalışma Programı</h3>
                         <p className="text-xs text-muted-foreground mt-0.5">Personelin çalışmadığı günleri kapatın.</p>
                     </div>
-                    <RxButton size="sm" onClick={saveSchedule} loading={savingSchedule}>
-                        <Save className="size-3.5" /> Kaydet
-                    </RxButton>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setIsSyncModalOpen(true)}
+                            className="text-xs text-primary hover:underline"
+                        >
+                            Çalışma Saatlerini Eşitle
+                        </button>
+                        <RxButton size="sm" onClick={saveSchedule} loading={savingSchedule}>
+                            <Save className="size-3.5" /> Kaydet
+                        </RxButton>
+                    </div>
                 </div>
+
+                <SyncModal
+                    isOpen={isSyncModalOpen}
+                    onClose={() => setIsSyncModalOpen(false)}
+                    currentSchedule={schedule}
+                    currentBreaks={breaks}
+                    onSync={(sourceDayKey, targetKeys, opts) => handleBulkSync(sourceDayKey, targetKeys, opts)}
+                />
+
+                {/* Quick Sync Actions */}
+                <div className="flex items-center gap-2 mb-3">
+                    <button
+                        onClick={() => handleBulkSync(1, [2, 3, 4, 5], { hours: true, breaks: true })}
+                        className="text-[11px] font-medium bg-primary/5 text-primary border border-primary/10 px-2.5 py-1 rounded-full hover:bg-primary hover:text-white transition-all"
+                    >
+                        Pazartesi'yi Hafta İçi Tüm Günlere Uygula
+                    </button>
+                    <button
+                        onClick={() => handleBulkSync(1, [0, 2, 3, 4, 5, 6], { hours: true, breaks: true })}
+                        className="text-[11px] font-medium bg-muted text-muted-foreground border border-border px-2.5 py-1 rounded-full hover:bg-muted-foreground hover:text-white transition-all"
+                    >
+                        Pazartesi'yi Tüm Haftaya Uygula
+                    </button>
+                </div>
+
                 <div className="flex flex-col gap-2">
                     {DAYS.map((day) => {
                         const s = schedule.find((d) => d.day_of_week === day.key)!
@@ -757,6 +1064,21 @@ function LeaveTab({ staffBusinessId }: { staffBusinessId: string }) {
         setDeletingId(null)
     }
 
+    async function handleReview(id: string, status: "approved" | "rejected") {
+        setSaving(true)
+        const res = await reviewStaffLeaveAction(id, status)
+        if (res.success) {
+            toast.success(status === "approved" ? "İzin onaylandı." : "İzin reddedildi.")
+            load()
+        } else {
+            toast.error(res.error?.message || "Hata")
+        }
+        setSaving(false)
+    }
+
+    const pendingLeaves = leaves.filter(l => l.status === "pending")
+    const historyLeaves = leaves.filter(l => l.status !== "pending")
+
     const statusMap: Record<string, { label: string; variant: "success" | "warning" | "danger" }> = {
         approved: { label: "Onaylı", variant: "success" },
         pending: { label: "Beklemede", variant: "warning" },
@@ -764,10 +1086,11 @@ function LeaveTab({ staffBusinessId }: { staffBusinessId: string }) {
     }
 
     return (
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-8">
             {/* ── Add form ── */}
-            <div className="rounded-xl border border-border bg-card p-4 flex flex-col gap-4">
-                <h3 className="text-sm font-semibold text-foreground">İzin / Tatil Günü Ekle</h3>
+            <div className="rounded-xl border border-border bg-card p-4 flex flex-col gap-4 shadow-sm">
+                <h3 className="text-sm font-semibold text-foreground">Yeni İzin / Tatil Kaydı</h3>
+                <p className="text-xs text-muted-foreground -mt-3">Patron tarafından eklenen izinler doğrudan onaylı sayılır.</p>
 
                 <div className="grid grid-cols-2 gap-3">
                     <div className="flex flex-col gap-1.5">
@@ -835,48 +1158,255 @@ function LeaveTab({ staffBusinessId }: { staffBusinessId: string }) {
                 </RxButton>
             </div>
 
-            {/* ── Leave list ── */}
-            <div>
-                <h3 className="text-sm font-semibold text-foreground mb-3">Tanımlı İzinler</h3>
-                {loading ? (
-                    <div className="flex justify-center py-8"><Loader2 className="size-5 animate-spin text-primary" /></div>
-                ) : leaves.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-border bg-muted/30 py-8 text-center">
-                        <CalendarOff className="size-8 mx-auto text-muted-foreground/50 mb-2" />
-                        <p className="text-sm text-muted-foreground">Henüz izin tanımlanmadı.</p>
+            {/* ── Pending Requests ── */}
+            {pendingLeaves.length > 0 && (
+                <section className="flex flex-col gap-3">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Onay Bekleyen Talepler</h3>
+                    <div className="grid gap-3">
+                        {pendingLeaves.map(l => (
+                            <div key={l.id} className="flex flex-col gap-3 rounded-xl border border-warning/30 bg-warning/5 p-4">
+                                <div className="flex items-start justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="size-9 rounded-full bg-warning/20 flex items-center justify-center text-warning">
+                                            <Clock className="size-5" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-semibold">{new Date(l.date).toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+                                            <p className="text-xs text-muted-foreground">{l.request_type === 'full_day' ? 'Tüm Gün' : `${l.start_time} - ${l.end_time}`}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button
+                                            disabled={saving}
+                                            onClick={() => handleReview(l.id, "rejected")}
+                                            className="px-3 py-1.5 rounded-lg border border-danger/50 text-xs font-medium text-danger hover:bg-danger/10 transition-colors"
+                                        >
+                                            Reddet
+                                        </button>
+                                        <button
+                                            disabled={saving}
+                                            onClick={async () => {
+                                                // Check for appointments before approving
+                                                const { count, error: aptError } = await supabase
+                                                    .from("appointments")
+                                                    .select("id", { count: "exact", head: true })
+                                                    .eq("staff_business_id", staffBusinessId)
+                                                    .eq("appointment_date", l.date)
+                                                    .not("status", "in", '("İptal", "Gelmedi")')
+
+                                                if (!aptError && count && count > 0) {
+                                                    if (!confirm(`Bu gün için ${count} adet aktif randevu bulunmaktadır. İzni onaylarsanız bu randevuların iptal edilmesi veya aktarılması gerekecektir. Devam etmek istiyor musunuz?`)) {
+                                                        return
+                                                    }
+                                                }
+                                                handleReview(l.id, "approved")
+                                            }}
+                                            className="px-3 py-1.5 rounded-lg bg-success text-xs font-medium text-white hover:bg-success/90 transition-colors"
+                                        >
+                                            Onayla
+                                        </button>
+                                    </div>
+                                </div>
+                                {l.reason && (
+                                    <p className="text-xs italic text-muted-foreground px-1 border-l-2 border-warning/30">{l.reason}</p>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </section>
+            )}
+
+            {/* ── History ── */}
+            <section className="flex flex-col gap-3">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">İzin Geçmişi</h3>
+                {historyLeaves.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-8 rounded-xl border border-dashed border-border bg-muted/30">
+                        <Umbrella className="size-8 text-muted-foreground/30 mb-2" />
+                        <p className="text-sm text-muted-foreground">Herhangi bir izin geçmişi bulunamadı.</p>
                     </div>
                 ) : (
-                    <div className="flex flex-col gap-2">
-                        {leaves.map(l => {
+                    <div className="grid gap-2">
+                        {historyLeaves.map((l) => {
                             const st = statusMap[l.status] || statusMap.pending
                             return (
-                                <div key={l.id} className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3">
-                                    <CalendarOff className="size-4 text-muted-foreground shrink-0" />
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-medium text-foreground">
-                                            {new Date(l.date + "T00:00:00").toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" })}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground mt-0.5">
-                                            {l.request_type === "full_day" ? "Tüm gün" : `${l.start_time} – ${l.end_time}`}
-                                            {l.reason ? ` · ${l.reason}` : ""}
-                                        </p>
+                                <div
+                                    key={l.id}
+                                    className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className={`size-8 rounded-full flex items-center justify-center ${l.status === 'approved' ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'}`}>
+                                            {l.status === 'approved' ? <CheckCircle2 className="size-4" /> : <XCircle className="size-4" />}
+                                        </div>
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <p className="text-sm font-medium text-foreground">
+                                                    {new Date(l.date).toLocaleDateString("tr-TR", { day: "numeric", month: "long" })}
+                                                </p>
+                                                <RxBadge variant={st.variant}>
+                                                    {st.label}
+                                                </RxBadge>
+                                            </div>
+                                            <p className="text-xs text-muted-foreground">
+                                                {l.request_type === "full_day" ? "Tüm Gün" : `${l.start_time} - ${l.end_time}`}
+                                            </p>
+                                        </div>
                                     </div>
-                                    <RxBadge variant={st.variant}>{st.label}</RxBadge>
-                                    <button
-                                        onClick={() => handleDelete(l.id)}
-                                        disabled={deletingId === l.id}
-                                        className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-badge-red-bg rounded-md transition-colors"
-                                    >
-                                        {deletingId === l.id
-                                            ? <Loader2 className="size-4 animate-spin" />
-                                            : <Trash2 className="size-4" />}
-                                    </button>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            disabled={deletingId === l.id}
+                                            onClick={() => handleDelete(l.id)}
+                                            className="p-2 text-muted-foreground hover:text-destructive transition-colors"
+                                        >
+                                            {deletingId === l.id ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                                        </button>
+                                    </div>
                                 </div>
                             )
                         })}
                     </div>
                 )}
-            </div>
+            </section>
         </div>
+    )
+}
+
+// ─── Sync Modal Component ─────────────────────────────────────
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Label } from "@/components/ui/label"
+
+type SyncModalProps = {
+    isOpen: boolean
+    onClose: () => void
+    currentSchedule: DaySchedule[]
+    currentBreaks: BreakBlock[]
+    onSync: (sourceDayKey: number, targetKeys: number[], opts: { hours: boolean; breaks: boolean }) => void
+}
+
+function SyncModal({ isOpen, onClose, currentSchedule, currentBreaks, onSync }: SyncModalProps) {
+    const [sourceDayKey, setSourceDayKey] = useState<number>(1) // Default to Monday
+    const [targetDays, setTargetDays] = useState<number[]>([])
+    const [syncHours, setSyncHours] = useState(true)
+    const [syncBreaks, setSyncBreaks] = useState(true)
+
+    useEffect(() => {
+        if (isOpen) {
+            setSourceDayKey(1); // Reset to Monday on open
+            setTargetDays([]);
+            setSyncHours(true);
+            setSyncBreaks(true);
+        }
+    }, [isOpen]);
+
+    const handleTargetDayChange = (dayKey: number, checked: boolean) => {
+        if (checked) {
+            setTargetDays(prev => [...prev, dayKey]);
+        } else {
+            setTargetDays(prev => prev.filter(key => key !== dayKey));
+        }
+    };
+
+    const handleSync = () => {
+        if (targetDays.length === 0) {
+            toast.error("Lütfen en az bir hedef gün seçin.");
+            return;
+        }
+        if (!syncHours && !syncBreaks) {
+            toast.error("Lütfen eşitlemek için saatleri veya molaları seçin.");
+            return;
+        }
+        onSync(sourceDayKey, targetDays, { hours: syncHours, breaks: syncBreaks });
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                    <DialogTitle>Çalışma Saatlerini Eşitle</DialogTitle>
+                    <DialogDescription>
+                        Bir günün çalışma saatlerini ve/veya molalarını diğer günlere kopyalayın.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="source-day" className="text-right">
+                            Kaynak Gün
+                        </Label>
+                        <select
+                            id="source-day"
+                            value={sourceDayKey}
+                            onChange={(e) => setSourceDayKey(Number(e.target.value))}
+                            className="col-span-3 h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                        >
+                            {DAYS.map(day => (
+                                <option key={day.key} value={day.key}>{day.label}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="grid grid-cols-4 items-start gap-4">
+                        <Label className="text-right pt-2">
+                            Hedef Günler
+                        </Label>
+                        <div className="col-span-3 flex flex-col gap-2">
+                            {DAYS.map(day => (
+                                <div key={day.key} className="flex items-center space-x-2">
+                                    <Checkbox
+                                        id={`target-day-${day.key}`}
+                                        checked={targetDays.includes(day.key)}
+                                        onCheckedChange={(checked) => handleTargetDayChange(day.key, checked as boolean)}
+                                        disabled={day.key === sourceDayKey}
+                                    />
+                                    <label
+                                        htmlFor={`target-day-${day.key}`}
+                                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                    >
+                                        {day.label}
+                                    </label>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label className="text-right">
+                            Eşitle
+                        </Label>
+                        <div className="col-span-3 flex flex-col gap-2">
+                            <div className="flex items-center space-x-2">
+                                <Checkbox
+                                    id="sync-hours"
+                                    checked={syncHours}
+                                    onCheckedChange={(checked) => setSyncHours(checked as boolean)}
+                                />
+                                <label
+                                    htmlFor="sync-hours"
+                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                >
+                                    Çalışma Saatleri
+                                </label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <Checkbox
+                                    id="sync-breaks"
+                                    checked={syncBreaks}
+                                    onCheckedChange={(checked) => setSyncBreaks(checked as boolean)}
+                                />
+                                <label
+                                    htmlFor="sync-breaks"
+                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                >
+                                    Molalar
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <RxButton variant="secondary" onClick={onClose}>İptal</RxButton>
+                    <RxButton onClick={handleSync}>Eşitle</RxButton>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     )
 }

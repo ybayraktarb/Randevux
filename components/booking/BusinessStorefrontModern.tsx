@@ -6,27 +6,28 @@ import {
     MapPin,
     Phone,
     Clock,
-    UserPlus,
     Plus,
     Check,
-    ArrowRight,
     Star,
-    Loader2,
     Heart,
     Share2,
     ChevronLeft,
     Navigation,
-    CalendarCheck2
+    CalendarCheck2,
+    Sparkles,
+    TrendingUp,
+    ShieldCheck,
+    Zap
 } from "lucide-react"
 import { RxButton } from "../randevux/rx-button"
 import { RxAvatar } from "../randevux/rx-avatar"
 import { RxBadge } from "../randevux/rx-badge"
-import { RxModal } from "../randevux/rx-modal"
 import { useParams, useRouter } from "next/navigation"
 import { useCurrentUser } from "@/hooks/use-current-user"
 import { toast } from "sonner"
 import { toggleFavoriteAction } from "@/app/actions/business.actions"
 import { AIChatAssistant } from "./AIChatAssistant"
+import { motion, AnimatePresence } from "framer-motion"
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
 
@@ -87,13 +88,16 @@ interface BusinessStorefrontModernProps {
         staff: StaffMember[]
         workingHours: WorkingDay[]
         reviews: Review[]
+        announcements: any[]
     }
 }
+
+// ─── Main Component ─────────────────────────────────────────────────────────────
 
 export function BusinessStorefrontModern({ initialData }: BusinessStorefrontModernProps) {
     const router = useRouter()
     const { user } = useCurrentUser()
-    const { business, services, staff, workingHours, reviews } = initialData
+    const { business, services, staff, workingHours, reviews, announcements } = initialData
 
     const [selectedServices, setSelectedServices] = useState<Set<string>>(new Set())
     const [isFavorite, setIsFavorite] = useState(business.isFavorite)
@@ -101,11 +105,10 @@ export function BusinessStorefrontModern({ initialData }: BusinessStorefrontMode
     const [activeMainTab, setActiveMainTab] = useState<"services" | "info" | "reviews">("services")
     const [isScrolled, setIsScrolled] = useState(false)
 
-    // Geolocation mock or logic could go here
     const distance = "1.2 km"
 
     useEffect(() => {
-        const handleScroll = () => setIsScrolled(window.scrollY > 200)
+        const handleScroll = () => setIsScrolled(window.scrollY > 50)
         window.addEventListener("scroll", handleScroll)
         return () => window.removeEventListener("scroll", handleScroll)
     }, [])
@@ -144,7 +147,6 @@ export function BusinessStorefrontModern({ initialData }: BusinessStorefrontMode
 
     const handleBooking = () => {
         if (selectedServices.size === 0) {
-            // Scroll to services if none selected
             const el = document.getElementById("services-section")
             el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
             toast.info("Lütfen bir hizmet seçin.")
@@ -159,380 +161,393 @@ export function BusinessStorefrontModern({ initialData }: BusinessStorefrontMode
     const totalDuration = selectedList.reduce((sum, s) => sum + s.rawDuration, 0)
 
     return (
-        <div className="min-h-screen bg-[#F8FAFC] pb-32">
-            {/* Header Image Section */}
-            <div className="relative h-[300px] md:h-[400px] w-full overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-[#F8FAFC]" />
-                <img
-                    src={business.logo_url || "https://images.unsplash.com/photo-1521590832167-7bcbfaa6381f?auto=format&fit=crop&q=80&w=1200"}
-                    alt={business.name}
-                    className="h-full w-full object-cover"
-                />
+        <div className="min-h-screen bg-[#FDFDFD] pb-32 selection:bg-primary/10">
+            {/* 📢 Premium Announcement Bar */}
+            <AnimatePresence>
+                {announcements.length > 0 && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="bg-primary text-white overflow-hidden relative z-[60]"
+                    >
+                        <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-center gap-4 text-center">
+                            <Sparkles className="size-4 animate-pulse shrink-0" />
+                            <p className="text-[11px] font-black uppercase tracking-[0.2em] leading-tight">
+                                {announcements[0].title}: {announcements[0].content}
+                            </p>
+                            <Sparkles className="size-4 animate-pulse shrink-0" />
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
-                {/* Top Actions */}
-                <div className="absolute top-6 inset-x-6 flex items-center justify-between z-20">
+            {/* Cinematic Hero */}
+            <div className="relative h-[500px] md:h-[650px] w-full overflow-hidden">
+                <motion.div
+                    initial={{ scale: 1.1 }}
+                    animate={{ scale: 1 }}
+                    transition={{ duration: 1.5, ease: "easeOut" }}
+                    className="absolute inset-0"
+                >
+                    <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-[#FDFDFD] z-10" />
+                    <img
+                        src={business.logo_url || "https://images.unsplash.com/photo-1521590832167-7bcbfaa6381f?auto=format&fit=crop&q=80&w=1200"}
+                        alt={business.name}
+                        className="h-full w-full object-cover"
+                    />
+                </motion.div>
+
+                {/* Top Nav */}
+                <div className={cn(
+                    "fixed top-0 inset-x-0 z-50 transition-all duration-500 px-6 py-4 flex items-center justify-between",
+                    isScrolled ? "bg-white/80 backdrop-blur-3xl border-b border-gray-100 shadow-sm" : "bg-transparent py-8"
+                )}>
                     <button
                         onClick={() => router.back()}
-                        className="size-12 rounded-2xl bg-white/20 backdrop-blur-xl border border-white/20 flex items-center justify-center text-white hover:bg-white/30 transition-all"
+                        className={cn(
+                            "size-12 rounded-2xl flex items-center justify-center transition-all",
+                            isScrolled ? "bg-gray-100 text-gray-900" : "bg-white/20 backdrop-blur-xl border border-white/20 text-white"
+                        )}
                     >
                         <ChevronLeft className="size-6" />
                     </button>
                     <div className="flex items-center gap-3">
-                        <button
+                        <RxButton
+                            variant="ghost"
                             onClick={handleToggleFavorite}
                             className={cn(
-                                "size-12 rounded-2xl backdrop-blur-xl border flex items-center justify-center transition-all",
+                                "size-12 rounded-2xl p-0 flex items-center justify-center transition-all",
                                 isFavorite
-                                    ? "bg-red-500 border-red-500 text-white"
-                                    : "bg-white/20 border-white/20 text-white hover:bg-white/30"
+                                    ? "bg-red-500 text-white hover:bg-red-600"
+                                    : isScrolled ? "bg-gray-100 text-gray-900" : "bg-white/20 backdrop-blur-xl border border-white/20 text-white"
                             )}
                         >
                             <Heart className={cn("size-6", isFavorite && "fill-current")} />
-                        </button>
-                        <button className="size-12 rounded-2xl bg-white/20 backdrop-blur-xl border border-white/20 flex items-center justify-center text-white hover:bg-white/30 transition-all">
+                        </RxButton>
+                        <RxButton
+                            variant="ghost"
+                            className={cn(
+                                "size-12 rounded-2xl p-0 flex items-center justify-center transition-all",
+                                isScrolled ? "bg-gray-100 text-gray-900" : "bg-white/20 backdrop-blur-xl border border-white/20 text-white"
+                            )}
+                        >
                             <Share2 className="size-6" />
-                        </button>
+                        </RxButton>
                     </div>
+                </div>
+
+                {/* Hero Content */}
+                <div className="absolute bottom-24 inset-x-0 z-20 px-8 max-w-7xl mx-auto">
+                    <motion.div
+                        initial={{ y: 60, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: 0.2, duration: 1 }}
+                        className="space-y-6"
+                    >
+                        <div className="flex items-center gap-3">
+                            <span className="bg-primary/20 backdrop-blur-md text-white border border-white/20 px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em]">
+                                {business.category}
+                            </span>
+                            <span className="flex items-center gap-2 bg-green-500/20 backdrop-blur-md text-green-300 px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border border-green-500/20">
+                                <span className="size-1.5 rounded-full bg-green-400 animate-pulse" />
+                                RANDEVUYA AÇIK
+                            </span>
+                        </div>
+                        <h1 className="text-7xl md:text-9xl font-black text-white leading-none tracking-tighter drop-shadow-2xl brightness-110">
+                            {business.name}
+                        </h1>
+                        <div className="flex flex-wrap items-center gap-10 text-white/90 font-bold">
+                            <div className="flex items-center gap-3">
+                                <div className="flex gap-0.5">
+                                    {[1, 2, 3, 4, 5].map(s => <Star key={s} className="size-5 fill-yellow-400 text-yellow-400" />)}
+                                </div>
+                                <span className="text-2xl font-black">{business.averageRating}</span>
+                                <span className="text-sm opacity-60 uppercase tracking-widest font-black">({business.reviewCount} Yorum)</span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <Navigation className="size-6" />
+                                <span className="text-xl">{distance}</span>
+                            </div>
+                        </div>
+                    </motion.div>
                 </div>
             </div>
 
-            {/* Main Content Card */}
-            <div className="relative z-10 -mt-24 px-4 md:px-0 mx-auto max-w-4xl">
-                <div className="bg-white rounded-[40px] shadow-2xl shadow-gray-200/50 p-8 md:p-12">
-                    {/* Business Basic Info */}
-                    <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 border-b border-gray-100 pb-10">
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-3">
-                                <RxBadge variant="purple" className="px-4 py-1.5 rounded-full font-black text-[10px] uppercase tracking-tighter">
-                                    {business.category}
-                                </RxBadge>
-                                <div className="flex items-center gap-1.5 bg-green-50 text-green-600 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter">
-                                    <div className="size-1.5 rounded-full bg-current animate-pulse" />
-                                    Açık
-                                </div>
-                            </div>
-                            <h1 className="text-4xl md:text-5xl font-black text-gray-900 leading-none">
-                                {business.name}
-                            </h1>
-                            <div className="flex items-center gap-6">
-                                <div className="flex items-center gap-1.5">
-                                    <Star className="size-5 fill-yellow-400 text-yellow-400" />
-                                    <span className="text-lg font-black">{business.averageRating}</span>
-                                    <span className="text-sm text-gray-400 font-bold">({business.reviewCount} yorum)</span>
-                                </div>
-                                <div className="size-1 rounded-full bg-gray-200" />
-                                <div className="flex items-center gap-1.5 text-gray-500 font-bold text-sm">
-                                    <Navigation className="size-4" />
-                                    {distance}
-                                </div>
-                            </div>
-                        </div>
+            {/* Main Content Sections */}
+            <div className="relative z-30 -mt-16 px-6 max-w-7xl mx-auto space-y-24">
 
-                        <div className="flex items-center gap-4">
-                            <RxButton
-                                variant="secondary"
-                                size="lg"
-                                className="rounded-3xl gap-3 px-8 border-gray-100 bg-gray-50 hover:bg-gray-100 text-gray-900 font-black"
-                                onClick={() => window.open(`tel:${business.phone}`)}
-                            >
-                                <Phone className="size-5" />
-                                ARAYIN
-                            </RxButton>
+                {/* 🎯 Quick Actions & Info Bar */}
+                <div className="bg-white rounded-[40px] shadow-2xl shadow-gray-200/50 p-8 flex flex-col md:flex-row items-center justify-between gap-8 border border-gray-50">
+                    <div className="flex items-center gap-8">
+                        <div className="space-y-1">
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Çalışma Saatleri</p>
+                            <p className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                                <Clock className="size-4 text-primary" /> BugÜn: 09:00 - 20:00
+                            </p>
+                        </div>
+                        <div className="w-px h-10 bg-gray-100 hidden md:block" />
+                        <div className="space-y-1">
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">İletişim</p>
+                            <p className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                                <Phone className="size-4 text-primary" /> {business.phone}
+                            </p>
                         </div>
                     </div>
-
-                    {/* Main Tabs */}
-                    <div className="flex items-center gap-8 border-b border-gray-100 overflow-x-auto scrollbar-hide pt-6">
-                        {[
-                            { id: "services", label: "Hizmetler", icon: CalendarCheck2 },
-                            { id: "info", label: "Hakkımızda", icon: Clock },
-                            { id: "reviews", label: "Yorumlar", icon: Star }
-                        ].map((tab) => (
-                            <button
-                                key={tab.id}
-                                onClick={() => setActiveMainTab(tab.id as any)}
-                                className={cn(
-                                    "flex items-center gap-2 pb-4 text-sm font-black transition-all relative whitespace-nowrap",
-                                    activeMainTab === tab.id
-                                        ? "text-primary"
-                                        : "text-gray-400 hover:text-gray-600"
-                                )}
-                            >
-                                <tab.icon className="size-4" />
-                                {tab.label}
-                                {activeMainTab === tab.id && (
-                                    <div className="absolute bottom-0 inset-x-0 h-1 bg-primary rounded-t-full layout-id-active-tab animate-in fade-in zoom-in duration-300" />
-                                )}
-                            </button>
-                        ))}
+                    <div className="flex items-center gap-4 w-full md:w-auto">
+                        <RxButton variant="secondary" className="flex-1 md:flex-none rounded-2xl h-14 px-8 font-black uppercase tracking-widest text-xs" onClick={() => window.open(`tel:${business.phone}`)}>ArayIn</RxButton>
+                        <RxButton className="flex-1 md:flex-none rounded-2xl h-14 px-10 font-black uppercase tracking-widest text-xs shadow-xl shadow-primary/20" onClick={() => router.push(`/randevu-al?business_id=${business.id}`)}>Randevu Al</RxButton>
                     </div>
+                </div>
 
-                    {/* Content Based on Tabs */}
-                    <div className="min-h-[400px]">
-                        {activeMainTab === "services" && (
-                            <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-                                {/* Trust Signals / Feature Icons */}
-                                <div className="flex flex-wrap gap-2 py-6 border-b border-gray-50 mb-6">
-                                    {(business.features || ["Klima", "Otopark", "Wi-Fi", "Kahve İkramı"]).map(feature => (
-                                        <div key={feature} className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-gray-50 text-[10px] font-black uppercase tracking-widest text-gray-500 border border-transparent hover:border-primary/20 hover:text-primary transition-all">
-                                            <Check className="size-3" />
-                                            {feature}
-                                        </div>
-                                    ))}
-                                </div>
+                {/* 📋 Main Tabs & Services */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
+                    <div className="lg:col-span-8 space-y-12">
+                        {/* Tab Switcher */}
+                        <div className="flex items-center gap-12 border-b border-gray-100 overflow-x-auto scrollbar-hide">
+                            {[
+                                { id: "services", label: "Hizmetler", icon: CalendarCheck2 },
+                                { id: "info", label: "İşletme Bilgisi", icon: ShieldCheck },
+                                { id: "reviews", label: "Müşteri Değerlendirmeleri", icon: TrendingUp }
+                            ].map((tab) => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setActiveMainTab(tab.id as any)}
+                                    className={cn(
+                                        "flex items-center gap-3 pb-6 text-sm font-black transition-all relative whitespace-nowrap group",
+                                        activeMainTab === tab.id ? "text-primary" : "text-gray-400 hover:text-gray-600"
+                                    )}
+                                >
+                                    <tab.icon className={cn("size-5", activeMainTab === tab.id ? "text-primary" : "text-gray-300 group-hover:text-gray-400")} />
+                                    {tab.label}
+                                    {activeMainTab === tab.id && (
+                                        <motion.div layoutId="activeTabUnderline" className="absolute bottom-0 inset-x-0 h-1 bg-primary rounded-t-full" />
+                                    )}
+                                </button>
+                            ))}
+                        </div>
 
-                                <div id="services-section" className="py-12">
-                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
-                                        <div>
-                                            <h2 className="text-2xl font-black text-gray-900">Hizmet Seçin</h2>
-                                            <p className="text-gray-400 font-bold text-sm">Size uygun işlemi seçin</p>
-                                        </div>
-                                        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                                            {categories.map(cat => (
-                                                <button
-                                                    key={cat}
-                                                    onClick={() => setActiveCategory(cat)}
-                                                    className={cn(
-                                                        "px-5 py-2.5 rounded-2xl text-xs font-black transition-all whitespace-nowrap",
-                                                        activeCategory === cat
-                                                            ? "bg-primary text-white shadow-lg shadow-primary/20"
-                                                            : "bg-gray-50 text-gray-400 hover:bg-gray-100"
-                                                    )}
-                                                >
-                                                    {cat}
-                                                </button>
-                                            ))}
-                                        </div>
+                        {/* Content rendering */}
+                        <div className="min-h-[600px]">
+                            {activeMainTab === "services" && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="space-y-12"
+                                >
+                                    {/* Category Pills */}
+                                    <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide pt-4">
+                                        {categories.map(cat => (
+                                            <button
+                                                key={cat}
+                                                onClick={() => setActiveCategory(cat)}
+                                                className={cn(
+                                                    "px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all",
+                                                    activeCategory === cat
+                                                        ? "bg-gray-900 text-white shadow-xl shadow-gray-200"
+                                                        : "bg-gray-50 text-gray-400 hover:bg-gray-100"
+                                                )}
+                                            >
+                                                {cat}
+                                            </button>
+                                        ))}
                                     </div>
 
-                                    <div className="grid gap-8">
-                                        {activeCategory === "Tümü" ? (
-                                            /* Grouped View */
-                                            categories.filter(c => c !== "Tümü").map(cat => (
-                                                <div key={cat} className="space-y-4">
-                                                    <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest px-2">{cat}</h3>
-                                                    <div className="grid gap-3">
-                                                        {services.filter(s => s.category === cat).map(service => {
-                                                            const isSelected = selectedServices.has(service.id)
-                                                            return (
-                                                                <ServiceCard
-                                                                    key={service.id}
-                                                                    service={service}
-                                                                    isSelected={isSelected}
-                                                                    onToggle={() => toggleService(service.id)}
-                                                                />
-                                                            )
-                                                        })}
-                                                    </div>
+                                    <div id="services-section" className="space-y-16">
+                                        {categories.filter(c => c !== "Tümü" && (activeCategory === "Tümü" || activeCategory === c)).map(cat => (
+                                            <div key={cat} className="space-y-8">
+                                                <div className="flex items-center gap-4">
+                                                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.3em]">{cat}</h3>
+                                                    <div className="h-px bg-gray-100 flex-1" />
                                                 </div>
-                                            ))
-                                        ) : (
-                                            /* Filtered View */
-                                            <div className="grid gap-3">
-                                                {filteredServices.map(service => {
-                                                    const isSelected = selectedServices.has(service.id)
-                                                    return (
+                                                <div className="grid gap-6">
+                                                    {services.filter(s => s.category === cat).map(service => (
                                                         <ServiceCard
                                                             key={service.id}
                                                             service={service}
-                                                            isSelected={isSelected}
+                                                            isSelected={selectedServices.has(service.id)}
                                                             onToggle={() => toggleService(service.id)}
                                                         />
-                                                    )
-                                                })}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {/* Staff Section Integrated Here */}
-                                <div className="py-12 border-t border-gray-50">
-                                    <h2 className="text-2xl font-black text-gray-900 mb-8">Uzman Kadromuz</h2>
-                                    <div className="flex gap-6 overflow-x-auto pb-4 scrollbar-hide">
-                                        {staff.map(member => (
-                                            <div key={member.id} className="w-40 shrink-0 space-y-4 text-center group">
-                                                <div className="relative inline-block">
-                                                    <RxAvatar name={member.name} size="lg" className="size-24 rounded-[32px] shadow-lg group-hover:scale-110 transition-transform duration-500" />
-                                                    {member.online && (
-                                                        <div className="absolute top-1 right-1 size-5 rounded-2xl bg-white p-1">
-                                                            <div className="size-full rounded-xl bg-green-500 shadow-sm" />
-                                                        </div>
-                                                    )}
-                                                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap bg-indigo-600 text-white text-[9px] font-black px-3 py-1 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all">
-                                                        UZMAN
-                                                    </div>
-                                                </div>
-                                                <div>
-                                                    <h4 className="font-black text-gray-900 text-sm">{member.name}</h4>
-                                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{member.specialty}</p>
+                                                    ))}
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
-                                </div>
-                            </div>
-                        )}
+                                </motion.div>
+                            )}
 
-                        {activeMainTab === "info" && (
-                            <div className="py-12 animate-in fade-in slide-in-from-bottom-2 duration-500 space-y-12">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                    <div className="space-y-6">
-                                        <div>
-                                            <h3 className="text-xl font-black text-gray-900 mb-4">Hakkımızda</h3>
-                                            <p className="text-gray-500 leading-relaxed font-medium">
-                                                {business.description || "İşletmemiz kaliteli hizmet ve müşteri memnuniyeti anlayışıyla sizlere en iyisini sunmak için çalışmaktadır."}
-                                            </p>
-                                        </div>
-
-                                        <div className="grid gap-4">
-                                            <div className="flex items-start gap-4 p-5 rounded-3xl bg-gray-50">
-                                                <MapPin className="size-6 text-primary shrink-0" />
-                                                <div>
-                                                    <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Adres</p>
-                                                    <p className="text-sm font-bold text-gray-700">{business.address}</p>
-                                                </div>
+                            {activeMainTab === "info" && (
+                                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-12 py-8">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                                        <div className="space-y-8">
+                                            <div>
+                                                <h3 className="text-xl font-black text-gray-900 mb-4">Hakkımızda</h3>
+                                                <p className="text-gray-500 leading-relaxed font-medium">
+                                                    {business.description || "En iyi hizmet kalitesiyle yanınızdayız."}
+                                                </p>
                                             </div>
-                                            <div className="flex items-start gap-4 p-5 rounded-3xl bg-gray-50">
-                                                <Phone className="size-6 text-blue-500 shrink-0" />
-                                                <div>
-                                                    <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Telefon</p>
-                                                    <p className="text-sm font-bold text-gray-700">{business.phone}</p>
+                                            <div className="space-y-4">
+                                                <div className="bg-gray-50 p-6 rounded-3xl space-y-1 border border-gray-100/50">
+                                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Adres</p>
+                                                    <p className="text-sm font-bold text-gray-800">{business.address}</p>
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
-
-                                    <div className="space-y-6">
-                                        <h3 className="text-xl font-black text-gray-900 mb-4">Konum & Saatler</h3>
-                                        <div className="rounded-[32px] overflow-hidden h-48 bg-gray-100 relative group cursor-pointer" onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(business.address)}`)}>
-                                            <div className="absolute inset-0 bg-black/5 group-hover:bg-black/0 transition-colors" />
-                                            <div className="absolute inset-x-4 bottom-4 z-10">
-                                                <RxButton className="w-full rounded-2xl shadow-xl">YOL TARİFİ AL</RxButton>
-                                            </div>
-                                            <img src="https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?auto=format&fit=crop&q=80&w=600" className="h-full w-full object-cover" alt="Map" />
-                                        </div>
-
-                                        <div className="p-6 rounded-[32px] bg-gray-50">
-                                            <div className="flex items-center gap-3 mb-4">
-                                                <Clock className="size-5 text-orange-500" />
-                                                <span className="font-black text-sm uppercase">Çalışma Saatleri</span>
-                                            </div>
-                                            <div className="grid gap-2">
-                                                {workingHours.map((day) => (
-                                                    <div key={day.day} className="flex items-center justify-between text-xs font-bold">
-                                                        <span className="text-gray-400">{day.day}</span>
-                                                        <span className={cn(day.isClosed ? "text-red-500" : "text-gray-700")}>
-                                                            {day.isClosed ? "KAPALI" : day.hours}
-                                                        </span>
+                                        <div className="bg-gray-50 p-8 rounded-[40px] border border-gray-100">
+                                            <h4 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-6 border-b border-gray-200 pb-4">Çalışma Planı</h4>
+                                            <div className="space-y-3">
+                                                {workingHours.map(d => (
+                                                    <div key={d.day} className="flex justify-between text-xs font-bold">
+                                                        <span className="text-gray-400">{d.day}</span>
+                                                        <span className={cn(d.isClosed ? "text-red-500" : "text-gray-900")}>{d.isClosed ? "KAPALI" : d.hours}</span>
                                                     </div>
                                                 ))}
                                             </div>
                                         </div>
                                     </div>
-                                </div>
-                            </div>
-                        )}
+                                </motion.div>
+                            )}
 
-                        {activeMainTab === "reviews" && (
-                            <div className="py-12 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                                <div className="flex items-center justify-between mb-10">
-                                    <div>
-                                        <h2 className="text-2xl font-black text-gray-900">Müşteri Yorumları</h2>
-                                        <p className="text-gray-400 font-bold text-sm">{reviews.length} değerlendirme</p>
-                                    </div>
-                                </div>
-                                <div className="grid gap-6">
-                                    {reviews.map(review => (
-                                        <div key={review.id} className="p-8 rounded-[40px] bg-gray-50 border border-transparent hover:border-gray-200 transition-all">
-                                            <div className="flex items-center justify-between mb-6">
-                                                <div className="flex items-center gap-4">
-                                                    <RxAvatar name={review.userName} src={review.avatarUrl} size="sm" className="size-12 rounded-2xl" />
-                                                    <div>
-                                                        <h4 className="font-black text-gray-900 text-sm leading-none mb-1">{review.userName}</h4>
-                                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{new Date(review.createdAt).toLocaleDateString('tr-TR')}</p>
+                            {activeMainTab === "reviews" && (
+                                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8 py-8">
+                                    <div className="grid gap-8">
+                                        {reviews.map(review => (
+                                            <div key={review.id} className="bg-white p-10 rounded-[40px] border border-gray-100 hover:shadow-xl hover:shadow-gray-100 transition-all group">
+                                                <div className="flex items-center justify-between mb-6">
+                                                    <div className="flex items-center gap-4">
+                                                        <RxAvatar name={review.userName} src={review.avatarUrl} className="size-14 rounded-2xl shadow-sm" />
+                                                        <div>
+                                                            <h4 className="font-black text-gray-900 group-hover:text-primary transition-colors">{review.userName}</h4>
+                                                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{new Date(review.createdAt).toLocaleDateString()}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex gap-0.5">
+                                                        {[1, 2, 3, 4, 5].map(s => <Star key={s} className={cn("size-4", s <= review.rating ? "fill-yellow-400 text-yellow-400" : "text-gray-100")} />)}
                                                     </div>
                                                 </div>
-                                                <div className="flex gap-0.5">
-                                                    {[1, 2, 3, 4, 5].map(s => (
-                                                        <Star key={s} className={cn("size-4", s <= review.rating ? "fill-yellow-400 text-yellow-400" : "text-gray-200")} />
-                                                    ))}
-                                                </div>
+                                                <p className="text-gray-600 font-medium leading-relaxed italic text-lg">"{review.comment}"</p>
                                             </div>
-                                            <p className="text-gray-600 font-medium leading-relaxed italic">"{review.comment}"</p>
+                                        ))}
+                                    </div>
+                                </motion.div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Right Column: Staff & Trust */}
+                    <div className="lg:col-span-4 space-y-12">
+                        <div className="bg-gray-50 rounded-[48px] p-10 space-y-10 border border-gray-100/50">
+                            <div>
+                                <h3 className="text-xl font-black text-gray-900 mb-2">Uzman Kadromuz</h3>
+                                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Profesyonel Ekibimizle TanIşIn</p>
+                            </div>
+                            <div className="grid gap-8">
+                                {staff.map(s => (
+                                    <div key={s.id} className="flex items-center gap-4 group cursor-pointer">
+                                        <div className="relative">
+                                            <RxAvatar name={s.name} src={s.avatar_url} className="size-16 rounded-[24px] shadow-md group-hover:scale-110 transition-transform" />
+                                            {s.online && <div className="absolute -top-1 -right-1 size-4 rounded-full bg-white p-0.5"><div className="size-full rounded-full bg-green-500" /></div>}
                                         </div>
-                                    ))}
-                                </div>
+                                        <div>
+                                            <h4 className="font-black text-gray-900 text-sm">{s.name}</h4>
+                                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{s.specialty}</p>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
-                        )}
+                        </div>
+
+                        <div className="bg-primary/5 rounded-[40px] p-8 space-y-6 border border-primary/10">
+                            <div className="size-12 rounded-2xl bg-primary flex items-center justify-center text-white shadow-lg shadow-primary/20">
+                                <Zap className="size-6" />
+                            </div>
+                            <h4 className="text-lg font-black text-gray-900 leading-tight">Güvenli ve HIzlI Randevu Deneyimi</h4>
+                            <p className="text-sm font-medium text-gray-500 leading-relaxed">RandevuX güvencesiyle 7/24 randevu alabilir, bildirimlerle işlemlerinizi takip edebilirsiniz.</p>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            {/* Modern Sticky Bottom CTA */}
-            <div className={cn(
-                "fixed bottom-8 inset-x-4 md:left-1/2 md:-translate-x-1/2 md:max-w-2xl z-50 transition-all duration-500",
-                isScrolled || selectedServices.size > 0 ? "translate-y-0 opacity-100" : "translate-y-20 opacity-0 pointer-events-none"
-            )}>
-                <div className="bg-gray-900/90 backdrop-blur-3xl rounded-[32px] p-4 flex items-center justify-between shadow-2xl border border-white/10">
-                    <div className="px-4">
-                        {selectedServices.size > 0 ? (
-                            <div className="space-y-0.5">
-                                <p className="text-white text-lg font-black">{totalPrice.toLocaleString('tr-TR')} ₺</p>
-                                <p className="text-white/40 text-[10px] font-black uppercase tracking-widest">{selectedServices.size} HİZMET · {totalDuration} DK</p>
-                            </div>
-                        ) : (
-                            <div className="space-y-0.5">
-                                <p className="text-white text-lg font-black">Randevu Alın</p>
-                                <p className="text-white/40 text-[10px] font-black uppercase tracking-widest">EN UYGUN SAATİ SEÇİN</p>
-                            </div>
-                        )}
-                    </div>
-
-                    <button
-                        onClick={handleBooking}
-                        className="bg-primary hover:bg-primary-dark text-white px-8 py-4 rounded-2xl font-black flex items-center gap-3 transition-all hover:scale-105 active:scale-95 shadow-xl shadow-primary/20"
+            {/* 💰 Modern Sticky Checkout CTA */}
+            <AnimatePresence>
+                {(isScrolled || selectedServices.size > 0) && (
+                    <motion.div
+                        initial={{ y: 100, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: 100, opacity: 0 }}
+                        className="fixed bottom-8 inset-x-6 z-50 md:max-w-3xl md:mx-auto"
                     >
-                        <CalendarCheck2 className="size-5" />
-                        {selectedServices.size > 0 ? "DEVAM ET" : "HEMEN AL"}
-                    </button>
-                </div>
-            </div>
-            {/* Magic AI Assistant */}
+                        <div className="bg-gray-900/90 backdrop-blur-3xl rounded-[32px] p-4 flex items-center justify-between shadow-2xl border border-white/10 ring-1 ring-white/5">
+                            <div className="px-6 space-y-1">
+                                <p className="text-white text-2xl font-black">{totalPrice.toLocaleString()} ₺</p>
+                                <p className="text-white/40 text-[10px] font-black uppercase tracking-[0.2em]">
+                                    {selectedServices.size > 0
+                                        ? `${selectedServices.size} HİZMET · ${totalDuration} DK`
+                                        : "BİR SEÇİM YAPIN"}
+                                </p>
+                            </div>
+                            <RxButton
+                                onClick={handleBooking}
+                                className="bg-primary hover:bg-primary-dark text-white px-10 h-16 rounded-2xl font-black flex items-center gap-4 transition-all hover:scale-105 active:scale-95 shadow-2xl shadow-primary/20 group"
+                            >
+                                <span>{selectedServices.size > 0 ? "RANDEVUYU TAMAMLA" : "HEMEN RANDEVU AL"}</span>
+                                <ArrowRight className="size-5 group-hover:translate-x-1 transition-transform" />
+                            </RxButton>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
             <AIChatAssistant businessId={business.id} />
         </div>
     )
 }
 
+// ─── Sub-components ─────────────────────────────────────────────────────────────
+
+import { ArrowRight } from "lucide-react"
+
 function ServiceCard({ service, isSelected, onToggle }: { service: Service, isSelected: boolean, onToggle: () => void }) {
     return (
-        <div
+        <motion.div
+            whileHover={{ y: -4 }}
+            whileTap={{ scale: 0.98 }}
             onClick={onToggle}
             className={cn(
-                "group p-5 rounded-[28px] border-2 transition-all duration-300 cursor-pointer flex items-center justify-between active:scale-[0.98]",
+                "group p-8 rounded-[36px] border-2 transition-all duration-300 cursor-pointer flex items-center justify-between",
                 isSelected
-                    ? "border-primary bg-primary/5 shadow-md shadow-primary/5"
-                    : "border-gray-50 bg-white hover:border-gray-200 hover:shadow-xl hover:shadow-gray-100"
+                    ? "border-primary bg-primary/[0.03] shadow-xl shadow-primary/5"
+                    : "border-gray-50 bg-white hover:border-gray-200 hover:shadow-2xl hover:shadow-gray-100"
             )}
         >
-            <div className="space-y-1">
-                <h3 className="text-base font-black text-gray-900 group-hover:text-primary transition-colors">
+            <div className="space-y-2">
+                <h3 className="text-xl font-black text-gray-900 group-hover:text-primary transition-colors">
                     {service.name}
                 </h3>
-                <p className="text-gray-400 font-bold text-xs">
-                    {service.duration}
-                </p>
-            </div>
-            <div className="flex items-center gap-6">
-                <span className="text-lg font-black text-gray-900">{service.priceLabel}</span>
-                <div className={cn(
-                    "size-9 rounded-xl flex items-center justify-center transition-all",
-                    isSelected
-                        ? "bg-primary text-white scale-110"
-                        : "bg-gray-50 text-gray-300 group-hover:bg-primary/10 group-hover:text-primary"
-                )}>
-                    {isSelected ? <Check className="size-5" /> : <Plus className="size-5" />}
+                <div className="flex items-center gap-3">
+                    <span className="text-gray-400 font-black text-[10px] uppercase tracking-widest bg-gray-50 px-3 py-1 rounded-full">
+                        {service.duration}
+                    </span>
+                    <span className="size-1 rounded-full bg-gray-200" />
+                    <span className="text-gray-400 font-black text-[10px] uppercase tracking-widest">
+                        UZMAN SEÇİMİ
+                    </span>
                 </div>
             </div>
-        </div>
+            <div className="flex items-center gap-8">
+                <div className="text-right">
+                    <p className="text-xs font-black text-gray-300 uppercase tracking-widest mb-1">BaŞlangIç</p>
+                    <p className="text-2xl font-black text-gray-900">{service.priceLabel}</p>
+                </div>
+                <div className={cn(
+                    "size-12 rounded-2xl flex items-center justify-center transition-all shadow-lg",
+                    isSelected
+                        ? "bg-primary text-white scale-110 shadow-primary/30"
+                        : "bg-gray-50 text-gray-300 group-hover:bg-primary group-hover:text-white"
+                )}>
+                    {isSelected ? <Check className="size-6" /> : <Plus className="size-6" />}
+                </div>
+            </div>
+        </motion.div>
     )
 }

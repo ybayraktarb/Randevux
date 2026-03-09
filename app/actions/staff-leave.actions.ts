@@ -113,3 +113,31 @@ export async function getStaffLeavesAction(staffBusinessId: string): Promise<{
         return { success: false, error: { message: "İzinler yüklenemedi." } }
     }
 }
+
+/**
+ * Bir izin talebini onaylar veya reddeder.
+ */
+export async function reviewStaffLeaveAction(leaveId: string, status: "approved" | "rejected") {
+    try {
+        const supabase = await createClient()
+
+        const { error } = await supabase
+            .from("leave_requests")
+            .update({
+                status,
+                reviewed_at: new Date().toISOString()
+            })
+            .eq("id", leaveId)
+
+        if (error) {
+            console.error("İzin güncellenirken hata:", error)
+            return { success: false, error: { message: "İzin durumu güncellenemedi." } }
+        }
+
+        revalidatePath("/(patron)/[business_id]/staff/[staff_id]", "page")
+        return { success: true }
+    } catch (err) {
+        Sentry.captureException(err)
+        return { success: false, error: { message: "Beklenmedik bir hata oluştu." } }
+    }
+}

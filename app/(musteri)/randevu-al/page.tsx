@@ -52,8 +52,9 @@ export default async function RandevuAlPage({
             <BookingWizard
                 businessId={businessId}
                 businessName={res.data.businessName}
-                initialServices={res.data.services as any}
-                initialStaff={res.data.staffList as any}
+                businessHours={res.data.businessHours}
+                initialServices={res.data.services}
+                initialStaff={res.data.staffList}
             />
         </div>
     )

@@ -28,8 +28,13 @@ export async function getUserRole(
             .select("id")
             .eq("user_id", userId)
             .eq("is_active", true)
+            .eq("is_deleted", false)
             .maybeSingle(),
     ])
+
+    // Diagnostic logging for Super Admin/Staff issues
+    if (superAdminResult.error) console.error("Super Admin check error:", superAdminResult.error)
+    if (staffResult.error) console.error("Staff check error:", staffResult.error)
 
     // Öncelik sırasıyla kontrol et
     if (superAdminResult.data) return "super_admin"

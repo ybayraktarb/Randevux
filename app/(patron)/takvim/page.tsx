@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
-import { CommandCenterCalendar } from "@/components/randevux/command-center-calendar"
+import { CalendarShifts } from "@/components/randevux/calendar-shifts"
 
 export const metadata = {
-    title: "Takvim (Komuta Merkezi) - Randevuxx",
+    title: "Takvim & Vardiyalar - Randevuxx",
 }
 
 export default async function TakvimPage() {
@@ -25,8 +25,8 @@ export default async function TakvimPage() {
     }
 
     return (
-        <div className="w-full flex-col gap-6 p-4 md:p-6 lg:p-8">
-            <CommandCenterCalendar businessId={ownerData.business_id} />
+        <div className="w-full flex-col p-4 md:p-6 lg:p-8">
+            <CalendarShifts />
         </div>
     )
 }

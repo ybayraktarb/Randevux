@@ -13,6 +13,11 @@ import {
     upsertBusinessHoursAction, getBusinessHoursAction,
     type BusinessHour,
 } from "@/app/actions/business-settings.actions"
+import { motion, AnimatePresence } from "framer-motion"
+import { TrendingUp, Edit2, X, Loader2, Save, Lock, User, Building2, Calendar, RefreshCw, Copy, QrCode, Download, Clock, CalendarOff, Plus, Trash2, ChevronDown, Sparkles } from "lucide-react"
+import QRCode from "react-qr-code"
+import { getAllAnnouncementsAction, upsertAnnouncementAction, deleteAnnouncementAction, type BusinessAnnouncement } from "@/app/actions/announcement.actions"
+import React from "react"
 
 export function BusinessSettings() {
     const { user } = useCurrentUser()
@@ -179,188 +184,290 @@ export function BusinessSettings() {
     const inputClass = "h-10 rounded-lg border border-input bg-card px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
 
     return (
-        <div className="flex flex-col gap-6">
-            <h1 className="text-2xl font-semibold text-foreground">Ayarlar</h1>
-
-            {/* Tab bar */}
-            <div className="flex gap-1 flex-wrap rounded-lg border border-border bg-card p-1">
-                {tabs.map(t => (
-                    <button key={t.key} type="button" onClick={() => setActiveTab(t.key as any)} className={cn("flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors", activeTab === t.key ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-primary-light")}>
-                        <t.icon className="size-4" />{t.label}
-                    </button>
-                ))}
+        <div className="flex flex-col gap-8 pb-20">
+            <div className="flex flex-col gap-1">
+                <h1 className="text-3xl font-black text-gray-900 tracking-tight">Ayarlar</h1>
+                <p className="text-sm font-bold text-muted-foreground">İşletme ve profil ayarlarınızı buradan yönetebilirsiniz.</p>
             </div>
 
-            {/* Business Tab */}
-            {activeTab === "business" && (
-                <div className="rounded-xl border border-border bg-card p-6 shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
-                    <div className="flex flex-col gap-4 max-w-lg">
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-sm font-medium text-foreground">Isletme Adi</label>
-                            <input type="text" value={bizName} onChange={e => setBizName(e.target.value)} className={inputClass} />
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-sm font-medium text-foreground">Adres</label>
-                            <input type="text" value={bizAddress} onChange={e => setBizAddress(e.target.value)} className={inputClass} />
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-sm font-medium text-foreground">Telefon</label>
-                            <input type="tel" value={bizPhone} onChange={e => setBizPhone(e.target.value)} className={inputClass} />
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-sm font-medium text-foreground">Aciklama</label>
-                            <textarea value={bizDesc} onChange={e => setBizDesc(e.target.value)} className="min-h-[80px] rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground resize-y focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1" />
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-sm font-medium text-foreground">Logo URL</label>
-                            <input type="url" value={logoUrl} onChange={e => setLogoUrl(e.target.value)} className={inputClass} placeholder="https://..." />
-                        </div>
-
-                        {/* QR Code / Custom Code Entry */}
-                        <div className="flex flex-col gap-1.5 mt-2">
-                            <label className="text-sm font-medium text-foreground">Özel İşletme Kodu (Örn: msn2026)</label>
-                            <p className="text-xs text-muted-foreground">
-                                Müşterileriniz bu kodu girerek işletmenize katılabilir. Benzersiz olmalıdır.
-                            </p>
-                            <div className="flex gap-2">
-                                <input
-                                    type="text"
-                                    value={qrCode}
-                                    onChange={e => setQrCode(e.target.value.replace(/\s+/g, '').toUpperCase())}
-                                    className={cn(inputClass, "flex-1 font-mono text-sm uppercase")}
-                                    placeholder="Kendi kodunuzu girin..."
-                                />
-                                <button type="button" onClick={() => { navigator.clipboard.writeText(qrCode); toast?.success?.("Kopyalandı!") }} className="flex h-10 items-center gap-1.5 rounded-lg border border-input bg-card px-3 text-sm text-muted-foreground hover:text-foreground transition-colors" title="Kopyala">
-                                    <Copy className="size-4" />
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* System Invite Code (Read-only Backup) */}
-                        <div className="flex flex-col gap-1.5 mt-2 opacity-80">
-                            <label className="text-xs font-medium text-muted-foreground">Sistem Davet Kodu (Yedek)</label>
-                            <div className="flex gap-2">
-                                <input
-                                    type="text"
-                                    value={inviteCode}
-                                    readOnly
-                                    className={cn(inputClass, "flex-1 font-mono text-xs bg-muted cursor-not-allowed")}
-                                />
-                                <button type="button" onClick={handleRefreshInviteCode} className="flex h-10 items-center justify-center rounded-lg border border-input bg-card px-3 text-muted-foreground hover:text-foreground transition-colors" title="Yeni Kod Üret">
-                                    <RefreshCw className="size-4" />
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* QR Code */}
-                        {qrCode && (
-                            <div className="flex flex-col gap-1.5 mt-2 p-4 rounded-xl border border-dashed border-primary/20 bg-primary/5">
-                                <label className="text-sm font-medium text-foreground flex items-center gap-2">
-                                    <QrCode className="size-4 text-primary" />
-                                    Müşteri Randevu QR Kodu
-                                </label>
-                                <p className="text-xs text-muted-foreground mb-2">
-                                    Müşterileriniz bu QR kodu okutarak işletmenize bağlanabilir ve randevu alabilir.
-                                </p>
-                                <div className="flex flex-col items-center gap-4 bg-white p-4 rounded-lg w-fit border border-border">
-                                    <QRCode
-                                        id="BusinessQRCode"
-                                        value={qrCode}
-                                        size={180}
-                                        level="M"
+            {/* Tab bar - Apple Style Segmented Control */}
+            <div className="flex p-1.5 bg-gray-100/80 rounded-[20px] w-fit self-start border border-gray-200/50 sticky top-24 z-20 backdrop-blur-md">
+                <div className="flex gap-1 relative">
+                    {tabs.map((t) => {
+                        const isActive = activeTab === t.key
+                        return (
+                            <button
+                                key={t.key}
+                                type="button"
+                                onClick={() => setActiveTab(t.key as any)}
+                                className={cn(
+                                    "relative z-10 rounded-2xl px-5 py-2.5 text-xs font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-2",
+                                    isActive
+                                        ? "text-primary shadow-sm"
+                                        : "text-gray-500 hover:text-gray-900"
+                                )}
+                            >
+                                {isActive && (
+                                    <motion.div
+                                        layoutId="settings-tab-active"
+                                        className="absolute inset-0 bg-white rounded-2xl shadow-md -z-10"
+                                        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                                     />
-                                    <RxButton onClick={downloadQRCode} variant="secondary" className="w-full text-xs h-8">
-                                        <Download className="size-3 mr-1" /> QR Kodu İndir
+                                )}
+                                <t.icon className="size-4" />
+                                <span className="hidden sm:inline">{t.label}</span>
+                            </button>
+                        )
+                    })}
+                </div>
+            </div>
+
+            <div className="relative mt-2">
+                <AnimatePresence mode="wait">
+                    <motion.div
+                        key={activeTab}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.3, ease: "easeOut" }}
+                    >
+
+                        {/* Business Info Section */}
+                        {activeTab === "business" && (
+                            <div className="flex flex-col gap-8">
+                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                    <div className="lg:col-span-2 space-y-6">
+                                        <div className="bg-white rounded-[32px] border border-gray-100 p-8 shadow-sm">
+                                            <h2 className="text-xl font-black text-gray-900 mb-6 flex items-center gap-2">
+                                                <Building2 className="size-5 text-primary" />
+                                                Genel Bilgiler
+                                            </h2>
+                                            <div className="grid grid-cols-1 gap-6">
+                                                <div className="flex flex-col gap-2">
+                                                    <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">İşletme Adı</label>
+                                                    <input type="text" value={bizName} onChange={e => setBizName(e.target.value)} className="h-12 rounded-2xl border border-gray-100 bg-gray-50/30 px-4 text-sm font-bold text-gray-900 focus:ring-2 focus:ring-primary/20 outline-none transition-all" />
+                                                </div>
+                                                <div className="flex flex-col gap-2">
+                                                    <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">İletişim Telefonu</label>
+                                                    <input type="tel" value={bizPhone} onChange={e => setBizPhone(e.target.value)} className="h-12 rounded-2xl border border-gray-100 bg-gray-50/30 px-4 text-sm font-bold text-gray-900 focus:ring-2 focus:ring-primary/20 outline-none transition-all" />
+                                                </div>
+                                                <div className="flex flex-col gap-2">
+                                                    <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Adres</label>
+                                                    <input type="text" value={bizAddress} onChange={e => setBizAddress(e.target.value)} className="h-12 rounded-2xl border border-gray-100 bg-gray-50/30 px-4 text-sm font-bold text-gray-900 focus:ring-2 focus:ring-primary/20 outline-none transition-all" />
+                                                </div>
+                                                <div className="flex flex-col gap-2">
+                                                    <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Hakkımızda / Açıklama</label>
+                                                    <textarea value={bizDesc} onChange={e => setBizDesc(e.target.value)} className="min-h-[120px] rounded-2xl border border-gray-100 bg-gray-50/30 px-4 py-3 text-sm font-bold text-gray-900 focus:ring-2 focus:ring-primary/20 outline-none transition-all resize-none" />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-white rounded-[32px] border border-gray-100 p-8 shadow-sm">
+                                            <h2 className="text-xl font-black text-gray-900 mb-6 flex items-center gap-2">
+                                                <Sparkles className="size-5 text-primary" />
+                                                Marka ve Görünüm
+                                            </h2>
+                                            <div className="flex flex-col gap-2">
+                                                <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Logo URL</label>
+                                                <div className="flex gap-4">
+                                                    <input type="url" value={logoUrl} onChange={e => setLogoUrl(e.target.value)} className="h-12 flex-1 rounded-2xl border border-gray-100 bg-gray-50/30 px-4 text-sm font-bold text-gray-900 focus:ring-2 focus:ring-primary/20 outline-none transition-all" placeholder="https://..." />
+                                                    {logoUrl && (
+                                                        <div className="size-12 rounded-2xl bg-gray-100 overflow-hidden border border-gray-200">
+                                                            <img src={logoUrl} alt="Preview" className="size-full object-cover" />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-6">
+                                        <div className="bg-primary rounded-[32px] p-8 text-white shadow-xl shadow-primary/20 relative overflow-hidden">
+                                            <div className="absolute top-0 right-0 size-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl" />
+                                            <h2 className="text-lg font-black mb-6 flex items-center gap-2">
+                                                <QrCode className="size-5" />
+                                                Dijital Erişim
+                                            </h2>
+
+                                            <div className="space-y-6">
+                                                <div className="flex flex-col gap-2">
+                                                    <label className="text-[10px] font-black uppercase tracking-widest opacity-70">Özel Kod (URL)</label>
+                                                    <div className="flex gap-2">
+                                                        <input
+                                                            type="text"
+                                                            value={qrCode}
+                                                            onChange={e => setQrCode(e.target.value.replace(/\s+/g, '').toUpperCase())}
+                                                            className="h-12 flex-1 rounded-2xl bg-white/10 border border-white/20 px-4 text-sm font-black uppercase tracking-widest outline-none focus:bg-white/20 transition-all placeholder:text-white/40"
+                                                            placeholder="URL KODU..."
+                                                        />
+                                                        <button onClick={() => { navigator.clipboard.writeText(qrCode); toast?.success?.("Kopyalandı!") }} className="size-12 flex items-center justify-center rounded-2xl bg-white/10 hover:bg-white/20 transition-all border border-white/20">
+                                                            <Copy className="size-4" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                {qrCode && (
+                                                    <div className="bg-white rounded-3xl p-6 flex flex-col items-center gap-4 text-gray-900 shadow-lg">
+                                                        <div className="p-2 bg-gray-50 rounded-2xl border border-gray-100">
+                                                            <QRCode id="BusinessQRCode" value={qrCode} size={140} level="M" />
+                                                        </div>
+                                                        <button onClick={downloadQRCode} className="w-full h-11 rounded-2xl bg-gray-900 text-white font-black text-[11px] uppercase tracking-widest hover:bg-gray-800 transition-all flex items-center justify-center gap-2">
+                                                            <Download className="size-4" />
+                                                            QR İndir
+                                                        </button>
+                                                    </div>
+                                                )}
+
+                                                <div className="pt-4 border-t border-white/10">
+                                                    <label className="text-[10px] font-black uppercase tracking-widest opacity-70 block mb-3">Sistem Davet Kodu</label>
+                                                    <div className="flex items-center justify-between gap-4 bg-white/10 rounded-2xl p-3 border border-white/10">
+                                                        <code className="text-xs font-black tracking-widest">{inviteCode}</code>
+                                                        <button onClick={handleRefreshInviteCode} className="p-2 hover:bg-white/10 rounded-xl transition-all">
+                                                            <RefreshCw className="size-4" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex justify-end">
+                                    <RxButton onClick={handleSaveBusiness} disabled={savingBiz} className="h-14 px-12 rounded-[20px] shadow-lg shadow-primary/20 font-black uppercase tracking-widest text-xs transition-all hover:scale-[1.02]">
+                                        {savingBiz ? <Loader2 className="size-5 animate-spin" /> : <Save className="size-5 mr-1" />} Değişiklikleri Kaydet
                                     </RxButton>
                                 </div>
                             </div>
                         )}
 
-                        <RxButton onClick={handleSaveBusiness} disabled={savingBiz} className="w-fit mt-2">
-                            {savingBiz ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Kaydet
-                        </RxButton>
-                    </div>
-                </div>
-            )}
+                        {/* Appointment Settings Tab */}
+                        {activeTab === "appointment" && (
+                            <div className="flex flex-col gap-6 max-w-2xl">
+                                <div className="bg-white rounded-[32px] border border-gray-100 p-8 shadow-sm">
+                                    <h2 className="text-xl font-black text-gray-900 mb-6 flex items-center gap-2">
+                                        <Calendar className="size-5 text-primary" />
+                                        Randevu Politikaları
+                                    </h2>
 
-            {/* Appointment Settings Tab */}
-            {activeTab === "appointment" && (
-                <div className="rounded-xl border border-border bg-card p-6 shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
-                    <div className="flex flex-col gap-5 max-w-lg">
-                        <div className="flex items-center justify-between">
-                            <div className="flex flex-col gap-0.5">
-                                <span className="text-sm font-medium text-foreground">Otomatik Onay</span>
-                                <span className="text-xs text-muted-foreground">Randevular olusturulunca otomatik olarak onaylansin.</span>
-                            </div>
-                            <button type="button" onClick={() => setAutoApprove(!autoApprove)} className={cn("relative h-6 w-11 rounded-full transition-colors", autoApprove ? "bg-primary" : "bg-muted-foreground/30")}>
-                                <span className={cn("absolute top-0.5 size-5 rounded-full bg-white shadow transition-transform", autoApprove ? "translate-x-[22px]" : "translate-x-0.5")} />
-                            </button>
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-sm font-medium text-foreground">Iptal Suresi (dakika)</label>
-                            <span className="text-xs text-muted-foreground">Musteri randevudan bu kadar dakika once iptal edebilir.</span>
-                            <input type="number" value={cancelBuffer} onChange={e => setCancelBuffer(Number(e.target.value))} min={0} className={cn(inputClass, "w-32")} />
-                        </div>
-                        <RxButton onClick={handleSaveAppointment} disabled={savingAppt} className="w-fit mt-2">
-                            {savingAppt ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Kaydet
-                        </RxButton>
-                    </div>
-                </div>
-            )}
+                                    <div className="space-y-8">
+                                        <div className="flex items-center justify-between p-4 bg-gray-50/50 rounded-2xl border border-gray-100">
+                                            <div className="flex flex-col gap-1">
+                                                <span className="text-sm font-black text-gray-900 uppercase tracking-widest leading-none">Otomatik Onay</span>
+                                                <span className="text-[11px] font-bold text-gray-500">Gelen randevular sistem tarafından otomatik onaylansın mı?</span>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => setAutoApprove(!autoApprove)}
+                                                className={cn(
+                                                    "relative h-7 w-12 rounded-full transition-all duration-300",
+                                                    autoApprove ? "bg-primary shadow-[0_0_12px_rgba(var(--primary),0.3)]" : "bg-gray-200"
+                                                )}
+                                            >
+                                                <div className={cn(
+                                                    "absolute top-1 size-5 rounded-full bg-white shadow-lg transition-all duration-300",
+                                                    autoApprove ? "left-6" : "left-1"
+                                                )} />
+                                            </button>
+                                        </div>
 
-            {/* Profile Tab */}
-            {activeTab === "profile" && (
-                <div className="flex flex-col gap-6">
-                    <div className="rounded-xl border border-border bg-card p-6 shadow-[0_2px_8_rgba(0,0,0,0.06)]">
-                        <div className="flex items-center gap-2 mb-5"><User className="size-5 text-primary" /><h2 className="text-lg font-semibold text-foreground">Profil Bilgileri</h2></div>
-                        <div className="flex flex-col gap-4 max-w-md">
-                            <div className="flex flex-col gap-1.5">
-                                <label className="text-sm font-medium text-foreground">Ad Soyad</label>
-                                <input type="text" value={profileName} onChange={e => setProfileName(e.target.value)} className={inputClass} />
-                            </div>
-                            <div className="flex flex-col gap-1.5">
-                                <label className="text-sm font-medium text-foreground">Telefon</label>
-                                <input type="tel" value={profilePhone} onChange={e => setProfilePhone(e.target.value)} className={inputClass} />
-                            </div>
-                            <div className="flex flex-col gap-1.5">
-                                <label className="text-sm font-medium text-foreground">E-posta (salt okunur)</label>
-                                <input type="email" value={profileEmail} readOnly className={cn(inputClass, "bg-muted cursor-not-allowed")} />
-                            </div>
-                            <RxButton onClick={handleSaveProfile} disabled={savingProfile} className="w-fit mt-2">
-                                {savingProfile ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Kaydet
-                            </RxButton>
-                        </div>
-                    </div>
+                                        <div className="flex flex-col gap-3">
+                                            <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">İptal Süresi (Dakika)</label>
+                                            <div className="flex items-center gap-4">
+                                                <input
+                                                    type="number"
+                                                    value={cancelBuffer}
+                                                    onChange={e => setCancelBuffer(Number(e.target.value))}
+                                                    min={0}
+                                                    className="h-12 w-32 rounded-2xl border border-gray-100 bg-gray-50/30 px-4 text-sm font-bold text-gray-900 focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                                                />
+                                                <span className="text-xs font-bold text-gray-500">Dakika öncesine kadar iptal edilebilir.</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
 
-                    <div className="rounded-xl border border-border bg-card p-6 shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
-                        <div className="flex items-center gap-2 mb-5"><Lock className="size-5 text-primary" /><h2 className="text-lg font-semibold text-foreground">Sifre Degistir</h2></div>
-                        <div className="flex flex-col gap-4 max-w-md">
-                            <div className="flex flex-col gap-1.5">
-                                <label className="text-sm font-medium text-foreground">Yeni Sifre</label>
-                                <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className={inputClass} placeholder="En az 8 karakter" />
+                                <div className="flex justify-end">
+                                    <RxButton onClick={handleSaveAppointment} disabled={savingAppt} className="h-14 px-12 rounded-[20px] shadow-lg shadow-primary/20 font-black uppercase tracking-widest text-xs transition-all hover:scale-[1.02]">
+                                        {savingAppt ? <Loader2 className="size-5 animate-spin" /> : <Save className="size-5 mr-1" />} Ayarları Kaydet
+                                    </RxButton>
+                                </div>
                             </div>
-                            <div className="flex flex-col gap-1.5">
-                                <label className="text-sm font-medium text-foreground">Sifre Tekrar</label>
-                                <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className={inputClass} placeholder="Sifrenizi tekrar girin" />
+                        )}
+
+                        {/* Profile Tab */}
+                        {activeTab === "profile" && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl">
+                                <div className="flex flex-col gap-6">
+                                    <div className="bg-white rounded-[32px] border border-gray-100 p-8 shadow-sm h-full">
+                                        <h2 className="text-xl font-black text-gray-900 mb-6 flex items-center gap-2">
+                                            <User className="size-5 text-primary" />
+                                            Profil Bilgileri
+                                        </h2>
+                                        <div className="space-y-6">
+                                            <div className="flex flex-col gap-2">
+                                                <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Ad Soyad</label>
+                                                <input type="text" value={profileName} onChange={e => setProfileName(e.target.value)} className="h-12 rounded-2xl border border-gray-100 bg-gray-50/30 px-4 text-sm font-bold text-gray-900 focus:ring-2 focus:ring-primary/20 outline-none transition-all" />
+                                            </div>
+                                            <div className="flex flex-col gap-2">
+                                                <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Telefon</label>
+                                                <input type="tel" value={profilePhone} onChange={e => setProfilePhone(e.target.value)} className="h-12 rounded-2xl border border-gray-100 bg-gray-50/30 px-4 text-sm font-bold text-gray-900 focus:ring-2 focus:ring-primary/20 outline-none transition-all" />
+                                            </div>
+                                            <div className="flex flex-col gap-2">
+                                                <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">E-posta</label>
+                                                <div className="h-12 rounded-2xl border border-gray-100 bg-gray-100/50 px-4 flex items-center text-sm font-bold text-gray-500 cursor-not-allowed">
+                                                    {profileEmail}
+                                                </div>
+                                                <p className="text-[10px] font-bold text-gray-400 italic pl-1">E-posta adresi değiştirilemez.</p>
+                                            </div>
+                                            <RxButton onClick={handleSaveProfile} disabled={savingProfile} className="w-full h-12 rounded-2xl shadow-md font-black uppercase tracking-widest text-[11px] transition-all mt-4">
+                                                {savingProfile ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4 mr-1" />} Profili Güncelle
+                                            </RxButton>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-col gap-6">
+                                    <div className="bg-white rounded-[32px] border border-gray-100 p-8 shadow-sm h-full">
+                                        <h2 className="text-xl font-black text-gray-900 mb-6 flex items-center gap-2">
+                                            <Lock className="size-5 text-primary" />
+                                            Güvenlik
+                                        </h2>
+                                        <div className="space-y-6 text-gray-900">
+                                            <div className="flex flex-col gap-2">
+                                                <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Yeni Şifre</label>
+                                                <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="h-12 rounded-2xl border border-gray-100 bg-gray-50/30 px-4 text-sm font-bold text-gray-900 focus:ring-2 focus:ring-primary/20 outline-none transition-all" placeholder="••••••••" />
+                                            </div>
+                                            <div className="flex flex-col gap-2">
+                                                <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Şifre Tekrar</label>
+                                                <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="h-12 rounded-2xl border border-gray-100 bg-gray-50/30 px-4 text-sm font-bold text-gray-900 focus:ring-2 focus:ring-primary/20 outline-none transition-all" placeholder="••••••••" />
+                                            </div>
+                                            <div className="p-4 bg-orange-50 rounded-2xl border border-orange-100">
+                                                <p className="text-[11px] font-bold text-orange-700 leading-relaxed uppercase tracking-tighter">
+                                                    Şifreniz en az 8 karakter olmalı ve kolay tahmin edilemez bir kombinasyon seçmelisiniz.
+                                                </p>
+                                            </div>
+                                            <RxButton onClick={handleChangePassword} disabled={changingPw} className="w-full h-12 rounded-2xl shadow-md font-black uppercase tracking-widest text-[11px] transition-all bg-gray-900 hover:bg-gray-800 text-white mt-4">
+                                                {changingPw ? <Loader2 className="size-4 animate-spin" /> : <Lock className="size-4 mr-1" />} Şifreyi Değiştir
+                                            </RxButton>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <RxButton onClick={handleChangePassword} disabled={changingPw} className="w-fit mt-2">
-                                {changingPw ? <Loader2 className="size-4 animate-spin" /> : <Lock className="size-4" />} Sifreyi Degistir
-                            </RxButton>
-                        </div>
-                    </div>
-                </div>
-            )}
-            {activeTab === "hours" && businessId && (
-                <BusinessHoursTab businessId={businessId} />
-            )}
+                        )}
+                        {activeTab === "hours" && businessId && (
+                            <BusinessHoursTab businessId={businessId} />
+                        )}
 
-            {activeTab === "closed" && businessId && (
-                <ClosedDatesTab businessId={businessId} />
-            )}
+                        {activeTab === "closed" && businessId && (
+                            <ClosedDatesTab businessId={businessId} />
+                        )}
 
-            {activeTab === "announcements" && businessId && (
-                <AnnouncementsTab businessId={businessId} />
-            )}
+                        {activeTab === "announcements" && businessId && (
+                            <AnnouncementsTab businessId={businessId} />
+                        )}
+                    </motion.div>
+                </AnimatePresence>
+            </div>
         </div>
     )
 }
@@ -503,73 +610,78 @@ function ClosedDatesTab({ businessId }: { businessId: string }) {
     }
 
     return (
-        <div className="rounded-xl border border-border bg-card p-6 shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
-            <div className="mb-5">
-                <h2 className="text-lg font-semibold text-foreground">İşletme Kapalı Günleri</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Belirlediğiniz günlerde müşterilerin randevu alması engellenir.</p>
-            </div>
+        <div className="flex flex-col gap-8 max-w-4xl">
+            <div className="bg-white rounded-[32px] border border-gray-100 p-8 shadow-sm">
+                <h2 className="text-xl font-black text-gray-900 mb-6 flex items-center gap-2">
+                    <CalendarOff className="size-5 text-primary" />
+                    İşletme Kapalı Günleri
+                </h2>
 
-            {/* Add form */}
-            <div className="flex items-end gap-3 flex-wrap mb-6 p-4 bg-muted/40 rounded-lg border border-dashed border-border">
-                <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-medium text-muted-foreground">Tarih</label>
-                    <input
-                        type="date" value={form.date} min={today}
-                        onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
-                        className="h-9 rounded-md border border-input bg-card px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                    />
-                </div>
-                <div className="flex flex-col gap-1.5 flex-1 min-w-[160px]">
-                    <label className="text-xs font-medium text-muted-foreground">Açıklama (Opsiyonel)</label>
-                    <input
-                        type="text" value={form.reason}
-                        onChange={e => setForm(f => ({ ...f, reason: e.target.value }))}
-                        placeholder="Örn: Ulusal tatil, tadilat..."
-                        className="h-9 rounded-md border border-input bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                    />
-                </div>
-                <RxButton size="sm" onClick={handleAdd} loading={saving}>
-                    <Plus className="size-3.5" /> Ekle
-                </RxButton>
-            </div>
-
-            {/* List */}
-            {loading ? (
-                <div className="flex justify-center py-8"><Loader2 className="size-5 animate-spin text-primary" /></div>
-            ) : dates.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-border bg-muted/20 py-10 text-center">
-                    <CalendarOff className="size-8 mx-auto text-muted-foreground/40 mb-2" />
-                    <p className="text-sm text-muted-foreground">Henüz kapalı gün tanımlanmadı.</p>
-                </div>
-            ) : (
-                <div className="flex flex-col gap-2">
-                    {dates.map(d => (
-                        <div key={d.id} className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3">
-                            <CalendarOff className="size-4 text-muted-foreground shrink-0" />
-                            <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-foreground">
-                                    {new Date(d.date + "T00:00:00").toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-                                </p>
-                                {d.reason && <p className="text-xs text-muted-foreground mt-0.5">{d.reason}</p>}
-                            </div>
-                            <button
-                                onClick={() => handleDelete(d.id)}
-                                disabled={deletingId === d.id}
-                                className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-badge-red-bg rounded-md transition-colors"
-                            >
-                                {deletingId === d.id ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
-                            </button>
+                <div className="bg-gray-50/50 rounded-[24px] p-6 border border-gray-100 mb-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                        <div className="flex flex-col gap-2">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Tarih Seçimi</label>
+                            <input
+                                type="date"
+                                value={form.date}
+                                min={today}
+                                onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
+                                className="h-12 rounded-2xl border border-gray-100 bg-white px-4 text-sm font-bold text-gray-900 focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                            />
                         </div>
-                    ))}
+                        <div className="flex flex-col gap-2">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Açıklama (Opsiyonel)</label>
+                            <input
+                                type="text"
+                                value={form.reason}
+                                onChange={e => setForm(f => ({ ...f, reason: e.target.value }))}
+                                placeholder="Örn: Tatil, Tadilat..."
+                                className="h-12 rounded-2xl border border-gray-100 bg-white px-4 text-sm font-bold text-gray-900 focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                            />
+                        </div>
+                    </div>
+                    <RxButton onClick={handleAdd} loading={saving} className="w-full mt-4 h-12 rounded-2xl shadow-md font-black uppercase tracking-widest text-[11px]">
+                        <Plus className="size-4 mr-2" /> Listeye Ekle
+                    </RxButton>
                 </div>
-            )}
+
+                <div className="space-y-3">
+                    {loading ? (
+                        <div className="flex justify-center py-12"><Loader2 className="size-8 animate-spin text-primary/30" /></div>
+                    ) : dates.length === 0 ? (
+                        <div className="bg-white rounded-[24px] border border-dashed border-gray-200 py-12 text-center">
+                            <Calendar className="size-10 mx-auto text-gray-200 mb-3" />
+                            <p className="text-sm font-bold text-gray-400">Henüz kapalı bir gün tanımlanmadı.</p>
+                        </div>
+                    ) : (
+                        dates.map(d => (
+                            <div key={d.id} className="group flex items-center justify-between p-4 rounded-[20px] border border-gray-100 hover:border-gray-200 hover:shadow-sm transition-all bg-white">
+                                <div className="flex items-center gap-4">
+                                    <div className="size-10 rounded-xl bg-orange-50 flex items-center justify-center text-orange-500">
+                                        <CalendarOff className="size-5" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-black text-gray-900">
+                                            {new Date(d.date + "T00:00:00").toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                                        </p>
+                                        {d.reason && <p className="text-[11px] font-bold text-gray-400 uppercase tracking-tight">{d.reason}</p>}
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => handleDelete(d.id)}
+                                    disabled={deletingId === d.id}
+                                    className="size-10 flex items-center justify-center rounded-xl text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all"
+                                >
+                                    {deletingId === d.id ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                                </button>
+                            </div>
+                        ))
+                    )}
+                </div>
+            </div>
         </div>
     )
 }
-
-// ─── Announcements Tab ───────────────────────────────────────────────────────
-
-import { getAllAnnouncementsAction, upsertAnnouncementAction, deleteAnnouncementAction, type BusinessAnnouncement } from "@/app/actions/announcement.actions"
 
 function AnnouncementsTab({ businessId }: { businessId: string }) {
     const [announcements, setAnnouncements] = useState<BusinessAnnouncement[]>([])
@@ -602,64 +714,72 @@ function AnnouncementsTab({ businessId }: { businessId: string }) {
     }
 
     return (
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-8 max-w-5xl">
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-lg font-semibold text-foreground">Duyuru ve Kampanyalar</h2>
-                    <p className="text-xs text-muted-foreground mt-0.5">Randevu sayfasında müşterilerinize göstermek istediğiniz duyuruları yönetin.</p>
+                    <h2 className="text-2xl font-black text-gray-900 flex items-center gap-3">
+                        <Sparkles className="size-6 text-primary" />
+                        Duyuru ve Kampanyalar
+                    </h2>
+                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mt-1">Müşterilerinize özel teklifler ve duyurular yayınlayın</p>
                 </div>
-                <RxButton variant="primary" onClick={() => { setEditingItem(null); setIsModalOpen(true) }} size="sm">
-                    <Plus className="size-4 mr-1" /> Yeni Duyuru
+                <RxButton onClick={() => { setEditingItem(null); setIsModalOpen(true) }} className="h-12 px-6 rounded-2xl shadow-lg shadow-primary/20 font-black uppercase tracking-widest text-[11px]">
+                    <Plus className="size-4 mr-2" /> Yeni Duyuru
                 </RxButton>
             </div>
 
-            <div className="grid grid-cols-1 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {loading ? (
-                    <div className="flex justify-center py-12"><Loader2 className="size-6 animate-spin text-primary" /></div>
+                    <div className="col-span-full flex justify-center py-20"><Loader2 className="size-8 animate-spin text-primary/30" /></div>
                 ) : announcements.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-border bg-muted/20 py-16 text-center">
-                        <QrCode className="size-10 mx-auto text-muted-foreground/30 mb-3" />
-                        <p className="text-sm text-muted-foreground">Henüz duyuru veya kampanya eklemediniz.</p>
+                    <div className="col-span-full bg-white rounded-[40px] border border-dashed border-gray-100 py-24 text-center">
+                        <div className="size-16 rounded-3xl bg-gray-50 flex items-center justify-center mx-auto mb-6">
+                            <TrendingUp className="size-8 text-gray-200" />
+                        </div>
+                        <p className="text-sm font-bold text-gray-400">Henüz yayınlanmış bir duyuru bulunmuyor.</p>
                     </div>
                 ) : (
                     announcements.map((item) => (
                         <div key={item.id} className={cn(
-                            "group relative overflow-hidden rounded-2xl border bg-card p-5 transition-all hover:shadow-md",
-                            item.is_active ? "border-border" : "border-dashed border-border/60 opacity-60 bg-muted/30"
+                            "group relative bg-white rounded-[32px] border transition-all duration-300 overflow-hidden",
+                            item.is_active ? "border-gray-100 shadow-sm hover:shadow-md" : "border-dashed border-gray-100 opacity-60 grayscale"
                         )}>
-                            <div className="flex items-start justify-between gap-4">
-                                <div className="flex-1">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <h3 className="font-semibold text-foreground">{item.title}</h3>
-                                        {!item.is_active && <RxBadge variant="warning" className="text-[10px] px-1.5 py-0">Taslak</RxBadge>}
+                            <div className="p-8">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center gap-2">
+                                        <div className={cn(
+                                            "size-2 rounded-full",
+                                            item.is_active ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" : "bg-gray-300"
+                                        )} />
+                                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                            {item.is_active ? "Yayında" : "Taslak"}
+                                        </span>
                                     </div>
-                                    <p className="text-sm text-muted-foreground line-clamp-2">{item.content}</p>
-
-                                    <div className="flex items-center gap-4 mt-3">
-                                        {(item.start_date || item.end_date) && (
-                                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                                <Calendar className="size-3" />
-                                                <span>
-                                                    {item.start_date ? new Date(item.start_date).toLocaleDateString("tr-TR") : "..."}
-                                                    {" - "}
-                                                    {item.end_date ? new Date(item.end_date).toLocaleDateString("tr-TR") : "..."}
-                                                </span>
-                                            </div>
-                                        )}
-                                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                            <TrendingUp className="size-3" />
-                                            <span>Öncelik: {item.priority}</span>
-                                        </div>
+                                    <div className="flex items-center gap-1">
+                                        <button onClick={() => { setEditingItem(item); setIsModalOpen(true) }} className="size-9 flex items-center justify-center rounded-xl hover:bg-gray-50 text-gray-400 hover:text-gray-900 transition-all">
+                                            <Edit2 className="size-4" />
+                                        </button>
+                                        <button onClick={() => handleDelete(item.id)} className="size-9 flex items-center justify-center rounded-xl hover:bg-red-50 text-gray-400 hover:text-red-500 transition-all">
+                                            <Trash2 className="size-4" />
+                                        </button>
                                     </div>
                                 </div>
 
-                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button onClick={() => { setEditingItem(item); setIsModalOpen(true) }} className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors" title="Düzenle">
-                                        <Edit2 className="size-4" />
-                                    </button>
-                                    <button onClick={() => handleDelete(item.id)} className="p-2 rounded-lg hover:bg-destructive/10 hover:text-destructive text-muted-foreground transition-colors" title="Sil">
-                                        <Trash2 className="size-4" />
-                                    </button>
+                                <h3 className="text-lg font-black text-gray-900 mb-2 leading-tight">{item.title}</h3>
+                                <p className="text-sm font-bold text-gray-500 line-clamp-2 mb-4">{item.content}</p>
+
+                                <div className="flex items-center gap-4 pt-4 border-t border-gray-50">
+                                    <div className="flex items-center gap-2">
+                                        <div className="size-8 rounded-lg bg-gray-50 flex items-center justify-center">
+                                            <Calendar className="size-3.5 text-gray-400" />
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-tighter leading-none">Geçerlilik</span>
+                                            <span className="text-[11px] font-bold text-gray-700">
+                                                {item.start_date ? new Date(item.start_date).toLocaleDateString("tr-TR") : "..."} - {item.end_date ? new Date(item.end_date).toLocaleDateString("tr-TR") : "..."}
+                                            </span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -696,8 +816,6 @@ function AnnouncementModal({ open, onClose, businessId, item, onSaved }: { open:
         if (!form.title) { toast.error("Başlık zorunludur."); return }
 
         setLoading(true)
-        console.log("Saving Announcement:", { ...item, ...form, business_id: businessId })
-
         const payload: any = {
             ...form,
             business_id: businessId,
@@ -705,9 +823,7 @@ function AnnouncementModal({ open, onClose, businessId, item, onSaved }: { open:
             end_date: form.end_date ? new Date(form.end_date).toISOString() : null
         }
 
-        if (item?.id) {
-            payload.id = item.id
-        }
+        if (item?.id) payload.id = item.id
 
         const res = await upsertAnnouncementAction(payload)
         setLoading(false)
@@ -716,76 +832,80 @@ function AnnouncementModal({ open, onClose, businessId, item, onSaved }: { open:
             onSaved()
             onClose()
         } else {
-            console.error("Save Error:", res.error)
-            toast.error("Kaydedilemedi: " + res.error)
+            toast.error("Hata: " + res.error)
         }
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/30 backdrop-blur-sm p-4">
-            <div className="w-full max-w-lg bg-card rounded-[32px] shadow-2xl relative overflow-hidden border border-border">
-                <div className="flex items-center justify-between border-b border-border px-8 py-5">
-                    <h2 className="text-xl font-bold text-foreground">{item ? "Duyuruyu Düzenle" : "Yeni Duyuru"}</h2>
-                    <button onClick={onClose} className="p-2 rounded-xl hover:bg-muted text-muted-foreground transition-colors"><X className="size-5" /></button>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-gray-900/40 backdrop-blur-md"
+                onClick={onClose}
+            />
+            <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="relative w-full max-w-lg bg-white rounded-[40px] shadow-2xl overflow-hidden border border-gray-100"
+            >
+                <div className="px-8 py-6 border-b border-gray-50 flex items-center justify-between">
+                    <h3 className="text-xl font-black text-gray-900">{item ? "Duyuruyu Düzenle" : "Yeni Duyuru"}</h3>
+                    <button onClick={onClose} className="size-10 flex items-center justify-center rounded-2xl bg-gray-50 text-gray-400 hover:text-gray-900 transition-all">
+                        <X className="size-5" />
+                    </button>
                 </div>
-                <form onSubmit={handleSave} className="p-8 flex flex-col gap-5">
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-sm font-bold text-muted-foreground">Başlık *</label>
-                        <input required type="text" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} className="h-12 rounded-2xl border border-input bg-card px-4 text-sm font-medium focus:ring-2 focus:ring-primary/20 outline-none transition-all" placeholder="Kampanya İsmi veya Duyuru Başlığı" />
+
+                <form onSubmit={handleSave} className="p-8 space-y-6">
+                    <div className="flex flex-col gap-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Başlık</label>
+                        <input required type="text" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} className="h-12 rounded-2xl border border-gray-100 bg-gray-50/30 px-4 text-sm font-bold text-gray-900 focus:ring-2 focus:ring-primary/20 outline-none transition-all" />
                     </div>
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-sm font-bold text-muted-foreground">İçerik</label>
-                        <textarea rows={3} value={form.content} onChange={e => setForm(f => ({ ...f, content: e.target.value }))} className="rounded-2xl border border-input bg-card px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20 outline-none resize-none transition-all" placeholder="Müşterilere verilecek detaylı bilgi..." />
+
+                    <div className="flex flex-col gap-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">İçerik</label>
+                        <textarea rows={3} value={form.content} onChange={e => setForm(f => ({ ...f, content: e.target.value }))} className="rounded-2xl border border-gray-100 bg-gray-50/30 px-4 py-3 text-sm font-bold text-gray-900 focus:ring-2 focus:ring-primary/20 outline-none transition-all resize-none" />
                     </div>
+
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-sm font-bold text-muted-foreground">Başlangıç</label>
-                            <input type="date" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} className="h-12 rounded-2xl border border-input bg-card px-4 text-sm font-medium focus:ring-2 focus:ring-primary/20 outline-none transition-all" />
+                        <div className="flex flex-col gap-2">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Başlangıç</label>
+                            <input type="date" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} className="h-12 rounded-2xl border border-gray-100 bg-gray-50/30 px-4 text-sm font-bold text-gray-900 focus:ring-2 focus:ring-primary/20 outline-none transition-all" />
                         </div>
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-sm font-bold text-muted-foreground">Bitiş</label>
-                            <input type="date" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} className="h-12 rounded-2xl border border-input bg-card px-4 text-sm font-medium focus:ring-2 focus:ring-primary/20 outline-none transition-all" />
-                        </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-sm font-bold text-muted-foreground">Öncelik (0-100)</label>
-                            <input type="number" value={form.priority} onChange={e => setForm(f => ({ ...f, priority: Number(e.target.value) }))} className="h-12 rounded-2xl border border-input bg-card px-4 text-sm font-medium focus:ring-2 focus:ring-primary/20 outline-none transition-all" />
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-sm font-bold text-muted-foreground">Durum</label>
-                            <div className="flex items-center gap-3 h-12">
-                                <button
-                                    type="button"
-                                    onClick={() => setForm(f => ({ ...f, is_active: !f.is_active }))}
-                                    className={cn(
-                                        "relative h-7 w-12 rounded-full transition-all duration-300",
-                                        form.is_active ? "bg-primary shadow-[0_0_12px_rgba(var(--primary),0.3)]" : "bg-muted-foreground/30"
-                                    )}
-                                >
-                                    <div className={cn(
-                                        "absolute top-1 size-5 rounded-full bg-white shadow-lg transition-all duration-300",
-                                        form.is_active ? "left-6" : "left-1"
-                                    )} />
-                                </button>
-                                <span className={cn("text-sm font-bold tracking-tight", form.is_active ? "text-primary" : "text-muted-foreground")}>
-                                    {form.is_active ? "Aktif" : "Taslak"}
-                                </span>
-                            </div>
+                        <div className="flex flex-col gap-2">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Bitiş</label>
+                            <input type="date" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} className="h-12 rounded-2xl border border-gray-100 bg-gray-50/30 px-4 text-sm font-bold text-gray-900 focus:ring-2 focus:ring-primary/20 outline-none transition-all" />
                         </div>
                     </div>
 
-                    <div className="flex justify-end gap-3 mt-4 border-t border-border pt-4">
-                        <RxButton type="button" variant="ghost" onClick={onClose}>Vazgeç</RxButton>
-                        <RxButton type="submit" variant="primary" loading={loading} className="px-8">
-                            <Save className="size-4 mr-2" /> Kaydet
+                    <div className="flex items-center justify-between p-4 bg-gray-50/50 rounded-2xl border border-gray-100">
+                        <div className="flex flex-col gap-1">
+                            <span className="text-[10px] font-black text-gray-900 uppercase tracking-widest leading-none">Yayında mı?</span>
+                            <span className="text-[11px] font-bold text-gray-400">Duyuruyu hemen aktif et</span>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setForm(f => ({ ...f, is_active: !f.is_active }))}
+                            className={cn(
+                                "relative h-7 w-12 rounded-full transition-all duration-300",
+                                form.is_active ? "bg-primary" : "bg-gray-200"
+                            )}
+                        >
+                            <div className={cn(
+                                "absolute top-1 size-5 rounded-full bg-white shadow-lg transition-all duration-300",
+                                form.is_active ? "left-6" : "left-1"
+                            )} />
+                        </button>
+                    </div>
+
+                    <div className="flex gap-3 pt-4">
+                        <RxButton type="button" variant="ghost" onClick={onClose} className="flex-1 h-12 rounded-2xl font-black uppercase tracking-widest text-[11px]">Vazgeç</RxButton>
+                        <RxButton type="submit" loading={loading} className="flex-[2] h-12 rounded-2xl shadow-lg shadow-primary/20 font-black uppercase tracking-widest text-[11px]">
+                            <Save className="size-4 mr-2" /> Duyuruyu Kaydet
                         </RxButton>
                     </div>
                 </form>
-            </div>
+            </motion.div>
         </div>
     )
 }
-
-import { TrendingUp, Edit2, X, Loader2, Save, Lock, User, Building2, Calendar, RefreshCw, Copy, QrCode, Download, Clock, CalendarOff, Plus, Trash2, ChevronDown } from "lucide-react"
-import QRCode from "react-qr-code"

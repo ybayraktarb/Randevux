@@ -15,8 +15,16 @@ import {
     ArrowRight,
     Info,
     AlertCircle,
-    Star
+    Star,
+    Loader2,
+    Sparkles,
+    Ticket,
+    ShieldCheck,
+    Zap,
+    TrendingUp,
+    QrCode
 } from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
 import { DateCarousel } from "./DateCarousel"
 import { TimeSlotPicker, type TimeSlot } from "./TimeSlotPicker"
 import { BookingSummary } from "./BookingSummary"
@@ -26,6 +34,7 @@ import { format } from "date-fns"
 import { toast } from "sonner"
 import { useRouter, useSearchParams } from "next/navigation"
 import { getFamilyProfilesAction } from "@/app/actions/family.actions"
+import { tr } from "date-fns/locale"
 import { getActiveAnnouncementsAction, type BusinessAnnouncement } from "@/app/actions/announcement.actions"
 
 interface Service {
@@ -241,7 +250,18 @@ export function BookingWizard({
         }
     }
 
+    const steps: { id: Step; label: string }[] = [
+        { id: "profile", label: "Müşteri" },
+        { id: "services", label: "Hizmet" },
+        { id: "staff", label: "Uzman" },
+        { id: "datetime", label: "Zaman" },
+        { id: "confirm", label: "Onay" }
+    ]
+
+    const currentStepIndex = steps.findIndex(s => s.id === step)
+
     // --- Step Components ---
+
 
     const handleProfileComplete = () => {
         if (selectedServices.length > 0) {
@@ -574,55 +594,93 @@ export function BookingWizard({
     )
 
     const ConfirmStep = () => (
-        <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
-            <div className="flex items-center gap-3 mb-6">
-                <div className="size-12 rounded-2xl bg-green-500/10 flex items-center justify-center">
-                    <Info className="size-6 text-green-500" />
+        <div className="space-y-12 animate-in fade-in slide-in-from-right-4 duration-500">
+            <div className="flex items-center gap-4 mb-8">
+                <div className="size-16 rounded-[24px] bg-primary/10 flex items-center justify-center shadow-inner">
+                    <Ticket className="size-8 text-primary" />
                 </div>
                 <div>
-                    <h2 className="text-2xl font-black">Son Kontrol</h2>
-                    <p className="text-muted-foreground text-sm font-medium">Lütfen bilgileri onaylayın</p>
+                    <h2 className="text-3xl font-black tracking-tighter">Son Onay</h2>
+                    <p className="text-gray-400 text-sm font-black uppercase tracking-widest">Randevu DetaylarInIz HazIr</p>
                 </div>
             </div>
 
-            <div className="space-y-6">
-                <div className="bg-muted/30 rounded-3xl p-6 border border-border">
-                    <h3 className="font-bold mb-4 flex items-center gap-2">
-                        <span className="size-2 rounded-full bg-primary" />
-                        Personel Notunuz
-                    </h3>
-                    <textarea
-                        value={customerNote}
-                        onChange={(e) => setCustomerNote(e.target.value)}
-                        placeholder="Eklemek istediğiniz bir not var mı? (Örn: Alerjim var, saçım çok uzun vb.)"
-                        className="w-full min-h-[120px] bg-background rounded-2xl border border-border p-4 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                    />
-                </div>
-
-                <div className="flex items-center gap-3 p-4 bg-primary/5 rounded-2xl border border-primary/10">
-                    <div className="size-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                        <Info className="size-5 text-primary" />
+            <div className="relative group">
+                {/* 🎟️ Premium Digital Ticket Design */}
+                <div className="bg-[#F8FAFC] border-2 border-dashed border-gray-200 rounded-[48px] p-10 md:p-16 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-12 opacity-[0.03] group-hover:opacity-[0.07] transition-opacity">
+                        <Sparkles className="size-48 text-primary rotate-12" />
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                        Randevunuzun süresi seçtiğiniz hizmetlere göre otomatik hesaplanmıştır.
-                        Lütfen zamanında gelmeye özen gösteriniz.
-                    </p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-16 relative z-10">
+                        <div className="space-y-10">
+                            <div>
+                                <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em] mb-4">Seçilen Hizmetler</p>
+                                <div className="space-y-4">
+                                    {chosenServices.map(s => (
+                                        <div key={s.id} className="flex items-center gap-3">
+                                            <div className="size-2 rounded-full bg-primary" />
+                                            <span className="text-lg font-bold text-gray-800">{s.name}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-6">
+                                <RxAvatar name={chosenStaffName || ""} size="lg" className="size-20 rounded-[28px] shadow-2xl shadow-primary/10 border-4 border-white" />
+                                <div>
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] mb-1">Uzman</p>
+                                    <p className="text-xl font-black text-gray-900">{chosenStaffName}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-10">
+                            <div className="bg-white p-8 rounded-[36px] shadow-xl shadow-gray-200/50 border border-gray-50 flex items-center gap-6">
+                                <div className="size-16 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center">
+                                    <CalendarDays className="size-8" />
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none">Tarih & Saat</p>
+                                    <p className="text-lg font-black text-gray-900">{format(selectedDate, "d MMMM yyyy", { locale: tr })}</p>
+                                    <p className="text-2xl font-black text-primary leading-none">{selectedTime}</p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] ml-1">İşletme Notu Ekle</p>
+                                <textarea
+                                    value={customerNote}
+                                    onChange={(e) => setCustomerNote(e.target.value)}
+                                    placeholder="Eklemek istediğiniz özel bir istek var mı?..."
+                                    className="w-full min-h-[140px] bg-white rounded-[32px] border-2 border-gray-100 p-6 text-sm font-bold text-gray-800 focus:border-primary/30 focus:ring-4 focus:ring-primary/5 outline-none transition-all placeholder:text-gray-300 resize-none shadow-sm"
+                                />
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div className="pt-8 flex justify-between">
-                <RxButton variant="ghost" onClick={() => setStep("datetime")} className="rounded-full px-8 h-14 font-bold gap-2">
-                    <ChevronLeft className="size-5" /> Geri
+            <div className="flex items-center gap-4 p-6 bg-blue-50/50 rounded-[32px] border border-blue-100/50">
+                <Zap className="size-6 text-blue-500 shrink-0" />
+                <p className="text-xs text-blue-700/80 font-bold leading-relaxed">
+                    Randevuyu tamamladığınızda anında onay bildirimi alacaksınız. Unutmayın, randevuya zamanında gelmeniz hizmet kalitemiz için önemlidir.
+                </p>
+            </div>
+
+            <div className="pt-8 flex justify-between items-center">
+                <RxButton variant="ghost" onClick={() => setStep("datetime")} className="rounded-2xl px-10 h-16 font-black uppercase tracking-widest text-xs hover:bg-gray-100 transition-colors">
+                    <ChevronLeft className="size-5 mr-2" /> Geri Dön
                 </RxButton>
                 <RxButton
                     disabled={isSubmitting}
                     onClick={handleCreateBooking}
-                    className="rounded-full px-12 h-14 text-lg font-bold gap-2 shadow-2xl shadow-primary/40 bg-primary hover:bg-primary-dark"
+                    className="rounded-[24px] px-14 h-20 text-sm font-black uppercase tracking-[0.2em] gap-4 shadow-2xl shadow-primary/30 bg-primary hover:bg-primary/90 transition-all hover:scale-[1.02] active:scale-95 flex items-center"
                 >
                     {isSubmitting ? (
-                        <><Loader2 className="size-5 animate-spin" /> İşleniyor...</>
+                        <><Loader2 className="size-6 animate-spin" /> İŞLENİYOR...</>
                     ) : (
-                        <>Randevuyu Tamamla <CheckCircle2 className="size-5" /></>
+                        <>ONAYLA VE BİTİR <ArrowRight className="size-6" /></>
                     )}
                 </RxButton>
             </div>
@@ -659,56 +717,96 @@ export function BookingWizard({
     )
 
     return (
-        <div className="container max-w-6xl mx-auto py-10 px-4 md:px-0">
+        <div className="min-h-screen bg-[#FDFDFD] pb-32 selection:bg-primary/10">
             {step !== "success" && (
-                <div className="flex flex-col lg:flex-row gap-10 items-start">
-                    {/* Main Wizard Area */}
-                    <div className="flex-1 w-full bg-card rounded-[40px] border border-border/50 p-8 md:p-12 shadow-2xl shadow-foreground/5 min-h-[600px]">
-                        {/* Header / Info */}
-                        <div className="mb-8 flex justify-between items-center bg-muted/30 p-4 rounded-3xl md:hidden">
-                            <span className="font-bold text-primary">{businessName}</span>
-                            <span className="text-xs text-muted-foreground uppercase font-black tracking-widest">{step}</span>
+                <div className="max-w-7xl mx-auto px-6 py-12">
+                    {/* 🎓 Premium Progress Bar */}
+                    <div className="mb-16">
+                        <div className="flex items-center justify-between mb-8 px-2">
+                            {steps.map((s, idx) => (
+                                <div key={s.id} className="flex flex-col items-center gap-3 group relative">
+                                    <div className={cn(
+                                        "size-12 rounded-2xl flex items-center justify-center transition-all duration-500 font-black text-sm",
+                                        idx < currentStepIndex ? "bg-green-500 text-white shadow-lg shadow-green-500/20" :
+                                            idx === currentStepIndex ? "bg-primary text-white shadow-xl shadow-primary/20 scale-110" :
+                                                "bg-gray-100 text-gray-400 group-hover:bg-gray-200"
+                                    )}>
+                                        {idx < currentStepIndex ? <CheckCircle2 className="size-5" /> : idx + 1}
+                                    </div>
+                                    <span className={cn(
+                                        "text-[10px] font-black uppercase tracking-[0.2em] transition-colors",
+                                        idx <= currentStepIndex ? "text-gray-900" : "text-gray-300"
+                                    )}>{s.label}</span>
+
+                                    {idx < steps.length - 1 && (
+                                        <div className="absolute top-6 left-[calc(100%+8px)] w-[calc(100vw/5-80px)] hidden lg:block h-0.5 bg-gray-100 overflow-hidden">
+                                            <motion.div
+                                                initial={{ width: 0 }}
+                                                animate={{ width: idx < currentStepIndex ? "100%" : "0%" }}
+                                                className="h-full bg-green-500"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
                         </div>
-
-                        {/* Announcements Section */}
-                        {announcements.length > 0 && step !== "confirm" && (
-                            <div className="mb-10">
-                                <AnnouncementBanner announcements={announcements} />
-                            </div>
-                        )}
-
-                        {step === "profile" && <ProfileStep />}
-                        {step === "services" && <ServicesStep />}
-                        {step === "staff" && <StaffStep />}
-                        {step === "datetime" && <DateTimeStep />}
-                        {step === "confirm" && <ConfirmStep />}
                     </div>
 
-                    {/* Sticky Summary Area */}
-                    <div className="w-full lg:w-[380px] shrink-0">
-                        <BookingSummary
-                            businessName={businessName}
-                            services={chosenServices.map(s => ({
-                                name: s.name,
-                                duration: s.base_duration_minutes,
-                                price: Number(s.base_price)
-                            }))}
-                            staffName={chosenStaffName}
-                            date={selectedDate}
-                            time={selectedTime || undefined}
-                            totalPrice={totalPrice}
-                            totalDuration={totalDuration}
-                        />
+                    <div className="flex flex-col lg:grid lg:grid-cols-12 gap-16 items-start">
+                        {/* Main Step Area */}
+                        <div className="lg:col-span-8 w-full">
+                            <AnimatePresence mode="wait">
+                                <motion.div
+                                    key={step}
+                                    initial={{ opacity: 0, x: 20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, x: -20 }}
+                                    transition={{ duration: 0.4, ease: "circOut" }}
+                                    className="bg-white rounded-[48px] border border-gray-50 p-10 md:p-16 shadow-2xl shadow-gray-200/40 min-h-[500px]"
+                                >
+                                    {/* Announcements Section */}
+                                    {announcements.length > 0 && step !== "confirm" && (
+                                        <div className="mb-12">
+                                            <AnnouncementBanner announcements={announcements} />
+                                        </div>
+                                    )}
 
-                        <div className="mt-8 p-6 bg-muted/40 rounded-3xl border border-border/50">
-                            <h4 className="font-bold flex items-center gap-2 mb-3">
-                                <Info className="size-4 text-muted-foreground" />
-                                İptal Politikası
-                            </h4>
-                            <p className="text-xs text-muted-foreground leading-relaxed">
-                                İşletmemiz randevuya son 24 saat kalana kadar ücretsiz iptale izin vermektedir.
-                                Bu süreden sonraki iptallerde işletme politikası uygulanabilir.
-                            </p>
+                                    {step === "profile" && <ProfileStep />}
+                                    {step === "services" && <ServicesStep />}
+                                    {step === "staff" && <StaffStep />}
+                                    {step === "datetime" && <DateTimeStep />}
+                                    {step === "confirm" && <ConfirmStep />}
+                                </motion.div>
+                            </AnimatePresence>
+                        </div>
+
+                        {/* Sidebar Summary Area */}
+                        <div className="lg:col-span-4 w-full sticky top-32">
+                            <div className="space-y-8">
+                                <BookingSummary
+                                    businessName={businessName}
+                                    services={chosenServices.map(s => ({
+                                        name: s.name,
+                                        duration: s.base_duration_minutes,
+                                        price: Number(s.base_price)
+                                    }))}
+                                    staffName={chosenStaffName}
+                                    date={selectedDate}
+                                    time={selectedTime || undefined}
+                                    totalPrice={totalPrice}
+                                    totalDuration={totalDuration}
+                                />
+
+                                <div className="p-8 bg-gray-50 rounded-[40px] border border-gray-100/50 space-y-4">
+                                    <h4 className="font-black text-xs uppercase tracking-[0.2em] text-gray-400 flex items-center gap-2">
+                                        <ShieldCheck className="size-4" />
+                                        Güvendesiniz
+                                    </h4>
+                                    <p className="text-xs text-gray-500 leading-relaxed font-medium">
+                                        RandevuX altyapısıyla tüm randevularınız koruma altındadır. İptal politikasını ödeme ekranında görebilirsiniz.
+                                    </p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -719,24 +817,6 @@ export function BookingWizard({
     )
 }
 
-function Loader2({ className }: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={cn("animate-spin", className)}
-        >
-            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-        </svg>
-    )
-}
 
 /**
  * Müşteri için şık bir kampanya/duyuru banner'ı
@@ -780,4 +860,3 @@ function AnnouncementBanner({ announcements }: { announcements: BusinessAnnounce
     )
 }
 
-import { TrendingUp, QrCode } from "lucide-react"

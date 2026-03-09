@@ -31,8 +31,12 @@ import {
   Sun,
   Moon,
   Users,
-  TrendingUp
+  TrendingUp,
+  Ticket,
+  MapPin,
+  ExternalLink
 } from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
 import { RxAvatar } from "./rx-avatar"
 import { RxBadge } from "./rx-badge"
 import { RxButton } from "./rx-button"
@@ -183,135 +187,160 @@ function AppointmentCard({
 }) {
   const statusMap: Record<
     string,
-    { label: string; variant: "success" | "warning" | "danger" | "gray" }
+    { label: string; variant: "success" | "warning" | "danger" | "gray"; color: string }
   > = {
-    "Onaylandı": { label: "Onaylandı", variant: "success" },
-    "Bekliyor": { label: "Bekliyor", variant: "warning" },
-    "Tamamlandı": { label: "Tamamlandı", variant: "success" },
-    "İptal": { label: "İptal Edildi", variant: "gray" },
-    "Gelmedi": { label: "Gelinmedi", variant: "danger" },
+    "Onaylandı": { label: "Onaylandı", variant: "success", color: "bg-emerald-500" },
+    "Bekliyor": { label: "Bekliyor", variant: "warning", color: "bg-amber-500" },
+    "Tamamlandı": { label: "Tamamlandı", variant: "success", color: "bg-blue-500" },
+    "İptal": { label: "İptal Edildi", variant: "gray", color: "bg-gray-400" },
+    "Gelmedi": { label: "Gelinmedi", variant: "danger", color: "bg-red-500" },
   }
-  const s = statusMap[appointment.status] || { label: appointment.status, variant: "gray" }
+  const s = statusMap[appointment.status] || { label: appointment.status, variant: "gray", color: "bg-gray-400" }
+
+  const CardWrapper = motion.div
 
   if (compact) {
     return (
-      <div
-        className="flex items-center gap-4 rounded-xl border border-border bg-card p-4 shadow-[0_2px_8px_rgba(0,0,0,0.06)] cursor-pointer hover:border-primary/30 transition-all"
+      <CardWrapper
+        whileHover={{ x: 4 }}
+        className="flex items-center gap-4 rounded-[24px] border border-border bg-card p-4 shadow-sm cursor-pointer hover:border-primary/30 transition-all"
         onClick={() => onViewDetails?.(appointment.id)}
       >
-        <RxAvatar name={appointment.businessName} size="sm" />
+        <div className="relative">
+          <RxAvatar name={appointment.businessName} size="sm" />
+          <div className={cn("absolute -bottom-1 -right-1 size-3 rounded-full border-2 border-background", s.color)} />
+        </div>
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <div className="flex items-center justify-between gap-2">
-            <span className="truncate text-sm font-semibold text-foreground">
-              {appointment.businessName}
-            </span>
-            <RxBadge variant={s.variant}>{s.label}</RxBadge>
-          </div>
-          <span className="truncate text-[13px] text-muted-foreground">
-            {appointment.services}
+          <span className="truncate text-sm font-black text-foreground">
+            {appointment.businessName}
           </span>
-          <span className="text-[13px] text-muted-foreground">
-            {appointment.date}
+          <span className="truncate text-xs font-bold text-muted-foreground">
+            {appointment.date} • {appointment.time}
           </span>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-1.5">
-          {appointment.price && (
-            <span className="text-sm font-semibold text-primary">
-              {appointment.price}
-            </span>
-          )}
-          {(appointment.status === "Tamamlandı" || appointment.status === "İptal") && onRebook && (
-            <RxButton variant="secondary" size="sm" className="h-7 text-[11px] px-2 mt-1" onClick={(e) => { e.stopPropagation(); onRebook(appointment.businessId, appointment.services); }}>
-              Tekrar Al
-            </RxButton>
-          )}
-          {appointment.status === "Tamamlandı" && onReview && (
-            <RxButton variant="ghost" size="sm" className="h-7 text-[11px] px-2 text-primary" onClick={(e) => { e.stopPropagation(); onReview(appointment); }}>
-              Değerlendir
-            </RxButton>
-          )}
-        </div>
-      </div>
+        <ChevronRight className="size-4 text-muted-foreground" />
+      </CardWrapper>
     )
   }
 
   return (
-    <div
-      className="relative flex overflow-hidden rounded-xl border border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.06)] cursor-pointer hover:border-primary/30 transition-all font-sans"
+    <CardWrapper
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -4 }}
+      className="group relative flex flex-col overflow-hidden rounded-[32px] bg-white border border-gray-100 shadow-xl shadow-gray-200/40 cursor-pointer transition-all hover:shadow-2xl hover:shadow-primary/10"
       onClick={() => onViewDetails?.(appointment.id)}
     >
-      {/* Left colored strip */}
-      <div className={cn("w-1 shrink-0", appointment.status === "İptal" || appointment.status === "Gelmedi" ? "bg-muted-foreground" : "bg-primary")} />
-      <div className="flex flex-1 flex-col gap-3 p-4">
-        {/* Top row */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-3">
-            <RxAvatar name={appointment.businessName} size="md" />
-            <span className="text-[15px] font-semibold text-foreground">
-              {appointment.businessName}
-            </span>
+      <div className="flex p-6 gap-6 relative">
+        {/* Main Info */}
+        <div className="flex-1 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <RxAvatar name={appointment.businessName} size="lg" className="rounded-2xl border-2 border-gray-50" />
+                <div className={cn("absolute -bottom-1 -right-1 size-4 rounded-full border-4 border-white", s.color)} />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-gray-900 leading-tight">{appointment.businessName}</h3>
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest leading-none mt-1">
+                  {appointment.services}
+                </p>
+              </div>
+            </div>
+            <div className={cn(
+              "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border shadow-sm",
+              appointment.status === "Onaylandı" ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
+                appointment.status === "Bekliyor" ? "bg-amber-50 text-amber-600 border-amber-100" :
+                  appointment.status === "Tamamlandı" ? "bg-blue-50 text-blue-600 border-blue-100" :
+                    "bg-gray-50 text-gray-500 border-gray-100"
+            )}>
+              {s.label}
+            </div>
           </div>
-          <RxBadge variant={s.variant}>{s.label}</RxBadge>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-gray-50/50 rounded-[20px] p-4 border border-gray-100/50">
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Tarih</p>
+              <div className="flex items-center gap-2 text-sm font-black text-gray-800">
+                <Calendar className="size-4 text-primary" />
+                {appointment.date}
+              </div>
+            </div>
+            <div className="bg-gray-50/50 rounded-[20px] p-4 border border-gray-100/50">
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Saat</p>
+              <div className="flex items-center gap-2 text-sm font-black text-gray-800">
+                <Clock className="size-4 text-primary" />
+                {appointment.time}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-2">
+            <div className="flex items-center gap-2">
+              <RxAvatar name={appointment.staffName} size="sm" />
+              <span className="text-xs font-bold text-gray-500">{appointment.staffName}</span>
+            </div>
+            {appointment.price && (
+              <span className="text-lg font-black text-primary">{appointment.price}</span>
+            )}
+          </div>
         </div>
 
-        {/* Services */}
-        <p className="text-sm text-muted-foreground">{appointment.services}</p>
-
-        {/* Details row */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-muted-foreground">
-          <span className="flex items-center gap-1.5">
-            <Calendar className="size-3.5" />
-            {appointment.date}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <Clock className="size-3.5" />
-            {appointment.time}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <User className="size-3.5" />
-            {appointment.staffName}
-          </span>
-        </div>
-
-        {/* Actions */}
-        <div className="flex items-center justify-end gap-2">
-          {appointment.isWithinHour && (appointment.status === "Onaylandı" || appointment.status === "Bekliyor") ? (
-            <RxButton variant="danger" size="sm" onClick={() => alert("İşletmeyi aramak için mobil cihaz kullanın.")}>
-              <Phone className="size-3.5" />
-              Berberi Ara
-            </RxButton>
-          ) : (
-            <>
-              {(appointment.status === "Onaylandı" || appointment.status === "Bekliyor") && onCancel && (
-                <RxButton variant="danger" size="sm" onClick={() => onCancel(appointment.id, appointment.businessId, appointment.fullDate)}>
-                  İptal Et
-                </RxButton>
-              )}
-              {(appointment.status === "Tamamlandı" || appointment.status === "İptal") && onRebook && (
-                <RxButton variant="secondary" size="sm" onClick={() => onRebook(appointment.businessId, appointment.services)}>
-                  <CalendarPlus className="size-3.5 mr-1.5" />
-                  Tekrar Al
-                </RxButton>
-              )}
-              {appointment.status === "Tamamlandı" && onReview && (
-                <RxButton
-                  variant="secondary"
-                  size="sm"
-                  className="gap-2 border-primary/20 text-primary hover:bg-primary/5"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onReview(appointment)
-                  }}
-                >
-                  <Star className="size-3.5 fill-current" />
-                  Değerlendir
-                </RxButton>
-              )}
-            </>
-          )}
+        {/* Ticket Perforation Aesthetic */}
+        <div className="absolute right-0 top-0 bottom-0 flex flex-col justify-around py-4 mr-[-6px] pointer-events-none">
+          {[...Array(10)].map((_, i) => (
+            <div key={i} className="size-3 rounded-full bg-white border border-gray-100 shadow-inner" />
+          ))}
         </div>
       </div>
-    </div>
+
+      {/* Action Footer */}
+      <div className="bg-gray-50/30 border-t border-dashed border-gray-100 p-4 px-6 flex items-center justify-between">
+        <div className="flex gap-2">
+          {appointment.status === "Tamamlandı" && onReview && (
+            <RxButton
+              variant="secondary"
+              size="sm"
+              className="rounded-full bg-white hover:bg-primary/5 border-gray-100 text-primary font-black text-[11px] gap-2 px-4 h-9"
+              onClick={(e) => { e.stopPropagation(); onReview(appointment); }}
+            >
+              <Star className="size-3.5 fill-current" />
+              DEĞERLENDİR
+            </RxButton>
+          )}
+          {(appointment.status === "Tamamlandı" || appointment.status === "İptal") && onRebook && (
+            <RxButton
+              variant="secondary"
+              size="sm"
+              className="rounded-full bg-white hover:bg-primary/5 border-gray-100 text-gray-700 font-black text-[11px] h-9 px-4"
+              onClick={(e) => { e.stopPropagation(); onRebook(appointment.businessId, appointment.services); }}
+            >
+              TEKRAR AL
+            </RxButton>
+          )}
+        </div>
+
+        <div className="flex gap-3">
+          {(appointment.status === "Onaylandı" || appointment.status === "Bekliyor") && onCancel && (
+            <button
+              className="text-[11px] font-black text-red-500 hover:text-red-600 transition-colors uppercase tracking-widest px-2"
+              onClick={(e) => { e.stopPropagation(); onCancel(appointment.id, appointment.businessId, appointment.fullDate); }}
+            >
+              İptal Et
+            </button>
+          )}
+          <RxButton
+            variant="ghost"
+            size="sm"
+            className="rounded-full text-primary font-black text-[11px] uppercase tracking-widest h-9 px-4 gap-2"
+            onClick={(e) => { e.stopPropagation(); onViewDetails?.(appointment.id); }}
+          >
+            Detaylar
+            <ArrowRight className="size-3.5" />
+          </RxButton>
+        </div>
+      </div>
+    </CardWrapper>
   )
 }
 
@@ -708,26 +737,25 @@ function OverviewTab({
         />
 
         {upcoming.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card/50 px-6 py-12 text-center transition-colors hover:bg-card">
-            <div className="mb-4 flex size-16 items-center justify-center rounded-full bg-muted">
-              <Calendar className="size-7 text-muted-foreground" />
+          <div className="flex flex-col items-center justify-center rounded-[40px] border-4 border-dashed border-gray-100 bg-gray-50/30 px-6 py-12 text-center">
+            <div className="mb-4 flex size-16 items-center justify-center rounded-[24px] bg-white shadow-lg shadow-gray-200/50">
+              <Calendar className="size-8 text-gray-300" />
             </div>
-            <h3 className="text-lg font-semibold text-foreground">
+            <h3 className="text-lg font-black text-gray-900">
               Şu an planlı bir randevunuz yok
             </h3>
-            <p className="mt-1 text-sm text-muted-foreground max-w-sm">
-              Güzellik rutininizi aksatmayın! Kayıtlı işletmelerinizden hemen yeni bir randevu alabilirsiniz.
+            <p className="mt-1 text-xs font-bold text-muted-foreground max-w-[280px]">
+              Hayatınıza biraz bakım katmaya ne dersiniz? Hemen yeni bir randevu alabilirsiniz.
             </p>
-            <RxButton className="mt-6" onClick={() => onNavigate("isletmelerim")}>
+            <RxButton className="mt-6 rounded-full px-8 h-12 font-black uppercase tracking-widest text-[11px]" onClick={() => onNavigate("isletmelerim")}>
               İşletmelerimi Gör
             </RxButton>
           </div>
         ) : (
-          <div className="flex flex-col gap-3">
-            {upcoming.slice(1).map((a) => (
+          <div className="grid gap-6">
+            {upcoming.map((a) => (
               <AppointmentCard key={a.id} appointment={a} onCancel={onCancel} onViewDetails={onViewDetails} onReview={onReview} />
             ))}
-            {upcoming.length === 1 && <p className="text-sm text-muted-foreground italic">Başka planlı randevunuz bulunmuyor.</p>}
           </div>
         )}
       </section>
@@ -861,16 +889,16 @@ function AppointmentsTab({
     "all" | "upcoming" | "completed" | "cancelled"
   >("all")
   const [currentPage, setCurrentPage] = useState(1)
-  const itemsPerPage = 5
+  const itemsPerPage = 8
 
   const filters: {
     id: "all" | "upcoming" | "completed" | "cancelled"
     label: string
   }[] = [
-      { id: "all", label: "Tumu" },
-      { id: "upcoming", label: "Yaklasan" },
+      { id: "all", label: "Tümü" },
+      { id: "upcoming", label: "Yaklaşan" },
       { id: "completed", label: "Tamamlanan" },
-      { id: "cancelled", label: "Iptal/No-Show" },
+      { id: "cancelled", label: "İptal" },
     ]
 
   const filtered = allAppointments.filter((a) => {
@@ -883,78 +911,119 @@ function AppointmentsTab({
   })
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* Filter Tabs */}
-      <div className="flex flex-wrap gap-2">
-        {filters.map((f) => (
-          <button
-            key={f.id}
-            type="button"
-            onClick={() => {
-              setFilter(f.id)
-              setCurrentPage(1)
-            }}
-            className={cn(
-              "rounded-lg px-4 py-2 text-sm font-medium transition-colors",
-              filter === f.id
-                ? "bg-primary text-primary-foreground"
-                : "bg-card text-muted-foreground border border-border hover:bg-primary-light"
-            )}
-          >
-            {f.label}
-          </button>
-        ))}
+    <div className="flex flex-col gap-8 pb-10">
+      {/* Header Info */}
+      <div className="flex flex-col gap-1">
+        <h2 className="text-2xl font-black text-gray-900 tracking-tight">Randevularım</h2>
+        <p className="text-sm font-bold text-muted-foreground">
+          Toplam {allAppointments.length} randevunuz bulunuyor.
+        </p>
+      </div>
+
+      {/* Filter Tabs - Apple Style Segmented Control */}
+      <div className="flex p-1.5 bg-gray-100/80 rounded-2xl w-fit self-start border border-gray-200/50">
+        <div className="flex gap-1 relative">
+          {filters.map((f) => {
+            const isActive = filter === f.id
+            return (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => {
+                  setFilter(f.id)
+                  setCurrentPage(1)
+                }}
+                className={cn(
+                  "relative z-10 rounded-xl px-5 py-2.5 text-xs font-black uppercase tracking-widest transition-all duration-300",
+                  isActive
+                    ? "text-primary shadow-sm"
+                    : "text-gray-500 hover:text-gray-900"
+                )}
+              >
+                {isActive && (
+                  <motion.div
+                    layoutId="filter-active"
+                    className="absolute inset-0 bg-white rounded-xl shadow-md -z-10"
+                    transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                  />
+                )}
+                {f.label}
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       {/* Appointment List */}
-      <div className="flex flex-col gap-3">
-        {filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card/50 px-6 py-12 text-center">
-            <div className="mb-4 flex size-16 items-center justify-center rounded-full bg-muted">
-              <CalendarDays className="size-7 text-muted-foreground" />
+      <div className="flex flex-col gap-6">
+        <AnimatePresence mode="popLayout" initial={false}>
+          {filtered.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="flex flex-col items-center justify-center rounded-[40px] border-4 border-dashed border-gray-100 bg-gray-50/30 px-6 py-24 text-center"
+            >
+              <div className="mb-6 flex size-24 items-center justify-center rounded-[32px] bg-white shadow-xl shadow-gray-200/50">
+                <Ticket className="size-10 text-gray-300" />
+              </div>
+              <h3 className="text-xl font-black text-gray-900">
+                Görüntülenecek randevu yok
+              </h3>
+              <p className="mt-2 text-sm font-bold text-muted-foreground max-w-[280px]">
+                Bu kategoride henüz bir randevunuz bulunmuyor. Keşfet bölümünden yeni yerler bulabilirsiniz!
+              </p>
+            </motion.div>
+          ) : (
+            <div className="grid gap-6">
+              {filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((a) => (
+                <AppointmentCard
+                  key={a.id}
+                  appointment={a}
+                  onCancel={onCancel}
+                  onRebook={onRebook}
+                  onViewDetails={onViewDetails}
+                  onReview={onReview}
+                />
+              ))}
             </div>
-            <h3 className="text-lg font-semibold text-foreground">
-              Randevu bulunamadı
-            </h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Bu filtreyle eşleşen randevu yok.
-            </p>
-          </div>
-        ) : (
-          filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((a) => (
-            <AppointmentCard
-              key={a.id}
-              appointment={a}
-              onCancel={onCancel}
-              onRebook={onRebook}
-              onViewDetails={onViewDetails}
-              onReview={onReview}
-            />
-          ))
-        )}
+          )}
+        </AnimatePresence>
       </div>
 
-      {/* Pagination */}
+      {/* Pagination - Minimalist */}
       {filtered.length > itemsPerPage && (
-        <div className="flex items-center justify-center gap-1">
+        <div className="flex items-center justify-center gap-6 pt-6">
           <button
             type="button"
             onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
             disabled={currentPage === 1}
-            className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-primary-light disabled:opacity-40 disabled:cursor-not-allowed"
+            className="group flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-gray-400 hover:text-primary transition-colors disabled:opacity-20"
           >
-            <ChevronLeft className="size-4" />
-            Onceki
+            <ChevronLeft className="size-4 group-hover:-translate-x-1 transition-transform" />
+            GERİ
           </button>
-          <span className="text-sm font-medium text-muted-foreground px-4">Sayfa {currentPage}</span>
+
+          <div className="flex gap-2">
+            {[...Array(Math.ceil(filtered.length / itemsPerPage))].map((_, i) => (
+              <div
+                key={i}
+                className={cn(
+                  "size-1.5 rounded-full transition-all duration-300",
+                  currentPage === i + 1 ? "bg-primary w-6" : "bg-gray-200"
+                )}
+              />
+            ))}
+          </div>
+
           <button
             type="button"
             onClick={() => setCurrentPage(currentPage + 1)}
             disabled={currentPage * itemsPerPage >= filtered.length}
-            className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-primary-light disabled:opacity-40 disabled:cursor-not-allowed"
+            className="group flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-gray-400 hover:text-primary transition-colors disabled:opacity-20"
           >
-            Sonraki
-            <ChevronRight className="size-4" />
+            İLERİ
+            <ChevronRight className="size-4 group-hover:translate-x-1 transition-transform" />
           </button>
         </div>
       )}

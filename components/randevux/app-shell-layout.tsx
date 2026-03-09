@@ -14,7 +14,9 @@ import {
     X,
     Check,
     CheckCheck,
+    Sparkles
 } from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
 import { createClient } from "@/lib/supabase/client"
 import { RxAvatar } from "./rx-avatar"
 import { RxBadge } from "./rx-badge"
@@ -59,40 +61,45 @@ function SidebarContent({
     role: string
 }) {
     return (
-        <div className="flex h-full flex-col">
+        <div className="flex h-full flex-col p-4">
             {/* Logo */}
             <div
                 className={cn(
-                    "flex items-center gap-2.5 border-b border-border px-5 py-4",
+                    "flex items-center gap-3 px-2 py-4 mb-4",
                     collapsed && "justify-center px-0"
                 )}
             >
-                <CalendarDays className="size-7 shrink-0 text-primary" />
+                <div className="size-10 rounded-2xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20 shrink-0">
+                    <CalendarDays className="size-6 text-white" />
+                </div>
                 {!collapsed && (
-                    <span className="text-lg font-bold text-primary">RandevuX</span>
+                    <div className="flex flex-col">
+                        <span className="text-xl font-black text-gray-900 tracking-tight leading-none">RandevuX</span>
+                        <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mt-1">Premium Platform</span>
+                    </div>
                 )}
             </div>
 
-            {/* Business Switcher */}
+            {/* Business Switcher - Enhanced */}
             {!collapsed && businessName && (
-                <button
-                    type="button"
-                    className="mx-4 mt-4 flex items-center gap-2 rounded-lg px-2 py-2 text-left transition-colors hover:bg-primary-light"
-                >
-                    <span className="truncate text-xs text-muted-foreground">
-                        {businessName}
-                    </span>
-                    <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
-                </button>
+                <div className="px-2 mb-6">
+                    <button
+                        type="button"
+                        className="w-full flex items-center justify-between gap-2 rounded-2xl bg-white border border-gray-100 p-3 text-left transition-all hover:border-primary/20 hover:shadow-md group shadow-sm"
+                    >
+                        <div className="flex flex-col min-w-0">
+                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Aktif İşletme</span>
+                            <span className="truncate text-sm font-black text-gray-900 group-hover:text-primary transition-colors">
+                                {businessName}
+                            </span>
+                        </div>
+                        <ChevronDown className="size-4 shrink-0 text-gray-400" />
+                    </button>
+                </div>
             )}
 
             {/* Navigation */}
-            <nav
-                className={cn(
-                    "mt-4 flex flex-1 flex-col gap-1",
-                    collapsed ? "px-2" : "px-3"
-                )}
-            >
+            <nav className="flex flex-1 flex-col gap-2">
                 {navItems.map((item) => {
                     const isActive = pathname === item.href
                     const Icon = item.icon
@@ -101,25 +108,26 @@ function SidebarContent({
                             key={item.href}
                             href={item.href}
                             className={cn(
-                                "group relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                                "group relative flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold transition-all duration-300",
                                 collapsed && "justify-center px-0",
                                 isActive
-                                    ? "bg-primary-light text-primary"
-                                    : "text-muted-foreground hover:bg-primary-light hover:text-foreground"
+                                    ? "bg-primary text-white shadow-lg shadow-primary/30"
+                                    : "text-gray-500 hover:bg-white hover:text-gray-900 hover:shadow-sm border border-transparent hover:border-gray-100"
                             )}
                         >
-                            {isActive && (
-                                <span className="absolute left-0 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-r-full bg-primary" />
+                            <div className={cn(
+                                "flex size-6 items-center justify-center transition-transform group-hover:scale-110",
+                                collapsed && "size-8"
+                            )}>
+                                <Icon className="size-5 shrink-0" />
+                            </div>
+                            {!collapsed && <span className="truncate tracking-wide">{item.label}</span>}
+                            {isActive && !collapsed && (
+                                <motion.div
+                                    layoutId="active-pill"
+                                    className="absolute right-3 size-1.5 rounded-full bg-white/40"
+                                />
                             )}
-                            <Icon
-                                className={cn(
-                                    "size-5 shrink-0",
-                                    isActive
-                                        ? "text-primary"
-                                        : "text-muted-foreground group-hover:text-foreground"
-                                )}
-                            />
-                            {!collapsed && <span className="truncate">{item.label}</span>}
                         </Link>
                     )
 
@@ -127,7 +135,7 @@ function SidebarContent({
                         return (
                             <Tooltip key={item.href}>
                                 <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
-                                <TooltipContent side="right" sideOffset={8}>
+                                <TooltipContent side="right" sideOffset={12} className="font-bold text-xs uppercase tracking-widest bg-gray-900 text-white border-none py-2 px-4 rounded-xl">
                                     {item.label}
                                 </TooltipContent>
                             </Tooltip>
@@ -138,59 +146,24 @@ function SidebarContent({
                 })}
             </nav>
 
-            {/* User Section */}
-            <div
-                className={cn(
-                    "border-t border-border p-4",
-                    collapsed && "flex flex-col items-center gap-2 px-2"
-                )}
-            >
+            {/* Profile Section - Redesigned as a Ticket/Card */}
+            <div className="mt-auto pt-6 border-t border-dashed border-gray-200">
                 {collapsed ? (
-                    <>
+                    <div className="flex flex-col items-center gap-4">
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <div>
-                                    <RxAvatar name={userName} size="sm" online />
+                                <div className="relative cursor-pointer group">
+                                    <RxAvatar name={userName} size="sm" online className="ring-2 ring-primary/10 transition-all group-hover:ring-primary/30" />
                                 </div>
                             </TooltipTrigger>
-                            <TooltipContent side="right" sideOffset={8}>
-                                <p>{userName}</p>
-                                <p className="text-[10px] opacity-70">{userBadge}</p>
+                            <TooltipContent side="right" sideOffset={12} className="bg-white text-gray-900 shadow-xl border border-gray-100 p-0 rounded-2xl overflow-hidden min-w-[120px]">
+                                <div className="p-3 bg-primary text-white">
+                                    <p className="font-black text-xs leading-none">{userName}</p>
+                                    <p className="text-[9px] font-black uppercase tracking-widest opacity-80 mt-1">{userBadge}</p>
+                                </div>
                             </TooltipContent>
                         </Tooltip>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <button
-                                    type="button"
-                                    onClick={async () => {
-                                        const supabase = createClient()
-                                        await supabase.auth.signOut()
-                                        window.location.href = "/login"
-                                    }}
-                                    className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-primary-light hover:text-accent"
-                                    aria-label="Çıkış Yap"
-                                >
-                                    <LogOut className="size-4" />
-                                </button>
-                            </TooltipTrigger>
-                            <TooltipContent side="right" sideOffset={8}>
-                                {"Çıkış Yap"}
-                            </TooltipContent>
-                        </Tooltip>
-                    </>
-                ) : (
-                    <div className="flex items-center gap-3">
-                        <RxAvatar name={userName} size="md" online />
-                        <div className="flex min-w-0 flex-1 flex-col">
-                            <span className="truncate text-sm font-medium text-foreground">
-                                {userName}
-                            </span>
-                            <RxBadge
-                                variant={role === "patron" || role === "admin" ? "purple" : "gray"}
-                            >
-                                {userBadge}
-                            </RxBadge>
-                        </div>
+
                         <button
                             type="button"
                             onClick={async () => {
@@ -198,11 +171,43 @@ function SidebarContent({
                                 await supabase.auth.signOut()
                                 window.location.href = "/login"
                             }}
-                            className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-primary-light hover:text-accent"
+                            className="size-10 flex items-center justify-center rounded-2xl bg-gray-100 text-gray-500 transition-all hover:bg-red-50 hover:text-red-500"
                             aria-label="Çıkış Yap"
                         >
-                            <LogOut className="size-4" />
+                            <LogOut className="size-5" />
                         </button>
+                    </div>
+                ) : (
+                    <div className="bg-white rounded-[24px] border border-gray-100 p-4 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
+                        {/* Decorative Gradient */}
+                        <div className="absolute top-0 right-0 size-20 bg-primary/5 rounded-full blur-2xl -mr-10 -mt-10" />
+
+                        <div className="flex items-center gap-3 relative z-10">
+                            <RxAvatar name={userName} size="md" online className="ring-4 ring-primary/5" />
+                            <div className="flex min-w-0 flex-1 flex-col">
+                                <span className="truncate text-sm font-black text-gray-900">
+                                    {userName}
+                                </span>
+                                <div className="flex items-center gap-1.5">
+                                    <Sparkles className="size-3 text-primary" />
+                                    <span className="text-[10px] font-black text-primary uppercase tracking-[0.1em]">
+                                        {userBadge}
+                                    </span>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    const supabase = createClient()
+                                    await supabase.auth.signOut()
+                                    window.location.href = "/login"
+                                }}
+                                className="shrink-0 size-8 flex items-center justify-center rounded-xl text-gray-300 transition-all hover:bg-red-50 hover:text-red-500"
+                                aria-label="Çıkış Yap"
+                            >
+                                <LogOut className="size-4" />
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>
@@ -230,7 +235,6 @@ function TopNavbar({
     const [prevUnread, setPrevUnread] = useState(0)
     const [pulse, setPulse] = useState(false)
 
-    // Pulse animation when unread count increases
     useEffect(() => {
         if (unreadCount > prevUnread && prevUnread !== 0) {
             setPulse(true)
@@ -240,7 +244,6 @@ function TopNavbar({
         setPrevUnread(unreadCount)
     }, [unreadCount, prevUnread])
 
-    // Close dropdown when clicking outside
     useEffect(() => {
         function handleClick(e: MouseEvent) {
             if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
@@ -258,121 +261,133 @@ function TopNavbar({
         const now = new Date()
         const diffMs = now.getTime() - d.getTime()
         const diffMin = Math.floor(diffMs / 60000)
-        if (diffMin < 1) return "Az once"
-        if (diffMin < 60) return `${diffMin} dk once`
+        if (diffMin < 1) return "Az önce"
+        if (diffMin < 60) return `${diffMin} dk önce`
         const diffH = Math.floor(diffMin / 60)
-        if (diffH < 24) return `${diffH} saat once`
+        if (diffH < 24) return `${diffH} saat önce`
         return d.toLocaleDateString("tr-TR", { day: "numeric", month: "short" })
     }
 
     return (
-        <header className="flex h-16 shrink-0 items-center justify-between border-b border-border bg-card px-4 lg:px-8">
-            <div className="flex items-center gap-3">
+        <header className="flex h-20 shrink-0 items-center justify-between bg-background/80 backdrop-blur-md px-6 lg:px-12 sticky top-0 z-30">
+            <div className="flex items-center gap-4">
                 {showMenuButton && (
                     <button
                         type="button"
                         onClick={onMenuToggle}
-                        className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-primary-light hover:text-foreground"
+                        className="rounded-2xl bg-white border border-gray-100 p-2.5 text-gray-500 shadow-sm transition-all hover:text-primary hover:border-primary/20"
                         aria-label="Menüyü aç"
                     >
-                        <Menu className="size-5" />
+                        <Menu className="size-6" />
                     </button>
                 )}
-                <h1 className="text-lg font-semibold text-foreground">{pageTitle}</h1>
+                <div className="flex flex-col">
+                    <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none">{pageTitle}</h1>
+                    <div className="flex items-center gap-2 mt-1">
+                        <div className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Sistem Aktif</span>
+                    </div>
+                </div>
             </div>
 
-            <div className="flex items-center gap-2">
-                {/* Search */}
-                <button
-                    type="button"
-                    className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-primary-light hover:text-foreground"
-                    aria-label="Ara"
-                >
-                    <Search className="size-5" />
-                </button>
-
-                {/* Notifications */}
-                <div ref={notifRef} className="relative">
-                    <button
-                        type="button"
-                        onClick={() => setNotifOpen(!notifOpen)}
-                        className={cn(
-                            "relative rounded-lg p-2 text-muted-foreground transition-colors hover:bg-primary-light hover:text-foreground",
-                            pulse && "animate-pulse"
-                        )}
-                        aria-label="Bildirimler"
-                    >
-                        <Bell className="size-5" />
-                        {unreadCount > 0 && (
-                            <span className="absolute right-1 top-1 flex size-4 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-accent-foreground">
-                                {unreadCount > 9 ? "9+" : unreadCount}
-                            </span>
-                        )}
-                    </button>
-
-                    {/* Dropdown */}
-                    {notifOpen && (
-                        <div className="absolute right-0 top-full z-50 mt-2 w-80 rounded-xl border border-border bg-card shadow-xl">
-                            <div className="flex items-center justify-between border-b border-border px-4 py-3">
-                                <span className="text-sm font-semibold text-foreground">Bildirimler</span>
-                                {unreadCount > 0 && (
-                                    <button
-                                        type="button"
-                                        onClick={() => markAllAsRead()}
-                                        className="flex items-center gap-1 text-xs text-primary hover:underline"
-                                    >
-                                        <CheckCheck className="size-3.5" />
-                                        Tumunu okundu isaretle
-                                    </button>
-                                )}
-                            </div>
-                            <div className="max-h-[360px] overflow-y-auto">
-                                {recent.length === 0 ? (
-                                    <div className="flex flex-col items-center gap-2 py-8">
-                                        <Bell className="size-8 text-muted-foreground/40" />
-                                        <p className="text-sm text-muted-foreground">Bildiriminiz yok</p>
-                                    </div>
-                                ) : (
-                                    recent.map((n) => (
-                                        <button
-                                            key={n.id}
-                                            type="button"
-                                            onClick={() => { if (!n.isRead) markAsRead(n.id) }}
-                                            className={cn(
-                                                "flex w-full gap-3 px-4 py-3 text-left transition-colors hover:bg-primary-light/50",
-                                                !n.isRead && "bg-primary-light/30"
-                                            )}
-                                        >
-                                            <div className="mt-0.5 flex size-2 shrink-0 items-center justify-center">
-                                                {!n.isRead && <span className="size-2 rounded-full bg-primary" />}
-                                            </div>
-                                            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                                                <span className={cn("text-[13px] text-foreground", !n.isRead && "font-semibold")}>{n.title}</span>
-                                                {n.body && <span className="text-xs text-muted-foreground truncate">{n.body}</span>}
-                                                <span className="text-[11px] text-muted-foreground/70">{formatTime(n.createdAt)}</span>
-                                            </div>
-                                        </button>
-                                    ))
-                                )}
-                            </div>
-                        </div>
-                    )}
+            <div className="flex items-center gap-4">
+                {/* Visual Search Trigger */}
+                <div className="hidden md:flex items-center gap-3 bg-gray-100/50 border border-gray-100 px-4 py-2 rounded-2xl w-64 group cursor-pointer hover:bg-white hover:shadow-md transition-all">
+                    <Search className="size-4 text-gray-400 group-hover:text-primary transition-colors" />
+                    <span className="text-xs font-bold text-gray-400">Her şeyi ara...</span>
                 </div>
 
-                {/* Divider */}
-                <div className="mx-1 hidden h-8 w-px bg-border sm:block" />
+                <div className="flex items-center gap-2">
+                    {/* Notifications */}
+                    <div ref={notifRef} className="relative">
+                        <button
+                            type="button"
+                            onClick={() => setNotifOpen(!notifOpen)}
+                            className={cn(
+                                "relative size-11 flex items-center justify-center rounded-2xl bg-white border border-gray-100 text-gray-400 shadow-sm transition-all hover:text-primary hover:border-primary/20",
+                                pulse && "animate-pulse ring-2 ring-primary/20"
+                            )}
+                            aria-label="Bildirimler"
+                        >
+                            <Bell className="size-5" />
+                            {unreadCount > 0 && (
+                                <span className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-black text-white shadow-lg shadow-primary/20 border-2 border-background">
+                                    {unreadCount > 9 ? "9+" : unreadCount}
+                                </span>
+                            )}
+                        </button>
 
-                {/* Profile */}
-                <button
-                    type="button"
-                    className="hidden items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-primary-light sm:flex"
-                >
-                    <RxAvatar name={userName} size="sm" />
-                    <span className="text-sm font-medium text-foreground">
-                        {userName}
-                    </span>
-                    <ChevronDown className="size-3.5 text-muted-foreground" />
-                </button>
+                        <AnimatePresence>
+                            {notifOpen && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                    className="absolute right-0 top-full z-50 mt-4 w-[320px] rounded-[32px] border border-gray-100 bg-white shadow-2xl shadow-gray-200/50 p-2 overflow-hidden"
+                                >
+                                    <div className="flex items-center justify-between border-b border-gray-50 px-4 py-4 mb-2">
+                                        <span className="text-xs font-black uppercase tracking-widest text-gray-900">Bildirimler</span>
+                                        {unreadCount > 0 && (
+                                            <button
+                                                type="button"
+                                                onClick={() => markAllAsRead()}
+                                                className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline"
+                                            >
+                                                Hepsini Oku
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
+                                        {recent.length === 0 ? (
+                                            <div className="flex flex-col items-center gap-3 py-10 px-4">
+                                                <div className="size-16 rounded-3xl bg-gray-50 flex items-center justify-center">
+                                                    <Bell className="size-8 text-gray-200" />
+                                                </div>
+                                                <p className="text-xs font-bold text-gray-400">Henüz bildiriminiz yok</p>
+                                            </div>
+                                        ) : (
+                                            recent.map((n) => (
+                                                <button
+                                                    key={n.id}
+                                                    type="button"
+                                                    onClick={() => { if (!n.isRead) markAsRead(n.id) }}
+                                                    className={cn(
+                                                        "flex w-full gap-4 px-4 py-4 text-left transition-all hover:bg-gray-50 rounded-2xl mb-1",
+                                                        !n.isRead && "bg-primary/5"
+                                                    )}
+                                                >
+                                                    <div className="shrink-0 mt-1">
+                                                        {!n.isRead ? (
+                                                            <div className="size-2 rounded-full bg-primary shadow-sm shadow-primary/40" />
+                                                        ) : (
+                                                            <div className="size-2 rounded-full bg-gray-200" />
+                                                        )}
+                                                    </div>
+                                                    <div className="flex min-w-0 flex-1 flex-col gap-1">
+                                                        <span className={cn("text-sm text-gray-900 leading-tight", !n.isRead ? "font-black" : "font-bold")}>{n.title}</span>
+                                                        {n.body && <span className="text-[11px] font-bold text-gray-500 leading-relaxed line-clamp-2">{n.body}</span>}
+                                                        <span className="text-[10px] font-black uppercase tracking-[0.1em] text-gray-400 mt-1">{formatTime(n.createdAt)}</span>
+                                                    </div>
+                                                </button>
+                                            ))
+                                        )}
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+
+                    {/* Profile Trigger - Unified with Sidebar Look */}
+                    <div className="hidden sm:flex items-center gap-3 bg-white border border-gray-100 rounded-full pl-2 pr-4 py-1.5 shadow-sm hover:shadow-md transition-all cursor-pointer group ml-2">
+                        <RxAvatar name={userName} size="sm" online />
+                        <div className="flex flex-col gap-0.5 min-w-[60px]">
+                            <span className="text-xs font-black text-gray-900 leading-none truncate overflow-hidden max-w-[80px]">
+                                {userName}
+                            </span>
+                        </div>
+                        <ChevronDown className="size-3.5 text-gray-400 group-hover:text-primary transition-colors" />
+                    </div>
+                </div>
             </div>
         </header>
     )
@@ -399,47 +414,37 @@ function MobileDrawer({
     userBadge: string
     role: string
 }) {
-    // Lock body scroll when drawer is open
-    useEffect(() => {
-        if (open) {
-            document.body.style.overflow = "hidden"
-        } else {
-            document.body.style.overflow = ""
-        }
-        return () => {
-            document.body.style.overflow = ""
-        }
-    }, [open])
-
     return (
         <>
             {/* Overlay */}
-            <div
-                className={cn(
-                    "fixed inset-0 z-40 bg-foreground/30 transition-opacity duration-300",
-                    open
-                        ? "pointer-events-auto opacity-100"
-                        : "pointer-events-none opacity-0"
-                )}
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
                 onClick={onClose}
+                className="fixed inset-0 z-40 bg-gray-900/40 backdrop-blur-sm"
                 aria-hidden="true"
             />
 
             {/* Drawer */}
-            <aside
-                className={cn(
-                    "fixed inset-y-0 left-0 z-50 w-[280px] bg-card shadow-xl transition-transform duration-300 ease-in-out",
-                    open ? "translate-x-0" : "-translate-x-full"
-                )}
+            <motion.aside
+                initial={{ x: "-100%" }}
+                animate={{ x: 0 }}
+                exit={{ x: "-100%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                className="fixed inset-y-0 left-0 z-50 w-[300px] bg-gray-50 shadow-2xl overflow-hidden"
             >
-                <button
-                    type="button"
-                    onClick={onClose}
-                    className="absolute right-3 top-3 rounded-lg p-1.5 text-muted-foreground hover:bg-primary-light hover:text-foreground"
-                    aria-label="Menüyü kapat"
-                >
-                    <X className="size-5" />
-                </button>
+                <div className="absolute right-4 top-6 z-10">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="size-10 flex items-center justify-center rounded-2xl bg-white border border-gray-100 text-gray-400 shadow-sm transition-all hover:text-primary hover:border-primary/20"
+                        aria-label="Menüyü kapat"
+                    >
+                        <X className="size-6" />
+                    </button>
+                </div>
+
                 <SidebarContent
                     navItems={navItems}
                     pathname={pathname}
@@ -449,7 +454,7 @@ function MobileDrawer({
                     userBadge={userBadge}
                     role={role}
                 />
-            </aside>
+            </motion.aside>
         </>
     )
 }
@@ -475,9 +480,8 @@ export function AppShellLayout({
         return () => window.removeEventListener("resize", handleResize)
     }, [])
 
-    const isMobile = windowWidth < 768
-    const isTablet = windowWidth >= 768 && windowWidth < 1024
-    const sidebarCollapsed = isTablet
+    const isMobile = windowWidth < 1024
+    const sidebarCollapsed = windowWidth >= 1024 && windowWidth < 1280
 
     // Derive page title from current path
     const activeNav = navItems.find((item) => pathname === item.href)
@@ -485,13 +489,13 @@ export function AppShellLayout({
 
     return (
         <TooltipProvider delayDuration={100}>
-            <div className="flex h-screen overflow-hidden bg-background">
+            <div className="flex h-screen overflow-hidden bg-[#F8F9FA]">
                 {/* Desktop / Tablet Sidebar */}
                 {!isMobile && (
                     <aside
                         className={cn(
-                            "hidden shrink-0 border-r border-border bg-card transition-all duration-200 md:flex md:flex-col",
-                            sidebarCollapsed ? "w-[60px]" : "w-[260px]"
+                            "hidden shrink-0 bg-gray-50/50 backdrop-blur-xl transition-all duration-500 md:flex md:flex-col border-r border-gray-100",
+                            sidebarCollapsed ? "w-[100px]" : "w-[280px]"
                         )}
                     >
                         <SidebarContent
@@ -507,21 +511,26 @@ export function AppShellLayout({
                 )}
 
                 {/* Mobile Drawer */}
-                {isMobile && (
-                    <MobileDrawer
-                        open={drawerOpen}
-                        onClose={() => setDrawerOpen(false)}
-                        navItems={navItems}
-                        pathname={pathname}
-                        businessName={businessName}
-                        userName={userName}
-                        userBadge={userBadge}
-                        role={role}
-                    />
-                )}
+                <AnimatePresence>
+                    {isMobile && drawerOpen && (
+                        <MobileDrawer
+                            open={drawerOpen}
+                            onClose={() => setDrawerOpen(false)}
+                            navItems={navItems}
+                            pathname={pathname}
+                            businessName={businessName}
+                            userName={userName}
+                            userBadge={userBadge}
+                            role={role}
+                        />
+                    )}
+                </AnimatePresence>
 
                 {/* Main Area */}
-                <div className="flex flex-1 flex-col overflow-hidden">
+                <div className="flex flex-1 flex-col overflow-hidden relative">
+                    {/* Floating Glow Effect */}
+                    <div className="absolute top-0 right-0 size-[500px] bg-primary/5 rounded-full blur-[120px] -mr-64 -mt-64 pointer-events-none" />
+
                     <TopNavbar
                         pageTitle={pageTitle}
                         onMenuToggle={() => setDrawerOpen(true)}
@@ -530,8 +539,16 @@ export function AppShellLayout({
                     />
 
                     {/* Content */}
-                    <main className="flex-1 overflow-y-auto p-5 lg:p-8">
-                        {children}
+                    <main className="flex-1 overflow-y-auto overflow-x-hidden p-6 lg:p-12 relative z-10 scroll-smooth">
+                        <motion.div
+                            key={pathname}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.4, ease: "easeOut" }}
+                            className="max-w-[1600px] mx-auto"
+                        >
+                            {children}
+                        </motion.div>
                     </main>
                 </div>
             </div>

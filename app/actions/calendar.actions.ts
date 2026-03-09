@@ -21,6 +21,9 @@ export interface CalendarAppointment {
     is_vip: boolean
     total_duration_minutes: number
     services: { name: string, duration: number, buffer: number }[]
+    phone?: string
+    email?: string
+    total_price?: number
 }
 
 export async function getCalendarGridDataAction(businessId: string, date: string) {
@@ -46,9 +49,10 @@ export async function getCalendarGridDataAction(businessId: string, date: string
                 end_time,
                 status,
                 staff_business_id,
+                total_price,
                 customer:business_customers(
                     is_vip,
-                    user:users(name)
+                    user:users(name, phone, email)
                 ),
                 services:appointment_services(
                     service:services(name),
@@ -112,7 +116,10 @@ export async function getCalendarGridDataAction(businessId: string, date: string
                 service_name: svcName,
                 is_vip: isVip,
                 total_duration_minutes: totalDuration,
-                services: formattedServices
+                services: formattedServices,
+                phone: userArr?.phone,
+                email: userArr?.email,
+                total_price: a.total_price
             }
         })
 

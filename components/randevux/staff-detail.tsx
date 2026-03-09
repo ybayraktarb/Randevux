@@ -160,7 +160,7 @@ export function StaffDetail({ staff, businessId, onClose }: StaffDetailProps) {
                 {/* Tab Content */}
                 <div className="flex-1 overflow-y-auto px-6 py-6">
                     {activeTab === "profile" && (
-                        <ProfileTab staff={staff} />
+                        <ProfileTab staff={staff} onClose={onClose} />
                     )}
                     {activeTab === "services" && (
                         <ServicesTab
@@ -186,7 +186,7 @@ export function StaffDetail({ staff, businessId, onClose }: StaffDetailProps) {
 
 // ─── Profile Tab ──────────────────────────────────────────────
 
-function ProfileTab({ staff }: { staff: StaffRecord }) {
+function ProfileTab({ staff, onClose }: { staff: StaffRecord; onClose: () => void }) {
     const u = staff.user
     const [activeStaff, setActiveStaff] = useState<{ id: string; user: { name: string } }[]>([])
     const [isTransferModalOpen, setIsTransferModalOpen] = useState(false)

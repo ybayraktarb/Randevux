@@ -1187,6 +1187,7 @@ function LeaveTab({ staffBusinessId }: { staffBusinessId: string }) {
                                             disabled={saving}
                                             onClick={async () => {
                                                 // Check for appointments before approving
+                                                const supabase = createClient()
                                                 const { count, error: aptError } = await supabase
                                                     .from("appointments")
                                                     .select("id", { count: "exact", head: true })

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
-import { CalendarShifts } from "@/components/randevux/calendar-shifts"
+import { CommandCenterCalendar } from "@/components/randevux/command-center-calendar"
 
 export const metadata = {
     title: "Takvim & Vardiyalar - Randevuxx",
@@ -24,9 +24,13 @@ export default async function TakvimPage() {
         redirect("/dashboard")
     }
 
+    if (!ownerData.business_id) {
+        return <div className="p-8 text-center">İşletme bilgisi bulunamadı.</div>
+    }
+
     return (
-        <div className="w-full flex-col p-4 md:p-6 lg:p-8">
-            <CalendarShifts />
+        <div className="w-full p-4 md:p-6 lg:p-8">
+            <CommandCenterCalendar businessId={ownerData.business_id} />
         </div>
     )
 }

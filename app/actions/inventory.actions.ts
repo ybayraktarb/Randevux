@@ -5,6 +5,7 @@ import * as Sentry from "@sentry/nextjs"
 import { revalidatePath } from "next/cache"
 import { logAuditAction } from "./audit.actions"
 import { createNotificationAction } from "./notification.actions"
+import { checkFeatureAccess } from "@/lib/permissions"
 
 // ============================================================================
 // 1. Ürün Kataloğu Servisleri (Products)
@@ -24,6 +25,11 @@ export async function upsertProductAction(data: {
 }) {
     try {
         const supabase = await createClient()
+
+        // Feature Check
+        const hasAccess = await checkFeatureAccess(data.businessId, "inventory_module")
+        if (!hasAccess) throw new Error("Bu özellik işletmeniz için aktif değildir.")
+
 
         const payload = {
             business_id: data.businessId,
@@ -120,6 +126,11 @@ export async function adjustStockAction(data: {
     try {
         const supabase = await createClient()
 
+        // Feature Check
+        const hasAccess = await checkFeatureAccess(data.businessId, "inventory_module")
+        if (!hasAccess) throw new Error("Bu özellik işletmeniz için aktif değildir.")
+
+
         // 1. Ürünün mevcut stoğunu al
         const { data: product, error: pErr } = await supabase.from("products").select("stock_quantity, min_stock_alert").eq("id", data.productId).single()
         if (pErr || !product) throw new Error("Ürün bulunamadı")
@@ -189,6 +200,11 @@ export async function addProductToAppointmentAction(data: {
 }) {
     try {
         const supabase = await createClient()
+
+        // Feature Check
+        const hasAccess = await checkFeatureAccess(data.businessId, "inventory_module")
+        if (!hasAccess) throw new Error("Bu özellik işletmeniz için aktif değildir.")
+
 
         // 1. Ürün bilgisi ve stoğu (Fiyat almak ve kontrol için)
         const { data: product, error: pErr } = await supabase.from("products").select("selling_price, stock_quantity, name").eq("id", data.productId).single()

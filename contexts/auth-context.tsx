@@ -19,6 +19,12 @@ export interface UserProfile {
     email: string
     phone: string | null
     avatarUrl: string | null
+    globalRole: "super_admin" | "user"
+}
+
+export interface BusinessInfo {
+    id: string
+    name: string
 }
 
 export interface AuthState {
@@ -26,9 +32,15 @@ export interface AuthState {
     error: string | null
     user: User | null
     profile: UserProfile | null
+    /** Aktif işletme adı (self-contained kullanım için korundu) */
     businessName: string | null
+    /** Aktif işletme ID'si */
+    businessId: string | null
+    /** Patron'un tüm işletmeleri — çok işletme UI için hazır */
+    businesses: BusinessInfo[]
     role: UserRole | null
     dashboardPath: string | null
+    subscriptionStatus: string | null
 }
 
 // ─── Context ────────────────────────────────────────────────────────────────────
@@ -39,8 +51,11 @@ const AuthContext = createContext<AuthState>({
     user: null,
     profile: null,
     businessName: null,
+    businessId: null,
+    businesses: [],
     role: null,
     dashboardPath: null,
+    subscriptionStatus: null,
 })
 
 // ─── Provider ───────────────────────────────────────────────────────────────────
@@ -52,8 +67,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user: null,
         profile: null,
         businessName: null,
+        businessId: null,
+        businesses: [],
         role: null,
         dashboardPath: null,
+        subscriptionStatus: null,
     })
 
     const supabase = createClient()
@@ -73,30 +91,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                         user: null,
                         profile: null,
                         businessName: null,
+                        businessId: null,
+                        businesses: [],
                         role: null,
                         dashboardPath: null,
+                        subscriptionStatus: null,
                     })
                 }
                 return
             }
 
-            // 2-4. Tüm profile/role/business sorguları paralel
-            const [profileResult, ownerResult, roleResult] = await Promise.all([
-                // 2. Profil (users tablosu)
+            // 2-4. Profil + tüm işletmeler + rol — paralel
+            const [profileResult, ownersResult, roleResult] = await Promise.all([
+                // Profil: global_role dahil (migration 036)
                 supabase
                     .from("users")
-                    .select("name, email, phone, avatar_url")
+                    .select("name, email, phone, avatar_url, global_role")
                     .eq("id", authUser.id)
                     .maybeSingle(),
 
-                // 3. İşletme sahibi mi? (business_owners)
+                // Patron'un TÜM işletmeleri (maybeSingle → select, çok işletme desteği)
                 supabase
                     .from("business_owners")
-                    .select("business_id, business:businesses(name)")
-                    .eq("user_id", authUser.id)
-                    .maybeSingle(),
+                    .select("business_id, business:businesses(id, name)")
+                    .eq("user_id", authUser.id),
 
-                // 4. Rol (getUserRole kendi içinde 3 sorguyu Promise.all yapar)
+                // Rol tespiti
                 getUserRole(supabase, authUser.id),
             ])
 
@@ -110,30 +130,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     email: pd.email || authUser.email || "",
                     phone: pd.phone || null,
                     avatarUrl: pd.avatar_url || null,
+                    globalRole: (pd.global_role as "super_admin" | "user") ?? "user",
                 }
                 : {
                     name: authUser.user_metadata?.name || "",
                     email: authUser.email || "",
                     phone: null,
                     avatarUrl: null,
+                    globalRole: "user",
                 }
 
-            // İşletme adı: önce owner'dan bak, yoksa staff_business'dan
+            // İşletme listesi (patron için)
+            let businesses: BusinessInfo[] = []
+            let businessId: string | null = null
             let businessName: string | null = null
-            const ownerRow = ownerResult.data
-            if (ownerRow?.business_id) {
-                // business join'i owner sorgusunda zaten geldi
-                const biz = (ownerRow as any).business
-                businessName = (Array.isArray(biz) ? biz[0]?.name : biz?.name) || null
+
+            const ownersData = ownersResult.data ?? []
+            if (ownersData.length > 0) {
+                businesses = ownersData
+                    .map((row: any) => {
+                        const biz = Array.isArray(row.business) ? row.business[0] : row.business
+                        return biz ? { id: biz.id, name: biz.name } : null
+                    })
+                    .filter(Boolean) as BusinessInfo[]
+
+                // İlk işletmeyi aktif seç (ileriki sürümde kullanıcı seçebilir)
+                if (businesses.length > 0) {
+                    businessId = businesses[0].id
+                    businessName = businesses[0].name
+                }
             } else {
                 // Personel mi?
                 const { data: staffData } = await supabase
                     .from("staff_business")
-                    .select("business:businesses(name)")
+                    .select("business_id, business:businesses(id, name)")
                     .eq("user_id", authUser.id)
                     .eq("is_active", true)
                     .maybeSingle()
+
                 if (!cancelled.value && staffData) {
+                    businessId = staffData.business_id
                     const biz = (staffData as any).business
                     businessName = (Array.isArray(biz) ? biz[0]?.name : biz?.name) || null
                 }
@@ -141,16 +177,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
             if (cancelled.value) return
 
-            const role = roleResult
             setState({
                 loading: false,
                 error: null,
                 user: authUser,
                 profile,
                 businessName,
-                role,
-                dashboardPath: getDashboardPath(role),
+                businessId,
+                businesses,
+                role: roleResult,
+                dashboardPath: getDashboardPath(roleResult),
+                subscriptionStatus: null, // Birazdan güncelleyeceğiz
             })
+
+            // 5. Abonelik Durumu (Eğer işletme varsa)
+            if (businessId && !cancelled.value) {
+                const { data: subData } = await supabase
+                    .from("subscriptions")
+                    .select("status")
+                    .eq("business_id", businessId)
+                    .maybeSingle()
+                
+                if (!cancelled.value && subData) {
+                    setState(prev => ({ ...prev, subscriptionStatus: subData.status }))
+                }
+            }
         } catch (err) {
             console.error("[AuthProvider] fetchAuth error:", err)
             if (!cancelled.value) {
@@ -179,8 +230,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                             user: null,
                             profile: null,
                             businessName: null,
+                            businessId: null,
+                            businesses: [],
                             role: null,
                             dashboardPath: null,
+                            subscriptionStatus: null,
                         })
                     }
                 }

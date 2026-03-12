@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { cn } from "@/lib/utils"
 import {
     ChevronLeft,
@@ -15,7 +15,25 @@ import {
     Search,
     Hash,
     Pin,
-    PinOff
+    PinOff,
+    X,
+    User,
+    Phone,
+    Mail,
+    CreditCard,
+    AlertTriangle,
+    TrendingUp,
+    WifiOff,
+    AlertCircle,
+    Bell,
+    MapPin,
+    MessageSquare,
+    Share2,
+    Circle,
+    ArrowLeft,
+    ArrowRight,
+    Eye,
+    EyeOff
 } from "lucide-react"
 import { RxButton } from "./rx-button"
 import { RxAvatar } from "./rx-avatar"
@@ -25,7 +43,9 @@ import { checkUpcomingAppointmentsAction } from "@/app/actions/reminders.actions
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import { updateAppointmentTimeAction } from "@/app/actions/appointment-time.actions"
+import { useCurrentUser } from "@/hooks/use-current-user"
 import { motion, AnimatePresence } from "framer-motion"
+import { FeatureGate } from "./feature-gate"
 import {
     DndContext,
     DragEndEvent,
@@ -67,6 +87,110 @@ function getStatusColor(status: string) {
         case "ongoing": return "bg-violet-500/10 border-violet-500/50 text-violet-700 dark:text-violet-300"
         default: return "bg-slate-500/10 border-slate-500/50 text-slate-700 dark:text-slate-300"
     }
+}
+
+// --- Sub Components ---
+function MiniCalendar({ selectedDate, onDateChange, monthDensity }: {
+    selectedDate: Date,
+    onDateChange: (d: Date) => void,
+    monthDensity: Record<string, number>
+}) {
+    const startOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1)
+    const endOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0)
+    const daysInMonth = endOfMonth.getDate()
+    const startDay = (startOfMonth.getDay() + 6) % 7 // Monday start
+
+    const cells = []
+    for (let i = 0; i < startDay; i++) cells.push(<div key={`empty-${i}`} />)
+    for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+        const count = monthDensity[dateStr] || 0
+        const isSelected = selectedDate.getDate() === d
+        const dateObj = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), d)
+        const isToday = new Date().toDateString() === dateObj.toDateString()
+
+        cells.push(
+            <button
+                key={d}
+                onClick={() => {
+                    const newD = new Date(selectedDate)
+                    newD.setDate(d)
+                    onDateChange(newD)
+                }}
+                className={cn(
+                    "relative h-9 w-full rounded-xl text-[11px] font-black transition-all flex flex-col items-center justify-center gap-1 group",
+                    isSelected ? "bg-primary text-white shadow-lg shadow-primary/20 active:scale-95" :
+                        isToday ? "bg-primary/5 text-primary border border-primary/20" :
+                            "hover:bg-gray-100 text-gray-600"
+                )}
+            >
+                {d}
+                {count > 0 && !isSelected && (
+                    <div className={cn(
+                        "size-1 rounded-full transition-transform group-hover:scale-150",
+                        count > 5 ? "bg-rose-500" : count > 2 ? "bg-primary" : "bg-gray-300"
+                    )} />
+                )}
+            </button>
+        )
+    }
+
+    return (
+        <div className="grid grid-cols-7 gap-1 text-center">
+            {['Pt', 'Sa', 'Ça', 'Pe', 'Cu', 'Ct', 'Pz'].map((day, idx) => (
+                <div key={`${day}-${idx}`} className="text-[9px] font-black text-gray-400 py-1 uppercase">{day}</div>
+            ))}
+            {cells}
+        </div>
+    )
+}
+
+function StaffListRow({ staff, isHidden, isPinned, onToggleVisibility, onTogglePin }: {
+    staff: StaffResource,
+    isHidden: boolean,
+    isPinned: boolean,
+    onToggleVisibility: () => void,
+    onTogglePin: () => void
+}) {
+    return (
+        <div
+            className={cn(
+                "flex items-center justify-between p-3 rounded-2xl border transition-all cursor-pointer group",
+                isHidden
+                    ? "bg-gray-50/50 border-transparent opacity-60 grayscale"
+                    : "bg-white border-gray-100 shadow-sm hover:shadow-md hover:border-primary/20"
+            )}
+            onClick={onToggleVisibility}
+        >
+            <div className="flex items-center gap-3">
+                <RxAvatar name={staff.name || ""} size="sm" src={staff.avatar_url} />
+                <div className="flex flex-col">
+                    <span className="text-[11px] font-bold text-gray-900 line-clamp-1">{staff.name}</span>
+                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">{staff.role || "Uzman"}</span>
+                </div>
+            </div>
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        onTogglePin()
+                    }}
+                    className={cn(
+                        "size-7 rounded-lg flex items-center justify-center transition-all",
+                        isPinned ? "text-primary bg-primary/10" : "text-gray-400 hover:bg-gray-100"
+                    )}
+                >
+                    {isPinned ? <PinOff className="size-3" /> : <Pin className="size-3" />}
+                </button>
+                <div className={cn(
+                    "size-5 rounded-lg flex items-center justify-center transition-all",
+                    isHidden ? "bg-gray-200 text-gray-400" : "bg-primary/10 text-primary"
+                )}>
+                    {isHidden ? <EyeOff className="size-3" /> : <Eye className="size-3" />}
+                </div>
+            </div>
+        </div>
+    )
 }
 
 // --- DND Components ---
@@ -151,7 +275,10 @@ function DraggableAppointment({ apt, top, height, onClick }: { apt: CalendarAppo
     )
 }
 
+
+
 export function CommandCenterCalendar({ businessId }: { businessId?: string }) {
+    const { subscriptionStatus } = useCurrentUser()
     const [currentDate, setCurrentDate] = useState(new Date())
     const [loading, setLoading] = useState(false)
     const [staff, setStaff] = useState<StaffResource[]>([])
@@ -175,7 +302,21 @@ export function CommandCenterCalendar({ businessId }: { businessId?: string }) {
     const [hiddenStaffIds, setHiddenStaffIds] = useState<Set<string>>(new Set())
     const [pinnedStaffIds, setPinnedStaffIds] = useState<string[]>([])
     const [staffSearchQuery, setStaffSearchQuery] = useState("")
+    const [activeRoleFilter, setActiveRoleFilter] = useState<string | null>(null)
+    const staffSearchQuery_inputRef = useRef<HTMLInputElement>(null)
     const supabase = createClient()
+
+    // ⌘+K Shortcut
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+                e.preventDefault()
+                staffSearchQuery_inputRef.current?.focus()
+            }
+        }
+        window.addEventListener("keydown", handleKeyDown)
+        return () => window.removeEventListener("keydown", handleKeyDown)
+    }, [])
 
     const sensors = useSensors(
         useSensor(MouseSensor, { activationConstraint: { distance: 5 } }), // 5px drag intent
@@ -329,7 +470,6 @@ export function CommandCenterCalendar({ businessId }: { businessId?: string }) {
         return Math.min(bhEnd, lastAptHour)
     }, [businessHours, isCompact, appointments])
 
-    // Generate Hour Rows (e.g. 08:00, 09:00, 10:00)
     const hours = useMemo(() => {
         const arr = []
         for (let i = startHour; i <= endHour; i++) {
@@ -338,12 +478,43 @@ export function CommandCenterCalendar({ businessId }: { businessId?: string }) {
         return arr
     }, [startHour, endHour])
 
+    // --- Scalability & Density Logic ---
+    const processedStaff = useMemo(() => {
+        const query = staffSearchQuery.toLowerCase().trim()
+        return staff
+            .filter(s => !hiddenStaffIds.has(s.id))
+            .filter(s => {
+                if (activeRoleFilter && s.role !== activeRoleFilter) return false
+                if (!query) return true
+                return (s.name || "").toLowerCase().includes(query) || (s.role || "").toLowerCase().includes(query)
+            })
+            .sort((a, b) => {
+                const aPinned = pinnedStaffIds.includes(a.id)
+                const bPinned = pinnedStaffIds.includes(b.id)
+                if (aPinned && !bPinned) return -1
+                if (!aPinned && bPinned) return 1
+                return 0
+            })
+    }, [staff, hiddenStaffIds, pinnedStaffIds, staffSearchQuery, activeRoleFilter])
+
+    const columnWidthClass = useMemo(() => {
+        const count = processedStaff.length
+        if (count > 8) return "min-w-[140px] hover:min-w-[280px]"
+        if (count > 5) return "min-w-[180px] hover:min-w-[300px]"
+        return "min-w-[240px] hover:min-w-[320px]"
+    }, [processedStaff.length])
+
     // --- DND Handlers ---
     const handleDragStart = (event: DragStartEvent) => {
         setActiveDragId(event.active.id as string)
     }
 
     const handleDragEnd = async (event: DragEndEvent) => {
+        if (subscriptionStatus === "past_due") {
+            toast.error("Aboneliğiniz sona ermiş. Lütfen devam etmek için aboneliğinizi yenileyin.")
+            setActiveDragId(null)
+            return
+        }
         setActiveDragId(null)
         const { active, over, delta } = event
 
@@ -440,14 +611,16 @@ export function CommandCenterCalendar({ businessId }: { businessId?: string }) {
             {/* Header Controls */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-border/40 bg-card/60 backdrop-blur-xl z-50">
                 <div className="flex items-center gap-4">
-                    <RxButton
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setShowSidebar(!showSidebar)}
-                        className={cn("h-10 w-10 text-gray-400 hover:text-primary transition-colors", showSidebar && "bg-primary/5 text-primary")}
-                    >
-                        <CalendarIcon className="size-5" />
-                    </RxButton>
+                    <FeatureGate featureKey="staff_management_module" businessId={businessId || ""} minimal>
+                        <RxButton
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowSidebar(!showSidebar)}
+                            className={cn("h-10 w-10 text-gray-400 hover:text-primary transition-colors", showSidebar && "bg-primary/5 text-primary")}
+                        >
+                            <CalendarIcon className="size-5" />
+                        </RxButton>
+                    </FeatureGate>
                     <div className="flex flex-col">
                         <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
                             Komuta <span className="text-primary">Merkezi</span>
@@ -527,8 +700,31 @@ export function CommandCenterCalendar({ businessId }: { businessId?: string }) {
             )}
 
             {/* Calendar Main Body */}
-            <div className="flex flex-1 overflow-hidden relative bg-card/30">
-                {/* Loading Shimmer Overlay */}
+            <div className="flex-1 flex flex-col min-h-0 bg-background relative overflow-hidden">
+                {/* Command Bar / Quick Search */}
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[60] w-full max-w-2xl px-4">
+                    <div className="bg-white/90 backdrop-blur-xl border border-gray-100 shadow-2xl rounded-3xl p-2 flex items-center gap-2 group transition-all hover:bg-white hover:ring-4 hover:ring-primary/5">
+                        <div className="size-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                            <Search className="size-5" />
+                        </div>
+                        <input
+                            ref={staffSearchQuery_inputRef}
+                            type="text"
+                            placeholder="Personel veya randevu ara... (⌘ + K)"
+                            className="flex-1 bg-transparent border-none focus:ring-0 text-sm font-bold text-gray-900 placeholder:text-gray-400 placeholder:font-medium"
+                            value={staffSearchQuery}
+                            onChange={(e) => setStaffSearchQuery(e.target.value)}
+                        />
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 rounded-xl border border-gray-100">
+                            <kbd className="text-[10px] font-black text-gray-400">⌘</kbd>
+                            <kbd className="text-[10px] font-black text-gray-400">K</kbd>
+                        </div>
+                        <div className="h-6 w-px bg-gray-100 mx-1" />
+                        <RxButton variant="ghost" size="sm" className="h-10 rounded-xl text-primary font-black uppercase text-[10px] tracking-widest px-4 hover:bg-primary/5">Aksiyonlar</RxButton>
+                    </div>
+                </div>
+
+                {/* Top Bar - Header Dashboard Area */}
                 {loading && (
                     <div className="absolute inset-0 z-[60] bg-background/20 backdrop-blur-[2px] pointer-events-none flex flex-col pt-12">
                         <div className="flex-1 flex min-w-[800px] ml-[70px]">
@@ -543,219 +739,96 @@ export function CommandCenterCalendar({ businessId }: { businessId?: string }) {
                     </div>
                 )}
                 {/* Left Sidebar: Mini Calendar & Stats */}
-                {showSidebar && (
-                    <div className="w-[300px] border-r border-gray-100 bg-gray-50/30 flex flex-col hidden lg:flex animate-in slide-in-from-left duration-500 custom-scrollbar overflow-auto">
-                        <div className="p-6 border-b border-gray-100 bg-white shadow-sm">
-                            <div className="flex items-center justify-between mb-6">
-                                <div className="flex flex-col">
-                                    <h3 className="text-[12px] font-black text-gray-900 uppercase tracking-widest">Aylık Plan</h3>
-                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Yoğunluk Analizi</p>
+                <FeatureGate featureKey="staff_management_module" businessId={businessId || ""} minimal>
+                    {showSidebar && (
+                        <div className="w-[300px] border-r border-gray-100 bg-gray-50/30 flex flex-col hidden lg:flex animate-in slide-in-from-left duration-500 custom-scrollbar overflow-auto">
+                            <div className="p-6 border-b border-gray-100 bg-white shadow-sm">
+                                <div className="flex items-center justify-between mb-6">
+                                    <div className="flex flex-col">
+                                        <h3 className="text-[12px] font-black text-gray-900 uppercase tracking-widest">Aylık Plan</h3>
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Yoğunluk Analizi</p>
+                                    </div>
+                                    <div className="flex gap-1.5">
+                                        <RxButton variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-xl hover:bg-gray-50" onClick={() => {
+                                            const d = new Date(currentDate)
+                                            d.setMonth(d.getMonth() - 1)
+                                            setCurrentDate(d)
+                                        }}><ChevronLeft className="size-4" /></RxButton>
+                                        <RxButton variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-xl hover:bg-gray-50" onClick={() => {
+                                            const d = new Date(currentDate)
+                                            d.setMonth(d.getMonth() + 1)
+                                            setCurrentDate(d)
+                                        }}><ChevronRight className="size-4" /></RxButton>
+                                    </div>
                                 </div>
-                                <div className="flex gap-1.5">
-                                    <RxButton variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-xl hover:bg-gray-50" onClick={() => {
-                                        const d = new Date(currentDate)
-                                        d.setMonth(d.getMonth() - 1)
-                                        setCurrentDate(d)
-                                    }}><ChevronLeft className="size-4" /></RxButton>
-                                    <RxButton variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-xl hover:bg-gray-50" onClick={() => {
-                                        const d = new Date(currentDate)
-                                        d.setMonth(d.getMonth() + 1)
-                                        setCurrentDate(d)
-                                    }}><ChevronRight className="size-4" /></RxButton>
-                                </div>
+
+                                <MiniCalendar
+                                    selectedDate={currentDate}
+                                    onDateChange={setCurrentDate}
+                                    monthDensity={monthDensity}
+                                />
                             </div>
 
-                            {/* Mini Calendar Grid */}
-                            <div className="grid grid-cols-7 gap-1 text-center">
-                                {['Pt', 'Sa', 'Ça', 'Pe', 'Cu', 'Ct', 'Pz'].map((day, idx) => (
-                                    <div key={`${day}-${idx}`} className="text-[9px] font-black text-gray-400 py-1 uppercase">{day}</div>
-                                ))}
-                                {(() => {
-                                    const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
-                                    const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0)
-                                    const daysInMonth = endOfMonth.getDate()
-                                    const startDay = (startOfMonth.getDay() + 6) % 7 // Monday start
+                            <div className="p-6 space-y-8 flex-1">
+                                {/* Stats Quick View */}
+                                <div className="space-y-4">
+                                    <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] border-l-2 border-primary pl-3">Bugün Ne Durumdayız?</h4>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                                            <span className="text-[9px] font-black text-gray-400 uppercase block mb-1">Doluluk</span>
+                                            <span className="text-xl font-black text-gray-900">%84</span>
+                                        </div>
+                                        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                                            <span className="text-[9px] font-black text-gray-400 uppercase block mb-1">Kalan</span>
+                                            <span className="text-xl font-black text-gray-900">12</span>
+                                        </div>
+                                    </div>
+                                </div>
 
-                                    const cells = []
-                                    for (let i = 0; i < startDay; i++) cells.push(<div key={`empty-${i}`} />)
-                                    for (let d = 1; d <= daysInMonth; d++) {
-                                        const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
-                                        const count = monthDensity[dateStr] || 0
-                                        const isSelected = currentDate.getDate() === d
-                                        const dateObj = new Date(currentDate.getFullYear(), currentDate.getMonth(), d)
-                                        const isToday = new Date().toDateString() === dateObj.toDateString()
-
-                                        cells.push(
-                                            <button
-                                                key={d}
-                                                onClick={() => {
-                                                    const newD = new Date(currentDate)
-                                                    newD.setDate(d)
-                                                    setCurrentDate(newD)
-                                                }}
+                                {/* Active Staff Toggle List */}
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] border-l-2 border-primary pl-3">Aktif Personeller</h4>
+                                        <button
+                                            onClick={() => setHiddenStaffIds(new Set())}
+                                            className="text-[9px] font-black text-primary uppercase tracking-widest hover:underline"
+                                        >
+                                            HEPSİNİ AÇ
+                                        </button>
+                                    </div>
+                                    <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                                        {staff.map(s => (
+                                            <div
+                                                key={s.id}
                                                 className={cn(
-                                                    "relative h-9 w-full rounded-xl text-[11px] font-black transition-all flex flex-col items-center justify-center gap-1 group",
-                                                    isSelected ? "bg-primary text-white shadow-lg shadow-primary/20 active:scale-95" :
-                                                        isToday ? "bg-primary/5 text-primary border border-primary/20" :
-                                                            "hover:bg-gray-100 text-gray-600"
+                                                    "flex items-center justify-between p-3 rounded-2xl border transition-all cursor-pointer group",
+                                                    hiddenStaffIds.has(s.id)
+                                                        ? "bg-gray-50/50 border-transparent opacity-60 grayscale"
+                                                        : "bg-white border-gray-100 shadow-sm hover:shadow-md hover:border-primary/20"
                                                 )}
+                                                onClick={() => {
+                                                    const newHidden = new Set(hiddenStaffIds)
+                                                    if (newHidden.has(s.id)) newHidden.delete(s.id)
+                                                    else newHidden.add(s.id)
+                                                    setHiddenStaffIds(newHidden)
+                                                }}
                                             >
-                                                {d}
-                                                {count > 0 && !isSelected && (
-                                                    <div className={cn(
-                                                        "size-1 rounded-full transition-transform group-hover:scale-150",
-                                                        count > 5 ? "bg-rose-500" : count > 2 ? "bg-primary" : "bg-gray-300"
-                                                    )} />
-                                                )}
-                                            </button>
-                                        )
-                                    }
-                                    return cells
-                                })()}
-                            </div>
-                        </div>
-
-                        <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col">
-                            {/* Summary Cards */}
-                            <div className="p-6 space-y-4 border-b border-gray-100">
-                                <h3 className="text-[12px] font-black text-gray-900 uppercase tracking-widest">Günün Özeti</h3>
-                                <div className="grid grid-cols-1 gap-3">
-                                    <div className="bg-white p-5 rounded-[32px] border border-gray-100 shadow-sm space-y-3">
-                                        <div className="flex items-center justify-between">
-                                            <div className="size-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
-                                                <TrendingUp className="size-5" />
-                                            </div>
-                                            <span className="text-[10px] font-bold text-green-500 uppercase tracking-widest">+12% Artış</span>
-                                        </div>
-                                        <div>
-                                            <p className="text-2xl font-black text-gray-900 leading-none">{appointments.length}</p>
-                                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-2">Toplam Randevu</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="bg-white p-5 rounded-[32px] border border-gray-100 shadow-sm space-y-3">
-                                        <div className="flex items-center justify-between">
-                                            <div className="size-10 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center">
-                                                <Clock className="size-5" />
-                                            </div>
-                                            <RxBadge variant="warning" className="text-[8px] px-2">{appointments.filter(a => a.status === 'Bekliyor').length} ADET</RxBadge>
-                                        </div>
-                                        <div>
-                                            <p className="text-2xl font-black text-gray-900 leading-none">{appointments.filter(a => a.status === 'Bekliyor').length}</p>
-                                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-2">Onay Bekleyenler</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Staff Management Section */}
-                            <div className="p-6 space-y-6">
-                                <div className="flex items-center justify-between">
-                                    <h3 className="text-[12px] font-black text-gray-900 uppercase tracking-widest">Personel Yönetimi</h3>
-                                    <RxButton
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => setHiddenStaffIds(new Set())}
-                                        className="h-6 text-[9px] font-black text-primary uppercase tracking-widest"
-                                    >
-                                        TÜMÜNÜ GÖSTER
-                                    </RxButton>
-                                </div>
-
-                                {/* Staff Search */}
-                                <div className="relative group">
-                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary transition-colors">
-                                        <Search className="size-3.5" />
-                                    </div>
-                                    <input
-                                        type="text"
-                                        value={staffSearchQuery}
-                                        onChange={(e) => setStaffSearchQuery(e.target.value)}
-                                        placeholder="Personel veya Rol ara..."
-                                        className="w-full bg-white border border-gray-100 rounded-2xl h-11 pl-11 pr-4 text-[11px] font-bold placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm"
-                                    />
-                                </div>
-
-                                {/* Grouped Staff List */}
-                                <div className="space-y-6">
-                                    {(() => {
-                                        const grouped = staff.reduce((acc, s) => {
-                                            const role = s.role || "Diğer"
-                                            if (!acc[role]) acc[role] = []
-                                            acc[role].push(s)
-                                            return acc
-                                        }, {} as Record<string, StaffResource[]>)
-
-                                        return Object.entries(grouped)
-                                            .filter(([role, members]) => {
-                                                if (!staffSearchQuery) return true
-                                                const q = staffSearchQuery.toLowerCase()
-                                                return role.toLowerCase().includes(q) || members.some(m => m.name.toLowerCase().includes(q))
-                                            })
-                                            .map(([role, members]) => (
-                                                <div key={role} className="space-y-3">
-                                                    <div className="flex items-center gap-2 px-1">
-                                                        <Hash className="size-3 text-gray-300" />
-                                                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">{role}</span>
-                                                        <span className="text-[9px] font-black text-gray-300 ml-auto">{members.length} KİŞİ</span>
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        {members.filter(m => !staffSearchQuery || m.name.toLowerCase().includes(staffSearchQuery.toLowerCase())).map(m => {
-                                                            const isHidden = hiddenStaffIds.has(m.id)
-                                                            const isPinned = pinnedStaffIds.includes(m.id)
-                                                            return (
-                                                                <div
-                                                                    key={m.id}
-                                                                    className={cn(
-                                                                        "group flex items-center gap-3 p-2 rounded-2xl transition-all border border-transparent",
-                                                                        isHidden ? "opacity-40 grayscale" : "bg-white border-gray-100 shadow-sm hover:shadow-md hover:scale-[1.02]"
-                                                                    )}
-                                                                >
-                                                                    <div className="relative">
-                                                                        <RxAvatar name={m.name} size="sm" />
-                                                                        <button
-                                                                            onClick={() => {
-                                                                                const newHidden = new Set(hiddenStaffIds)
-                                                                                if (isHidden) newHidden.delete(m.id)
-                                                                                else newHidden.add(m.id)
-                                                                                setHiddenStaffIds(newHidden)
-                                                                            }}
-                                                                            className={cn(
-                                                                                "absolute -right-1 -top-1 size-4 rounded-full border-2 border-white flex items-center justify-center transition-colors",
-                                                                                isHidden ? "bg-gray-400" : "bg-emerald-500"
-                                                                            )}
-                                                                        >
-                                                                            <div className="size-1 rounded-full bg-white shadow-sm" />
-                                                                        </button>
-                                                                    </div>
-                                                                    <div className="flex flex-col min-w-0 flex-1">
-                                                                        <span className="text-[11px] font-black text-gray-900 truncate leading-none">{m.name}</span>
-                                                                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">Görünür</span>
-                                                                    </div>
-                                                                    <RxButton
-                                                                        variant="ghost"
-                                                                        size="sm"
-                                                                        onClick={() => {
-                                                                            if (isPinned) {
-                                                                                setPinnedStaffIds(prev => prev.filter(id => id !== m.id))
-                                                                            } else {
-                                                                                setPinnedStaffIds(prev => [...prev, m.id])
-                                                                            }
-                                                                        }}
-                                                                        className={cn(
-                                                                            "size-8 p-0 rounded-xl transition-all",
-                                                                            isPinned ? "bg-primary/10 text-primary" : "text-gray-300 hover:text-gray-500 hover:bg-gray-50 opacity-0 group-hover:opacity-100"
-                                                                        )}
-                                                                    >
-                                                                        {isPinned ? <Pin className="size-3.5 fill-primary" /> : <Pin className="size-3.5" />}
-                                                                    </RxButton>
-                                                                </div>
-                                                            )
-                                                        })}
+                                                <div className="flex items-center gap-3">
+                                                    <RxAvatar name={s.name || ""} size="sm" src={s.avatar_url} />
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[11px] font-bold text-gray-900 line-clamp-1">{s.name}</span>
+                                                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">{s.role || "Uzman"}</span>
                                                     </div>
                                                 </div>
-                                            ))
-                                    })()}
+                                                <div className={cn(
+                                                    "size-5 rounded-lg flex items-center justify-center transition-all",
+                                                    hiddenStaffIds.has(s.id) ? "bg-gray-200 text-gray-400" : "bg-primary/10 text-primary"
+                                                )}>
+                                                    {hiddenStaffIds.has(s.id) ? <EyeOff className="size-3" /> : <Eye className="size-3" />}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
 
@@ -771,9 +844,8 @@ export function CommandCenterCalendar({ businessId }: { businessId?: string }) {
                                 </div>
                             </div>
                         </div>
-                    </div>
-                )
-                }
+                    )}
+                </FeatureGate>
 
                 {
                     (isClosed || (businessHours && !businessHours.is_open)) && (
@@ -807,7 +879,7 @@ export function CommandCenterCalendar({ businessId }: { businessId?: string }) {
 
                 {/* Resource Columns (X) */}
                 <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd} modifiers={[restrictToWindowEdges]}>
-                    <div className="flex flex-1 min-w-[800px] relative custom-scrollbar overflow-auto">
+                    <div className="flex flex-1 min-w-[800px] relative custom-scrollbar overflow-x-auto overflow-y-hidden">
                         {/* Current Time Line */}
                         {(() => {
                             const isSameDay = now.toDateString() === currentDate.toDateString()
@@ -827,143 +899,222 @@ export function CommandCenterCalendar({ businessId }: { businessId?: string }) {
                             return null
                         })()}
 
-                        {staff.length === 0 && !loading && (
-                            <div className="flex items-center justify-center flex-1 text-muted-foreground">Aktif personel bulunamadı.</div>
+                        {/* Quick Jump Controls (Visible if many staff) */}
+                        {staff.length > 4 && (
+                            <>
+                                <button
+                                    onClick={() => {
+                                        const el = document.getElementById('calendar-grid-scroll')
+                                        if (el) el.scrollBy({ left: -400, behavior: 'smooth' })
+                                    }}
+                                    className="absolute left-4 top-1/2 -translate-y-1/2 z-[45] size-12 rounded-full bg-white shadow-2xl border border-gray-100 flex items-center justify-center text-gray-400 hover:text-primary transition-all active:scale-90"
+                                >
+                                    <ArrowLeft className="size-6" />
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        const el = document.getElementById('calendar-grid-scroll')
+                                        if (el) el.scrollBy({ left: 400, behavior: 'smooth' })
+                                    }}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 z-[45] size-12 rounded-full bg-white shadow-2xl border border-gray-100 flex items-center justify-center text-gray-400 hover:text-primary transition-all active:scale-90"
+                                >
+                                    <ArrowRight className="size-6" />
+                                </button>
+                            </>
                         )}
 
-                        {(() => {
-                            const visibleStaff = staff
-                                .filter(s => !hiddenStaffIds.has(s.id))
-                                .sort((a, b) => {
-                                    const aPinned = pinnedStaffIds.includes(a.id)
-                                    const bPinned = pinnedStaffIds.includes(b.id)
-                                    if (aPinned && !bPinned) return -1
-                                    if (!aPinned && bPinned) return 1
-                                    return 0
+                        <div id="calendar-grid-scroll" className="flex flex-1 min-w-[800px] relative custom-scrollbar overflow-x-auto overflow-y-hidden">
+                            {(() => {
+                                let lastRole = ""
+                                return processedStaff.map((s, idx) => {
+                                    const staffApts = appointments.filter(a => a.staff_business_id === s.id)
+                                    const isPinned = pinnedStaffIds.includes(s.id)
+                                    const role = s.role || "Personel"
+                                    const showRoleHeader = role !== lastRole
+                                    lastRole = role
+
+                                    return (
+                                        <div key={s.id} className="flex flex-col">
+                                            {showRoleHeader && (
+                                                <div className="sticky top-0 z-30 h-8 bg-gray-50/80 backdrop-blur-md border-b border-r border-border/40 flex items-center px-4">
+                                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                                                        <Hash className="size-3" /> {role}
+                                                    </span>
+                                                </div>
+                                            )}
+                                            <DroppableColumn
+                                                id={s.id}
+                                                className={cn(
+                                                    "flex-1 border-r border-border/40 relative pb-10 transition-all duration-500 ease-in-out group/col",
+                                                    columnWidthClass,
+                                                    isPinned ? "bg-primary/[0.04] shadow-[inset_0_0_60px_rgba(var(--primary),0.03)] border-l-2 border-l-primary/30" : "bg-white/50"
+                                                )}
+                                            >
+                                                {/* Pinned Glow Indicator */}
+                                                {isPinned && <div className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-primary/60 via-primary/20 to-primary/60 shadow-[0_0_15px_rgba(var(--primary),0.3)] z-10" />}
+
+                                                {/* Sidebar Toggle & Date (Sticky Top) */}
+                                                <div
+                                                    className={cn(
+                                                        "sticky top-0 z-20 h-12 border-b border-border/40 flex items-center justify-between gap-2 px-3 transition-all duration-500 group-hover/col:bg-white/95",
+                                                        isPinned ? "bg-primary/5 backdrop-blur-xl" : "bg-white/90 backdrop-blur-md"
+                                                    )}
+                                                >
+                                                    <div
+                                                        className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer"
+                                                        onClick={(e) => {
+                                                            if (e.altKey) {
+                                                                // Focus Mode: Hide all others
+                                                                const others = staff.filter(m => m.id !== s.id).map(m => m.id)
+                                                                setHiddenStaffIds(new Set(others))
+                                                            }
+                                                        }}
+                                                        title="Alt + Tıklama: Odağı bu personele al"
+                                                    >
+                                                        <div className="relative shrink-0">
+                                                            <RxAvatar name={s.name} size="sm" src={s.avatar_url} className={cn(isPinned && "ring-2 ring-primary/30 ring-offset-1")} />
+                                                            {isPinned && (
+                                                                <div className="absolute -top-1 -right-1 bg-primary rounded-full p-0.5 shadow-lg border border-white">
+                                                                    <Pin className="size-2 fill-white text-white" />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex flex-col min-w-0">
+                                                            <span className={cn("text-[11px] font-black truncate leading-none transition-colors", isPinned ? "text-primary" : "text-gray-900", "group-hover/col:text-primary")}>{s.name}</span>
+                                                            <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">{role}</span>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex items-center gap-1 opacity-0 group-hover/header:opacity-100 group-hover/col:opacity-100 transition-opacity">
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation()
+                                                                if (isPinned) {
+                                                                    setPinnedStaffIds(prev => prev.filter(id => id !== s.id))
+                                                                } else {
+                                                                    setPinnedStaffIds(prev => [...prev, s.id])
+                                                                }
+                                                            }}
+                                                            className={cn(
+                                                                "size-7 rounded-lg flex items-center justify-center transition-all hover:scale-110",
+                                                                isPinned ? "text-primary bg-primary/10" : "text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                                                            )}
+                                                            title={isPinned ? "Sabitliği Kaldır" : "Sola Sabitle"}
+                                                        >
+                                                            {isPinned ? <PinOff className="size-3.5" /> : <Pin className="size-3.5" />}
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation()
+                                                                const newHidden = new Set(hiddenStaffIds)
+                                                                newHidden.add(s.id)
+                                                                setHiddenStaffIds(newHidden)
+                                                            }}
+                                                            className="size-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-all hover:scale-110"
+                                                            title="Gizle"
+                                                        >
+                                                            <X className="size-3.5" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                {/* Grid Background Lines (moved to a darker version for pinned) */}
+                                                <div className="absolute inset-0 top-12 pointer-events-none">
+                                                    {hours.map((hour) => (
+                                                        <div key={hour} className={cn("border-b", isPinned ? "border-primary/10" : "border-border/50")} style={{ height: `${60 * getPixelsPerMinute(zoomLevel)}px` }} />
+                                                    ))}
+                                                </div>
+
+                                                {/* Staff Availability Layers */}
+                                                <div className="absolute inset-0 top-12 pointer-events-none">
+                                                    {/* 1. Working Hours (Inactive areas) */}
+                                                    {(() => {
+                                                        const schedule = staffSchedules.find(sc => sc.staff_business_id === s.id)
+                                                        if (!schedule || !schedule.is_working) {
+                                                            return <div className="absolute inset-0 bg-muted/40" />
+                                                        }
+                                                        const sStart = timeToMinutes(schedule.start_time)
+                                                        const sEnd = timeToMinutes(schedule.end_time)
+
+                                                        const topLimit = startHour * 60
+                                                        const bottomLimit = (endHour + 1) * 60
+
+                                                        const inactiveBlocks = []
+                                                        if (sStart > topLimit) {
+                                                            inactiveBlocks.push({ top: 0, height: (sStart - topLimit) * getPixelsPerMinute(zoomLevel) })
+                                                        }
+                                                        if (sEnd < bottomLimit) {
+                                                            inactiveBlocks.push({ top: (sEnd - topLimit) * getPixelsPerMinute(zoomLevel), height: (bottomLimit - sEnd) * getPixelsPerMinute(zoomLevel) })
+                                                        }
+
+                                                        return inactiveBlocks.map((block, idx) => (
+                                                            <div key={`inactive-${idx}`} className="absolute left-0 right-0 bg-muted/40" style={block} />
+                                                        ))
+                                                    })()}
+
+                                                    {/* 2. Breaks */}
+                                                    {staffBreaks.filter(b => b.staff_business_id === s.id).map((b, idx) => {
+                                                        const bStart = timeToMinutes(b.start_time)
+                                                        const bEnd = timeToMinutes(b.end_time)
+                                                        const top = (bStart - (startHour * 60)) * getPixelsPerMinute(zoomLevel)
+                                                        const height = (bEnd - bStart) * getPixelsPerMinute(zoomLevel)
+                                                        return (
+                                                            <div key={`break-${idx}`} className="absolute left-0 right-0 bg-orange-500/[0.03] flex items-center justify-center border-y border-orange-500/10" style={{ top, height }}>
+                                                                <span className="text-[10px] text-orange-600 font-bold opacity-30 uppercase tracking-tighter">MOLA</span>
+                                                            </div>
+                                                        )
+                                                    })}
+
+                                                    {/* 3. Leaves */}
+                                                    {staffLeaves.filter(l => l.staff_business_id === s.id).map((l, idx) => {
+                                                        let top = 0
+                                                        let height = (endHour + 1 - startHour) * 60 * getPixelsPerMinute(zoomLevel)
+
+                                                        if (l.request_type === "partial" && l.start_time && l.end_time) {
+                                                            const lStart = timeToMinutes(l.start_time)
+                                                            const lEnd = timeToMinutes(l.end_time)
+                                                            top = (lStart - (startHour * 60)) * getPixelsPerMinute(zoomLevel)
+                                                            height = (lEnd - lStart) * getPixelsPerMinute(zoomLevel)
+                                                        }
+
+                                                        return (
+                                                            <div key={`leave-${idx}`} className="absolute left-0 right-0 bg-destructive/[0.08] border-y border-destructive/20 flex items-center justify-center p-2 text-center" style={{ top, height }}>
+                                                                <span className="text-[10px] text-destructive font-black uppercase tracking-[0.2em] break-words leading-tight opacity-40 italic">İzinli</span>
+                                                            </div>
+                                                        )
+                                                    })}
+                                                </div>
+
+                                                {/* Appointments Container */}
+                                                <div className="relative mt-12 w-full h-full p-2">
+                                                    {staffApts.map(apt => {
+                                                        const startMin = timeToMinutes(apt.start_time)
+                                                        const endMin = timeToMinutes(apt.end_time)
+                                                        const top = (startMin - (startHour * 60)) * getPixelsPerMinute(zoomLevel)
+                                                        const height = (endMin - startMin) * getPixelsPerMinute(zoomLevel)
+
+                                                        if (top < 0 && height + top <= 0) return null
+
+                                                        return (
+                                                            <DraggableAppointment
+                                                                key={apt.id}
+                                                                apt={apt}
+                                                                top={Math.max(0, top)}
+                                                                height={Math.max(20, height)}
+                                                                onClick={() => setSelectedApt(apt)}
+                                                            />
+                                                        )
+                                                    })}
+                                                </div>
+                                            </DroppableColumn>
+                                        </div>
+                                    )
                                 })
-
-                            return visibleStaff.map((s) => {
-                                const staffApts = appointments.filter(a => a.staff_business_id === s.id)
-                                const isPinned = pinnedStaffIds.includes(s.id)
-                                return (
-                                    <DroppableColumn
-                                        key={s.id}
-                                        id={s.id}
-                                        className={cn(
-                                            "flex-1 min-w-[220px] border-r border-border/40 relative pb-10 transition-all",
-                                            isPinned && "bg-primary/[0.02] shadow-[inset_0_0_10px_rgba(var(--primary),0.02)]"
-                                        )}
-                                    >
-                                        {/* Column Header (Sticky Top) */}
-                                        <div className={cn(
-                                            "sticky top-0 z-20 h-12 border-b border-border/40 flex items-center justify-center gap-2 px-3 transition-colors",
-                                            isPinned ? "bg-primary/5 backdrop-blur-xl" : "bg-white/80 backdrop-blur-md"
-                                        )}>
-                                            <div className="relative">
-                                                <RxAvatar name={s.name} size="sm" src={s.avatar_url} />
-                                                {isPinned && <Pin className="absolute -top-1 -right-1 size-3 fill-primary text-primary" />}
-                                            </div>
-                                            <div className="flex flex-col min-w-0">
-                                                <span className="text-[11px] font-black text-gray-900 truncate leading-none">{s.name}</span>
-                                                <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">{s.role || "Personel"}</span>
-                                            </div>
-                                        </div>
-
-                                        {/* Grid Background Lines */}
-                                        <div className="absolute inset-0 top-12 pointer-events-none">
-                                            {hours.map((hour) => (
-                                                <div key={hour} className="border-b border-border/50" style={{ height: `${60 * getPixelsPerMinute(zoomLevel)}px` }} />
-                                            ))}
-                                        </div>
-
-                                        {/* Staff Availability Layers */}
-                                        <div className="absolute inset-0 top-12 pointer-events-none">
-                                            {/* 1. Working Hours (Inactive areas) */}
-                                            {(() => {
-                                                const schedule = staffSchedules.find(sc => sc.staff_business_id === s.id)
-                                                if (!schedule || !schedule.is_working) {
-                                                    return <div className="absolute inset-0 bg-muted/40" />
-                                                }
-                                                const sStart = timeToMinutes(schedule.start_time)
-                                                const sEnd = timeToMinutes(schedule.end_time)
-
-                                                const topLimit = startHour * 60
-                                                const bottomLimit = (endHour + 1) * 60
-
-                                                const inactiveBlocks = []
-                                                if (sStart > topLimit) {
-                                                    inactiveBlocks.push({ top: 0, height: (sStart - topLimit) * getPixelsPerMinute(zoomLevel) })
-                                                }
-                                                if (sEnd < bottomLimit) {
-                                                    inactiveBlocks.push({ top: (sEnd - topLimit) * getPixelsPerMinute(zoomLevel), height: (bottomLimit - sEnd) * getPixelsPerMinute(zoomLevel) })
-                                                }
-
-                                                return inactiveBlocks.map((block, idx) => (
-                                                    <div key={`inactive-${idx}`} className="absolute left-0 right-0 bg-muted/40" style={block} />
-                                                ))
-                                            })()}
-
-                                            {/* 2. Breaks */}
-                                            {staffBreaks.filter(b => b.staff_business_id === s.id).map((b, idx) => {
-                                                const bStart = timeToMinutes(b.start_time)
-                                                const bEnd = timeToMinutes(b.end_time)
-                                                const top = (bStart - (startHour * 60)) * getPixelsPerMinute(zoomLevel)
-                                                const height = (bEnd - bStart) * getPixelsPerMinute(zoomLevel)
-                                                return (
-                                                    <div key={`break-${idx}`} className="absolute left-0 right-0 bg-orange-500/5 flex items-center justify-center" style={{ top, height }}>
-                                                        <span className="text-[10px] text-orange-600 font-bold opacity-30 uppercase tracking-tighter">MOLA</span>
-                                                    </div>
-                                                )
-                                            })}
-
-                                            {/* 3. Leaves */}
-                                            {staffLeaves.filter(l => l.staff_business_id === s.id).map((l, idx) => {
-                                                let top = 0
-                                                let height = (endHour + 1 - startHour) * 60 * getPixelsPerMinute(zoomLevel)
-
-                                                if (l.request_type === "partial" && l.start_time && l.end_time) {
-                                                    const lStart = timeToMinutes(l.start_time)
-                                                    const lEnd = timeToMinutes(l.end_time)
-                                                    top = (lStart - (startHour * 60)) * getPixelsPerMinute(zoomLevel)
-                                                    height = (lEnd - lStart) * getPixelsPerMinute(zoomLevel)
-                                                }
-
-                                                return (
-                                                    <div key={`leave-${idx}`} className="absolute left-0 right-0 bg-destructive/10 border-y border-destructive/20 flex items-center justify-center p-2 text-center" style={{ top, height }}>
-                                                        <span className="text-[10px] text-destructive font-bold uppercase tracking-widest break-words leading-tight">İzinli</span>
-                                                    </div>
-                                                )
-                                            })}
-                                        </div>
-
-                                        {/* Appointments Container */}
-                                        <div className="relative mt-12 w-full h-full p-2">
-                                            {staffApts.map(apt => {
-                                                const startMin = timeToMinutes(apt.start_time)
-                                                const endMin = timeToMinutes(apt.end_time)
-                                                const top = (startMin - (startHour * 60)) * getPixelsPerMinute(zoomLevel)
-                                                const height = (endMin - startMin) * getPixelsPerMinute(zoomLevel)
-
-                                                if (top < 0 && height + top <= 0) return null
-
-                                                return (
-                                                    <DraggableAppointment
-                                                        key={apt.id}
-                                                        apt={apt}
-                                                        top={Math.max(0, top)}
-                                                        height={Math.max(20, height)}
-                                                        onClick={() => setSelectedApt(apt)}
-                                                    />
-                                                )
-                                            })}
-                                        </div>
-                                    </DroppableColumn>
-                                )
-                            })
-                        })()}
+                            })()}
+                        </div>
 
                         {/* Drag Overlay for smooth visuals while dragging */}
-                        <DragOverlay dropAnimation={{ sideEffects: defaultDropAnimationSideEffects({ styles: { active: { opacity: '0.4' } } }) }}>
+                        <DragOverlay dropAnimation={{ sideEffects: defaultDropAnimationSideEffects({ styles: { active: { opacity: "0.4" } } }) }}>
                             {draggedApt ? (() => {
                                 const startMin = timeToMinutes(draggedApt.start_time)
                                 const endMin = timeToMinutes(draggedApt.end_time)
@@ -974,7 +1125,7 @@ export function CommandCenterCalendar({ businessId }: { businessId?: string }) {
                                             "rounded-lg border-l-4 shadow-2xl flex flex-col p-2 overflow-hidden opacity-90 cursor-grabbing",
                                             getStatusColor(draggedApt.status)
                                         )}
-                                        style={{ height: `${Math.max(20, height)}px`, width: '100%' }} // Assuming 100% of underlying column
+                                        style={{ height: `${Math.max(20, height)}px`, width: "100%" }}
                                     >
                                         <div className="flex items-start justify-between gap-1 overflow-hidden pointer-events-none">
                                             <span className="text-sm font-bold truncate leading-tight">{draggedApt.customer_name}</span>
@@ -1027,46 +1178,79 @@ export function CommandCenterCalendar({ businessId }: { businessId?: string }) {
                                 </div>
 
                                 <div className="flex-1 overflow-auto p-8 space-y-8 custom-scrollbar">
+                                    {/* Quick Jump / Actions Bar */}
+                                    <div className="grid grid-cols-4 gap-2">
+                                        {[
+                                            { icon: Phone, label: "Ara", color: "text-blue-600", bg: "bg-blue-50" },
+                                            { icon: MessageSquare, label: "WhatsApp", color: "text-green-600", bg: "bg-green-50" },
+                                            { icon: CalendarIcon, label: "Yeni", color: "text-purple-600", bg: "bg-purple-50" },
+                                            { icon: Share2, label: "Paylaş", color: "text-orange-600", bg: "bg-orange-50" },
+                                        ].map((action, i) => (
+                                            <button key={i} className={cn("flex flex-col items-center justify-center p-3 rounded-2xl gap-2 transition-all hover:scale-105 active:scale-95", action.bg)}>
+                                                <action.icon className={cn("size-5", action.color)} />
+                                                <span className={cn("text-[9px] font-black uppercase tracking-tighter", action.color)}>{action.label}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+
                                     {/* Status Header Card */}
                                     <div className={cn(
-                                        "p-6 rounded-[32px] border flex items-center gap-4",
-                                        getStatusColor(selectedApt.status)
+                                        "p-6 rounded-[32px] border-2 flex items-center gap-4 transition-all hover:shadow-lg",
+                                        getStatusColor(selectedApt.status),
+                                        "bg-opacity-10"
                                     )}>
-                                        <div className="size-12 rounded-2xl bg-white shadow-sm flex items-center justify-center">
-                                            <AlertTriangle className="size-6 text-current" />
+                                        <div className="size-14 rounded-2xl bg-white shadow-md flex items-center justify-center border border-current/20">
+                                            <AlertTriangle className="size-7 text-current" />
                                         </div>
                                         <div className="flex flex-col">
                                             <span className="text-[10px] font-black uppercase tracking-widest opacity-60">GÜNCEL DURUM</span>
-                                            <span className="text-lg font-black">{selectedApt.status}</span>
+                                            <span className="text-xl font-black uppercase">{selectedApt.status}</span>
+                                        </div>
+                                        <div className="ml-auto">
+                                            <div className="size-3 rounded-full bg-current animate-pulse" />
                                         </div>
                                     </div>
 
                                     {/* Customer Section */}
                                     <div className="space-y-4">
-                                        <h4 className="text-[12px] font-black text-gray-900 uppercase tracking-widest border-l-4 border-primary pl-3">Müşteri Bilgileri</h4>
-                                        <div className="bg-gray-50 p-6 rounded-[32px] border border-gray-100 space-y-5">
+                                        <div className="flex items-center justify-between">
+                                            <h4 className="text-[12px] font-black text-gray-900 uppercase tracking-widest border-l-4 border-primary pl-3">Müşteri Bilgileri</h4>
+                                            <span className="px-3 py-1 bg-gray-100 rounded-full text-[10px] font-black text-gray-500 uppercase tracking-widest">Müşteri Kartı</span>
+                                        </div>
+                                        <div className="bg-white p-6 rounded-[32px] border border-gray-100 space-y-5 shadow-sm transition-all hover:shadow-xl hover:shadow-gray-200/40 group">
                                             <div className="flex items-center gap-4">
-                                                <div className="size-12 rounded-2xl bg-white shadow-sm flex items-center justify-center">
-                                                    <User className="size-6 text-primary" />
+                                                <div className="size-16 rounded-2xl bg-gray-50 flex items-center justify-center border border-gray-100 shadow-inner group-hover:scale-110 transition-transform">
+                                                    <User className="size-8 text-primary" />
                                                 </div>
                                                 <div className="flex flex-col">
-                                                    <span className="text-base font-black text-gray-900">{selectedApt.customer_name}</span>
-                                                    {selectedApt.is_vip && <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest mt-0.5">Vip Müşteri</span>}
+                                                    <span className="text-lg font-black text-gray-900 tracking-tight">{selectedApt.customer_name}</span>
+                                                    {selectedApt.is_vip && (
+                                                        <div className="flex items-center gap-1.5 mt-1">
+                                                            <div className="size-2 rounded-full bg-amber-500 animate-pulse" />
+                                                            <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Premium Üye (VIP)</span>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
 
-                                            <div className="grid grid-cols-1 gap-4 pt-2">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="size-8 rounded-xl bg-white flex items-center justify-center text-gray-400">
+                                            <div className="grid grid-cols-1 gap-3 pt-2">
+                                                <div className="flex items-center gap-4 group cursor-pointer">
+                                                    <div className="size-9 rounded-xl bg-white border border-gray-100 flex items-center justify-center text-gray-400 group-hover:text-primary group-hover:border-primary/30 transition-all">
                                                         <Phone className="size-4" />
                                                     </div>
-                                                    <span className="text-sm font-bold text-gray-600">{selectedApt.phone || "Telefon Belirtilmemiş"}</span>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Telefon</span>
+                                                        <span className="text-sm font-bold text-gray-700">{selectedApt.phone || "Belirtilmemiş"}</span>
+                                                    </div>
                                                 </div>
-                                                <div className="flex items-center gap-3">
-                                                    <div className="size-8 rounded-xl bg-white flex items-center justify-center text-gray-400">
+                                                <div className="flex items-center gap-4 group cursor-pointer">
+                                                    <div className="size-9 rounded-xl bg-white border border-gray-100 flex items-center justify-center text-gray-400 group-hover:text-primary group-hover:border-primary/30 transition-all">
                                                         <Mail className="size-4" />
                                                     </div>
-                                                    <span className="text-sm font-bold text-gray-600">{selectedApt.email || "E-posta Belirtilmemiş"}</span>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">E-posta</span>
+                                                        <span className="text-sm font-bold text-gray-700">{selectedApt.email || "Belirtilmemiş"}</span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -1075,29 +1259,36 @@ export function CommandCenterCalendar({ businessId }: { businessId?: string }) {
                                     {/* Appointment Details */}
                                     <div className="space-y-4">
                                         <h4 className="text-[12px] font-black text-gray-900 uppercase tracking-widest border-l-4 border-primary pl-3">Hizmet & Zaman</h4>
-                                        <div className="bg-gray-50 p-6 rounded-[32px] border border-gray-100 space-y-6">
+                                        <div className="bg-white p-6 rounded-[32px] border border-gray-100 space-y-6 shadow-sm transition-all hover:shadow-xl hover:shadow-gray-200/40">
                                             <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="size-10 rounded-2xl bg-white shadow-sm flex items-center justify-center">
-                                                        <CreditCard className="size-5 text-gray-400" />
+                                                <div className="flex items-center gap-4">
+                                                    <div className="size-14 rounded-2xl bg-primary/5 border border-primary/10 shadow-sm flex items-center justify-center">
+                                                        <CreditCard className="size-7 text-primary" />
                                                     </div>
                                                     <div className="flex flex-col">
-                                                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Hizmet</span>
-                                                        <span className="text-sm font-black text-gray-900 uppercase tracking-widest">{selectedApt.service_name}</span>
+                                                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Alınan Hizmet</span>
+                                                        <span className="text-base font-black text-gray-900 uppercase tracking-tight leading-tight">{selectedApt.service_name}</span>
                                                     </div>
                                                 </div>
-                                                <div className="p-3 bg-primary/5 rounded-2xl">
-                                                    <span className="text-sm font-black text-primary">{selectedApt.total_price} TL</span>
+                                                <div className="px-5 py-2.5 bg-primary/10 rounded-2xl border border-primary/20 shadow-sm">
+                                                    <span className="text-lg font-black text-primary">{selectedApt.total_price} TL</span>
                                                 </div>
                                             </div>
 
-                                            <div className="flex items-center gap-3">
-                                                <div className="size-10 rounded-2xl bg-white shadow-sm flex items-center justify-center">
-                                                    <Clock className="size-5 text-gray-400" />
+                                            <div className="flex items-center gap-5 p-4 bg-gray-50 rounded-2xl border border-gray-100 border-dashed">
+                                                <div className="size-12 rounded-xl bg-white border border-gray-100 shadow-sm flex items-center justify-center text-primary/60">
+                                                    <Clock className="size-6" />
                                                 </div>
-                                                <div className="flex flex-col">
-                                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Randevu Zamanı</span>
-                                                    <span className="text-sm font-black text-gray-900 uppercase tracking-widest">{selectedApt.start_time} — {selectedApt.end_time}</span>
+                                                <div className="flex flex-col flex-1">
+                                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Randevu Zamanı</span>
+                                                    <div className="flex items-center gap-3">
+                                                        <span className="text-xl font-black text-gray-900 tabular-nums">{selectedApt.start_time}</span>
+                                                        <ArrowRight className="size-4 text-primary/40" />
+                                                        <span className="text-xl font-black text-gray-900 tabular-nums">{selectedApt.end_time}</span>
+                                                    </div>
+                                                </div>
+                                                <div className="px-3 py-1 bg-white rounded-lg border border-gray-100 shadow-sm">
+                                                    <span className="text-[10px] font-black text-primary uppercase">45 DK</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -1112,16 +1303,15 @@ export function CommandCenterCalendar({ businessId }: { businessId?: string }) {
                                     </div>
                                 </div>
 
-                            </div>
-
-                            <div className="p-8 border-t border-gray-100 bg-white grid grid-cols-2 gap-4">
-                                <RxButton variant="ghost" className="h-12 rounded-2xl font-black uppercase tracking-widest text-[11px] border border-gray-200">İptal Et</RxButton>
-                                <RxButton variant="primary" className="h-12 rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-lg shadow-primary/20">Onayla</RxButton>
-                            </div>
-                        </motion.div>
-            </>
-                )}
-        </AnimatePresence>
-        </div >
+                                <div className="p-8 border-t border-gray-100 bg-white grid grid-cols-2 gap-4">
+                                    <RxButton variant="ghost" className="h-12 rounded-2xl font-black uppercase tracking-widest text-[11px] border border-gray-200" onClick={() => setSelectedApt(null)}>İptal Et</RxButton>
+                                    <RxButton variant="primary" className="h-12 rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-lg shadow-primary/20">Onayla</RxButton>
+                                </div>
+                            </motion.div>
+                        </>
+                    )
+                }
+            </AnimatePresence>
+        </div>
     )
 }

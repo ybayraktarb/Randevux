@@ -850,8 +850,9 @@ function BookingFlowInner() {
     async function loadData() {
       if (!businessId) return
       try {
-        const [bRes, sRes, stRes, staffSvcRes, familyRes] = await Promise.all([
+        const [bRes, subRes, sRes, stRes, staffSvcRes, familyRes] = await Promise.all([
           supabase.from("businesses").select("name").eq("id", businessId).single(),
+          supabase.from("subscriptions").select("status").eq("business_id", businessId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
           supabase.from("services").select("*").eq("business_id", businessId).eq("is_active", true),
           supabase.from("staff_business").select("*, user:users(name, title)").eq("business_id", businessId).eq("is_active", true),
           supabase.from("staff_services").select("*").eq("is_active", true),
@@ -859,6 +860,13 @@ function BookingFlowInner() {
         ])
 
         if (bRes.data) setBusinessName(bRes.data.name)
+        
+        if (subRes.data?.status === "past_due") {
+          toast.error("Bu işletmenin randevu sistemi şu anda kapalıdır. Lütfen daha sonra tekrar deneyiniz.")
+          router.push("/musteri-panel")
+          return
+        }
+
         if (typeof familyRes !== "undefined" && "success" in (familyRes as any) && (familyRes as any).success) {
           setFamilyProfiles((familyRes as any).data || [])
         }

@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server"
 import * as Sentry from "@sentry/nextjs"
 import { revalidatePath } from "next/cache"
 import { logAuditAction } from "./audit.actions"
+import { checkFeatureAccess } from "@/lib/permissions"
 
 // ============================================================================
 // 1. Kasa Hareketleri (Transactions)
@@ -22,6 +23,11 @@ export async function addTransactionAction(data: {
         const supabase = await createClient()
         const { data: userAuth, error: authErr } = await supabase.auth.getUser()
         if (authErr || !userAuth.user) throw new Error("Unauthorized")
+
+        // Feature Check
+        const hasAccess = await checkFeatureAccess(data.businessId, "finance_module")
+        if (!hasAccess) throw new Error("Bu özellik işletmeniz için aktif değildir.")
+
 
         const { data: inserted, error } = await supabase.from("transactions").insert({
             business_id: data.businessId,
@@ -64,6 +70,11 @@ export async function checkoutAppointmentAction(data: {
 }) {
     try {
         const supabase = await createClient()
+
+        // Feature Check
+        const hasAccess = await checkFeatureAccess(data.businessId, "finance_module")
+        if (!hasAccess) throw new Error("Bu özellik işletmeniz için aktif değildir.")
+
 
         // 1. Randevuyu tamamlandı (completed) yap
         const { error: aptErr } = await supabase.from("appointments")

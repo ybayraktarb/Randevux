@@ -33,6 +33,7 @@ import { createClient } from "@/lib/supabase/client"
 import { useCurrentUser } from "@/hooks/use-current-user"
 import { getDashboardStatsAction, type DashboardStats } from "@/app/actions/dash-stats.actions"
 import { AddAppointmentModal } from "./appointment-management"
+import { FeatureGate } from "./feature-gate"
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
 
@@ -563,7 +564,7 @@ function NoShowRecords({ records }: { records: NoShowRecord[] }) {
 // ─── Main Dashboard ─────────────────────────────────────────────────────────────
 
 export function PatronDashboard() {
-  const { user } = useCurrentUser()
+  const { user, subscriptionStatus } = useCurrentUser()
   const [loading, setLoading] = useState(true)
   const [businessId, setBusinessId] = useState<string | null>(null)
   const [todayApts, setTodayApts] = useState<TodayApt[]>([])
@@ -780,7 +781,20 @@ export function PatronDashboard() {
             <Calendar className="size-4 mr-2" />
             Rapor Al
           </RxButton>
-          <RxButton variant="primary" onClick={() => setShowAddModal(true)} className="rounded-2xl shadow-xl shadow-primary/20 hover:shadow-primary/40 font-black uppercase tracking-widest text-[11px] px-8">
+          <RxButton
+            variant="primary"
+            onClick={() => {
+              if (subscriptionStatus === "past_due") {
+                toast.error("Aboneliğiniz sona ermiş. Lütfen devam etmek için aboneliğinizi yenileyin.")
+                return
+              }
+              setShowAddModal(true)
+            }}
+            className={cn(
+              "rounded-2xl shadow-xl shadow-primary/20 hover:shadow-primary/40 font-black uppercase tracking-widest text-[11px] px-8",
+              subscriptionStatus === "past_due" && "opacity-50 grayscale cursor-not-allowed"
+            )}
+          >
             <CalendarPlus className="size-4 mr-2" />
             Yeni Randevu
           </RxButton>
@@ -798,7 +812,17 @@ export function PatronDashboard() {
 
       {/* Stat Cards */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-5">
-        <StatCard label="Aylık Gelir" icon={TrendingUp} value={`₺${totalRevenue.toLocaleString("tr-TR")}`} trendValue="%12" trendPositive trendText="Geçen aya göre" />
+        <FeatureGate featureKey="finance_module" businessId={businessId || ""} minimal>
+          <StatCard
+            label="Toplam Gelir"
+            icon={TrendingUp}
+            value={`₺${totalRevenue.toLocaleString("tr-TR")}`}
+            trendValue="12%"
+            trendPositive={true}
+            trendText="Geçen aya göre"
+            color="emerald"
+          />
+        </FeatureGate>
         <StatCard label="Randevu" icon={Calendar} value={String(totalAppointments)} trendValue="8" trendPositive trendText="Bugün beklenen" />
         <StatCard label="Müşteri" icon={RxAvatar} value={String(totalCustomers)} color="success" />
         <StatCard label="VIP" icon={Check} value={String(vipCount)} color="success" />
@@ -815,43 +839,48 @@ export function PatronDashboard() {
 
           {/* Low Stock Alerts */}
           {lowStockItems.length > 0 && (
-            <div className="flex flex-col rounded-xl bg-card shadow-[0_2px_8px_rgba(0,0,0,0.06)] border border-destructive/20">
-              <div className="flex items-center justify-between border-b border-border px-5 py-4 bg-destructive/5 rounded-t-xl">
-                <div className="flex items-center gap-3">
-                  <h2 className="text-base font-semibold text-destructive">Kritik Stok Uyarıları</h2>
-                  <span className="flex size-5 items-center justify-center rounded-full bg-destructive text-[11px] font-bold text-destructive-foreground">{lowStockItems.length}</span>
+            <FeatureGate featureKey="inventory_module" businessId={businessId || ""} minimal>
+              <div className="flex flex-col rounded-xl bg-card shadow-[0_2px_8px_rgba(0,0,0,0.06)] border border-destructive/20">
+                <div className="flex items-center justify-between border-b border-border px-5 py-4 bg-destructive/5 rounded-t-xl">
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-base font-semibold text-destructive">Kritik Stok Uyarıları</h2>
+                    <span className="flex size-5 items-center justify-center rounded-full bg-destructive text-[11px] font-bold text-destructive-foreground">{lowStockItems.length}</span>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2 p-5 max-h-[300px] overflow-y-auto">
+                  {lowStockItems.map(item => (
+                    <div key={item.id} className="flex justify-between items-center p-3 rounded-lg border border-border bg-card">
+                      <div className="flex items-center gap-3">
+                        <PackageOpen className="size-4 text-muted-foreground" />
+                        <span className="text-sm font-medium">{item.name}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs text-muted-foreground mr-2">Min: {item.min_stock_alert}</span>
+                        <span className={cn("font-bold text-sm", item.stock_quantity === 0 ? "text-destructive" : "text-warning")}>
+                          {item.stock_quantity} Adet
+                        </span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-              <div className="flex flex-col gap-2 p-5 max-h-[300px] overflow-y-auto">
-                {lowStockItems.map(item => (
-                  <div key={item.id} className="flex justify-between items-center p-3 rounded-lg border border-border bg-card">
-                    <div className="flex items-center gap-3">
-                      <PackageOpen className="size-4 text-muted-foreground" />
-                      <span className="text-sm font-medium">{item.name}</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs text-muted-foreground mr-2">Min: {item.min_stock_alert}</span>
-                      <span className={cn("font-bold text-sm", item.stock_quantity === 0 ? "text-destructive" : "text-warning")}>
-                        {item.stock_quantity} Adet
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            </FeatureGate>
           )}
         </div>
       </div>
 
       {/* Revenue Chart + Service Utilization */}
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-9">
-        <div className="xl:col-span-5">
-          <RevenueChart revenueData={revenueData} totalRevenue={totalRevenue} />
+      {/* Revenue Analysis - Gated */}
+      <FeatureGate featureKey="finance_module" businessId={businessId || ""} minimal>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            <RevenueChart revenueData={revenueData} totalRevenue={totalRevenue} />
+          </div>
+          <div className="lg:col-span-1">
+            <ServiceUtilization services={serviceUtilization} />
+          </div>
         </div>
-        <div className="xl:col-span-4">
-          <ServiceUtilization services={serviceUtilization} />
-        </div>
-      </div>
+      </FeatureGate>
 
       {/* Staff Efficiency + No Show Records */}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-9">

@@ -7,10 +7,11 @@ import { cn } from "@/lib/utils"
 interface RxModalProps {
   open: boolean
   onClose: () => void
-  title: string
+  title: React.ReactNode
   children: React.ReactNode
   footer?: React.ReactNode
   className?: string
+  ariaLabel?: string
 }
 
 export function RxModal({
@@ -20,6 +21,7 @@ export function RxModal({
   children,
   footer,
   className,
+  ariaLabel,
 }: RxModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null)
 
@@ -42,13 +44,13 @@ export function RxModal({
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/5 backdrop-blur-[6px] p-4 transition-all duration-300"
       onClick={(e) => {
         if (e.target === overlayRef.current) onClose()
       }}
       role="dialog"
       aria-modal="true"
-      aria-label={title}
+      aria-label={ariaLabel || (typeof title === 'string' ? title : undefined)}
     >
       <div
         className={cn(

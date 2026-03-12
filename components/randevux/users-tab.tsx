@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
-import { Loader2, Search, MoreHorizontal, ChevronLeft, ChevronRight, UserCheck, BanIcon, Edit2, Plus, X } from "lucide-react"
+import { Loader2, Search, MoreHorizontal, ChevronLeft, ChevronRight, UserCheck, BanIcon, Edit2, Plus, X, Calendar, Users, ShieldCheck, Building2, UserPlus, Mail, Phone, Lock, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import * as Sentry from "@sentry/nextjs"
 import { RxAvatar } from "./rx-avatar"
@@ -10,7 +10,9 @@ import { RxBadge } from "./rx-badge"
 import { RxButton } from "./rx-button"
 import { RxModal } from "./rx-modal"
 import { RxInput } from "./rx-input"
-import { createUserAction } from "@/app/actions/user.actions"
+import { createUserAction, deleteUserAction } from "@/app/actions/user.actions"
+import { UsersDrawer } from "./super-admin/tabs/users-drawer"
+import { toast } from "sonner"
 
 export function UsersTab() {
     const supabase = createClient()
@@ -20,6 +22,7 @@ export function UsersTab() {
     // Filters & Pagination
     const [searchQuery, setSearchQuery] = useState("")
     const [statusFilter, setStatusFilter] = useState("all")
+    const [roleFilter, setRoleFilter] = useState("all") // all, patron, user, super_admin
     const [currentPage, setCurrentPage] = useState(1)
     const itemsPerPage = 15
     const [totalCount, setTotalCount] = useState(0)
@@ -27,18 +30,17 @@ export function UsersTab() {
     // Actions
     const [menuOpenIdx, setMenuOpenIdx] = useState<number | null>(null)
 
-    // Modal State for Action Confirmation & Edit
-    const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false)
-    const [isEditModalOpen, setIsEditModalOpen] = useState(false)
-    const [userToAct, setUserToAct] = useState<{ id: string, name: string, willBeActive: boolean } | null>(null)
-    const [editForm, setEditForm] = useState({ id: "", name: "", email: "", role: "user" })
+    // Drawer state
+    const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+    const [selectedUser, setSelectedUser] = useState<any | null>(null)
+    const [userToAct, setUserToAct] = useState<{ id: string, name: string, willBeActive: boolean, type?: 'status' | 'delete' } | null>(null)
     const [actionLoading, setActionLoading] = useState(false)
 
     // Create User Modal State
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
     const [createForm, setCreateForm] = useState({
         name: "", email: "", password: "", role: "patron", phone: "",
-        businessName: "", moduleId: "", existingBusinessId: "", assignmentType: "new"
+        existingBusinessId: ""
     })
     const [createLoading, setCreateLoading] = useState(false)
     const [modules, setModules] = useState<any[]>([])
@@ -67,7 +69,7 @@ export function UsersTab() {
             fetchUsers()
         }, 400)
         return () => clearTimeout(delayDebounceFn)
-    }, [currentPage, statusFilter, searchQuery])
+    }, [currentPage, statusFilter, roleFilter, searchQuery])
 
     async function fetchUsers() {
         setLoading(true)
@@ -85,6 +87,10 @@ export function UsersTab() {
         }
         if (statusFilter === "banned") {
             query = query.eq("is_active", false)
+        }
+
+        if (roleFilter !== "all") {
+            query = query.eq("role", roleFilter)
         }
 
         const from = (currentPage - 1) * itemsPerPage
@@ -111,75 +117,29 @@ export function UsersTab() {
         setLoading(false)
     }
 
-    function promptAction(user: any) {
-        setUserToAct({ id: user.id, name: user.name, willBeActive: !user.active })
-        setIsConfirmModalOpen(true)
+    function openUserDrawer(user: any) {
+        setSelectedUser(user)
+        setIsDrawerOpen(true)
         setMenuOpenIdx(null)
     }
 
-    function openEditModal(user: any) {
-        setEditForm({
-            id: user.id,
-            name: user.name === "İsimsiz Kullanıcı" ? "" : user.name,
-            email: user.email === "-" ? "" : user.email,
-            role: user.role
-        })
-        setIsEditModalOpen(true)
-        setMenuOpenIdx(null)
-    }
-
-    async function executeAction() {
-        if (!userToAct) return
+    async function handleToggleStatus(userId: string, currentStatus: boolean) {
         setActionLoading(true)
+        const { error } = await supabase
+            .from("users")
+            .update({ is_active: !currentStatus })
+            .eq("id", userId)
 
-        try {
-            const { error } = await supabase
-                .from("users")
-                .update({ is_active: userToAct.willBeActive })
-                .eq("id", userToAct.id)
-
-            if (error) throw error
-
-            setIsConfirmModalOpen(false)
-            setUserToAct(null)
+        if (error) {
+            toast.error("Durum güncelleme hatası")
+        } else {
+            toast.success(!currentStatus ? "Kullanıcı aktif edildi" : "Kullanıcı durduruldu")
             fetchUsers()
-        } catch (error) {
-            console.error("İşlem hatası:", error)
-            Sentry.captureException(error)
-            alert("İşlem sırasında bir hata oluştu. Teknik ekip bilgilendirildi.")
-        } finally {
-            setActionLoading(false)
         }
+        setActionLoading(false)
     }
 
-    async function handleEditSubmit(e: React.FormEvent) {
-        e.preventDefault()
-        setActionLoading(true)
 
-        try {
-            const updates = {
-                name: editForm.name,
-                email: editForm.email,
-                role: editForm.role
-            }
-
-            const { error } = await supabase
-                .from("users")
-                .update(updates)
-                .eq("id", editForm.id)
-
-            if (error) throw error
-
-            setIsEditModalOpen(false)
-            fetchUsers()
-        } catch (error) {
-            console.error("Güncelleme hatası:", error)
-            Sentry.captureException(error)
-            alert("Güncelleme sırasında bir hata oluştu. Teknik ekip bilgilendirildi.")
-        } finally {
-            setActionLoading(false)
-        }
-    }
 
     async function handleCreateUser() {
         if (!createForm.name || !createForm.email || !createForm.password) {
@@ -188,11 +148,7 @@ export function UsersTab() {
         }
 
         if (createForm.role === "patron") {
-            if (createForm.assignmentType === "new" && (!createForm.businessName || !createForm.moduleId)) {
-                alert("Yeni işletme oluşturulurken İşletme Adı ve Modül seçimi zorunludur.")
-                return
-            }
-            if (createForm.assignmentType === "existing" && !createForm.existingBusinessId) {
+            if (!createForm.existingBusinessId) {
                 alert("Lütfen atanacak mevcut işletmeyi seçin.")
                 return
             }
@@ -208,12 +164,7 @@ export function UsersTab() {
         if (createForm.phone) formData.append("phone", createForm.phone)
 
         if (createForm.role === "patron") {
-            if (createForm.assignmentType === "new") {
-                formData.append("businessName", createForm.businessName)
-                formData.append("moduleId", createForm.moduleId)
-            } else {
-                formData.append("existingBusinessId", createForm.existingBusinessId)
-            }
+            formData.append("existingBusinessId", createForm.existingBusinessId)
         }
 
         const result = await createUserAction(formData)
@@ -227,8 +178,7 @@ export function UsersTab() {
             setIsCreateModalOpen(false)
             setCreateForm({
                 name: "", email: "", password: "", role: "patron", phone: "",
-                businessName: "", moduleId: modules[0]?.id || "",
-                existingBusinessId: "", assignmentType: "new"
+                existingBusinessId: ""
             })
             fetchUsers() // Tabloyu Yenile
         }
@@ -238,55 +188,107 @@ export function UsersTab() {
 
     return (
         <div className="flex flex-col gap-6">
-            {/* Header & Controls */}
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <h2 className="text-[22px] font-semibold text-foreground">Kullanıcılar</h2>
-                    <p className="text-sm text-muted-foreground">{totalCount} kayıtlı kullanıcı</p>
-                </div>
-                <div className="flex flex-wrap items-center gap-3">
-                    <RxButton size="sm" onClick={() => setIsCreateModalOpen(true)}>
-                        <Plus className="size-4" />
-                        Yeni Kullanıcı Ekle
-                    </RxButton>
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                        <input
-                            type="text"
-                            placeholder="İsim, email veya telefon..."
-                            value={searchQuery}
-                            onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-                            className="h-9 w-56 rounded-lg border border-input bg-card pl-10 pr-3 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
-                        />
+            {/* Header & Toolbar */}
+            <div className="flex flex-col gap-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex flex-col gap-1">
+                        <h2 className="text-[22px] font-semibold text-foreground tracking-tight">Kullanıcı Yönetimi</h2>
+                        <p className="text-sm text-muted-foreground">{totalCount} kayıtlı sistem kullanıcısı listeleniyor.</p>
                     </div>
-                    <select
-                        value={statusFilter}
-                        onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
-                        className="h-9 rounded-lg border border-input bg-card px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
-                    >
-                        <option value="all">Tüm Durumlar</option>
-                        <option value="active">Aktif</option>
-                        <option value="banned">Banlı / Pasif</option>
-                    </select>
+                    <div className="shrink-0">
+                        <RxButton onClick={() => setIsCreateModalOpen(true)} className="shadow-sm">
+                            <Plus className="size-4" />
+                            Yeni Hesap Oluştur
+                        </RxButton>
+                    </div>
+                </div>
+
+                {/* Filter Toolbar */}
+                <div className="flex flex-col gap-4">
+                    <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-2 shadow-sm">
+                        
+                        {/* Role Segmented Control */}
+                        <div className="flex items-center gap-1 rounded-md bg-muted/30 p-1">
+                            {[
+                                { id: "all", label: "Tümü" },
+                                { id: "patron", label: "Patronlar" },
+                                { id: "personel", label: "Personeller" },
+                                { id: "user", label: "Müşteriler" },
+                                { id: "super_admin", label: "Yöneticiler" }
+                            ].map((role) => (
+                                <button
+                                    key={role.id}
+                                    onClick={() => { setRoleFilter(role.id); setCurrentPage(1); }}
+                                    className={cn(
+                                        "px-3 py-1 text-xs font-semibold rounded-md transition-all duration-200",
+                                        roleFilter === role.id 
+                                            ? "bg-primary text-primary-foreground shadow-sm" 
+                                            : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                                    )}
+                                >
+                                    {role.label}
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="h-5 w-px bg-border hidden sm:block mx-1" />
+
+                        {/* Search Input */}
+                        <div className="relative flex-1 min-w-[200px] max-w-xs">
+                            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                            <input
+                                type="text"
+                                placeholder="İsim, email veya telefon..."
+                                value={searchQuery}
+                                onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                                className="h-9 w-full rounded-md bg-transparent pl-9 pr-3 text-[13px] text-foreground placeholder:text-muted-foreground transition-colors focus:outline-none focus:ring-1 focus:ring-primary/30"
+                            />
+                        </div>
+
+                        <div className="h-5 w-px bg-border hidden sm:block mx-1" />
+
+                        {/* Status Select */}
+                        <select
+                            value={statusFilter}
+                            onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
+                            className="h-9 min-w-[140px] cursor-pointer rounded-md bg-transparent px-3 text-[13px] font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30 hover:bg-accent transition-colors border-none appearance-none"
+                        >
+                            <option value="all">Tüm Durumlar</option>
+                            <option value="active">🟢 Aktif Kullanıcılar</option>
+                            <option value="banned">🔴 Banlı / Pasif</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
-            {/* Table */}
-            <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
-                {loading ? (
-                    <div className="flex justify-center p-12"><Loader2 className="size-6 animate-spin text-primary" /></div>
-                ) : (
-                    <table className="w-full min-w-[800px]">
-                        <thead>
-                            <tr className="border-b border-border">
-                                {["Kullanıcı", "E-posta", "Telefon", "Rol", "Kayıt Tarihi", "Durum", "İşlemler"].map((h) => (
-                                    <th key={h} className="px-5 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">{h}</th>
-                                ))}
-                            </tr>
-                        </thead>
+            {/* Table Area */}
+            <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm relative">
+                {loading && (
+                    <div className="absolute inset-0 z-10 flex min-h-[300px] items-center justify-center bg-background/50 backdrop-blur-sm">
+                        <Loader2 className="size-8 animate-spin text-primary" />
+                    </div>
+                )}
+                <table className="w-full min-w-[800px] text-sm">
+                    <thead>
+                        <tr className="border-b border-border bg-muted/40 transition-colors hover:bg-muted/50">
+                            {["Kullanıcı", "E-posta", "Telefon", "Rol"].map((h) => (
+                                <th key={h} className="px-5 py-3.5 text-left text-[13px] font-semibold text-muted-foreground/80 whitespace-nowrap">{h}</th>
+                            ))}
+                            <th className="px-5 py-3.5 text-left text-[13px] font-semibold text-muted-foreground/80 whitespace-nowrap">
+                                <span className="flex items-center gap-1"><Calendar className="size-3.5" /> Kayıt Tarihi</span>
+                            </th>
+                            {["Durum", "İşlemler"].map((h) => (
+                                <th key={h} className="px-5 py-3.5 text-left text-[13px] font-semibold text-muted-foreground/80 whitespace-nowrap">{h}</th>
+                            ))}
+                        </tr>
+                    </thead>
                         <tbody>
                             {users.map((user, idx) => (
-                                <tr key={user.id} className="border-b border-border last:border-0 transition-colors hover:bg-primary-light/50">
+                                <tr 
+                                    key={user.id} 
+                                    className="border-b border-border last:border-0 transition-all hover:bg-primary-light/40 cursor-pointer group"
+                                    onClick={() => openUserDrawer(user)}
+                                >
                                     <td className="px-5 py-3">
                                         <div className="flex items-center gap-3">
                                             <RxAvatar name={user.name} src={user.avatar} size="md" />
@@ -301,8 +303,12 @@ export function UsersTab() {
                                     <td className="px-5 py-3">
                                         {user.role === 'super_admin' ? (
                                             <RxBadge variant="purple">Süper Admin</RxBadge>
+                                        ) : user.role === 'patron' ? (
+                                            <RxBadge variant="warning">Patron</RxBadge>
+                                        ) : user.role === 'personel' ? (
+                                            <RxBadge variant="gray">Personel</RxBadge>
                                         ) : (
-                                            <span className="text-sm text-foreground">Kullanıcı</span>
+                                            <RxBadge variant="gray">Kullanıcı</RxBadge>
                                         )}
                                     </td>
                                     <td className="px-5 py-3 text-[13px] text-muted-foreground">{user.date}</td>
@@ -317,8 +323,8 @@ export function UsersTab() {
                                         <div className="relative">
                                             <button
                                                 type="button"
-                                                onClick={() => setMenuOpenIdx(menuOpenIdx === idx ? null : idx)}
-                                                className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                                                onClick={(e) => { e.stopPropagation(); setMenuOpenIdx(menuOpenIdx === idx ? null : idx); }}
+                                                className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground group-hover:bg-white/50"
                                             >
                                                 <MoreHorizontal className="size-4" />
                                             </button>
@@ -326,26 +332,34 @@ export function UsersTab() {
                                                 <>
                                                     <div className="fixed inset-0 z-30" onClick={() => setMenuOpenIdx(null)} aria-hidden="true" />
                                                     <div className="absolute right-0 top-full z-40 mt-1 w-44 rounded-lg border border-border bg-card py-1 shadow-lg">
-                                                        <button
-                                                            type="button"
-                                                            className="flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors text-foreground hover:bg-muted"
-                                                            onClick={() => openEditModal(user)}
-                                                        >
-                                                            <Edit2 className="size-4" /> Düzenle
-                                                        </button>
+                                                            <button
+                                                                type="button"
+                                                                className="flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors text-foreground hover:bg-muted"
+                                                                onClick={(e) => { e.stopPropagation(); openUserDrawer(user); }}
+                                                            >
+                                                                <Edit2 className="size-4" /> Detayları Gör / Düzenle
+                                                            </button>
                                                         <button
                                                             type="button"
                                                             className={cn(
                                                                 "flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors",
                                                                 user.active ? "text-danger hover:bg-red-50 dark:hover:bg-red-950" : "text-success hover:bg-green-50 dark:hover:bg-green-950"
                                                             )}
-                                                            onClick={() => promptAction(user)}
+                                                            onClick={(e) => { e.stopPropagation(); handleToggleStatus(user.id, user.active); }}
                                                         >
                                                             {user.active ? (
                                                                 <><BanIcon className="size-4" /> Kullanıcıyı Banla</>
                                                             ) : (
                                                                 <><UserCheck className="size-4" /> Banı Kaldır</>
                                                             )}
+                                                        </button>
+                                                        <div className="my-1 h-px bg-border" />
+                                                        <button
+                                                            type="button"
+                                                            className="flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors text-danger hover:bg-red-50 dark:hover:bg-red-950"
+                                                            onClick={(e) => { e.stopPropagation(); openUserDrawer(user); }}
+                                                        >
+                                                            <Trash2 className="size-4" /> Kullanıcıyı Sil (Detay Panelinden)
                                                         </button>
                                                     </div>
                                                 </>
@@ -354,14 +368,23 @@ export function UsersTab() {
                                     </td>
                                 </tr>
                             ))}
-                            {users.length === 0 && (
+                            {users.length === 0 && !loading && (
                                 <tr>
-                                    <td colSpan={6} className="text-center py-12 text-muted-foreground text-sm">Kullanıcı bulunamadı</td>
+                                    <td colSpan={7} className="py-20 text-center">
+                                        <div className="flex flex-col items-center justify-center gap-3">
+                                            <div className="flex size-14 items-center justify-center rounded-full bg-muted/50 text-muted-foreground/50">
+                                                <Users className="size-7" />
+                                            </div>
+                                            <div className="flex flex-col gap-1">
+                                                <p className="text-[15px] font-semibold text-foreground">Kullanıcı bulunamadı</p>
+                                                <p className="text-sm text-muted-foreground">Aradığınız kriterlere uygun bir kayıt bulamadık.</p>
+                                            </div>
+                                        </div>
+                                    </td>
                                 </tr>
                             )}
                         </tbody>
                     </table>
-                )}
             </div>
 
             {/* Pagination Controls */}
@@ -396,231 +419,182 @@ export function UsersTab() {
                 </div>
             )}
 
-            {/* Confirmation Modal */}
-            {isConfirmModalOpen && userToAct && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm" onClick={() => !actionLoading && setIsConfirmModalOpen(false)} />
-                    <div className="relative z-50 w-full max-w-md overflow-hidden rounded-xl border border-border bg-card p-6 shadow-xl animate-in fade-in zoom-in-95">
-                        <h3 className="mb-2 text-lg font-semibold text-foreground">
-                            {userToAct.willBeActive ? "Banı Kaldır" : "Kullanıcıyı Banla"}
-                        </h3>
-                        <p className="mb-6 text-sm text-muted-foreground">
-                            <strong className="text-foreground">{userToAct.name}</strong> isimli kullanıcının
-                            {userToAct.willBeActive ? " banını kaldırmak istediğinize emin misiniz? Kullanıcı sisteme tekrar giriş yapabilecek." : " hesabını banlamak istediğinize emin misiniz? (Kullanıcı is_active durumu kapatılacak ve sisteme giriş yapamayacaktır.)"}
-                        </p>
-                        <div className="flex justify-end gap-3">
-                            <RxButton variant="secondary" size="sm" onClick={() => setIsConfirmModalOpen(false)} disabled={actionLoading}>
-                                İptal
-                            </RxButton>
-                            <RxButton
-                                variant="primary"
-                                size="sm"
-                                onClick={executeAction}
-                                className={userToAct.willBeActive ? "bg-success hover:bg-success/90 text-white" : "bg-danger hover:bg-danger/90 text-white"}
-                                disabled={actionLoading}
-                            >
-                                {actionLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
-                                {userToAct.willBeActive ? "Evet, Aktif Et" : "Evet, Banla"}
-                            </RxButton>
-                        </div>
-                    </div>
-                </div>
+            {/* User Drawer Selection */}
+            {selectedUser && (
+                <UsersDrawer 
+                    user={selectedUser}
+                    isOpen={isDrawerOpen}
+                    onClose={() => setIsDrawerOpen(false)}
+                    onUpdate={() => { fetchUsers(); setIsDrawerOpen(false); }}
+                />
             )}
 
-            {/* Edit User Modal */}
-            {isEditModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm" onClick={() => !actionLoading && setIsEditModalOpen(false)} />
-                    <div className="relative z-50 w-full max-w-md overflow-hidden rounded-xl border border-border bg-card p-6 shadow-xl animate-in fade-in zoom-in-95">
-                        <h3 className="mb-4 text-lg font-semibold text-foreground">Kullanıcıyı Düzenle</h3>
-                        <form onSubmit={handleEditSubmit} className="flex flex-col gap-4">
-                            <div className="flex flex-col gap-1.5">
-                                <label className="text-sm font-medium text-foreground">İsim Soyisim</label>
-                                <input
-                                    type="text"
-                                    required
-                                    value={editForm.name}
-                                    onChange={e => setEditForm(prev => ({ ...prev, name: e.target.value }))}
-                                    className="h-10 rounded-lg border border-input bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                                />
-                            </div>
-                            <div className="flex flex-col gap-1.5">
-                                <label className="text-sm font-medium text-foreground">E-posta Adresi</label>
-                                <input
-                                    type="email"
-                                    required
-                                    value={editForm.email}
-                                    onChange={e => setEditForm(prev => ({ ...prev, email: e.target.value }))}
-                                    className="h-10 rounded-lg border border-input bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                                />
-                            </div>
-                            <div className="flex flex-col gap-1.5">
-                                <label className="text-sm font-medium text-foreground">Sistem Rolü</label>
-                                <select
-                                    value={editForm.role}
-                                    onChange={e => setEditForm(prev => ({ ...prev, role: e.target.value }))}
-                                    className="h-10 rounded-lg border border-input bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                                >
-                                    <option value="user">Standart Kullanıcı</option>
-                                    <option value="super_admin">Süper Admin</option>
-                                </select>
-                            </div>
-
-                            <div className="mt-4 flex justify-end gap-3">
-                                <RxButton type="button" variant="secondary" onClick={() => setIsEditModalOpen(false)} disabled={actionLoading}>
-                                    İptal
-                                </RxButton>
-                                <RxButton type="submit" variant="primary" disabled={actionLoading}>
-                                    {actionLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
-                                    Değişiklikleri Kaydet
-                                </RxButton>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {/* Create User Modal (Sprint 4) */}
+            {/* Redesigned Create User Modal */}
             <RxModal
                 open={isCreateModalOpen}
                 onClose={() => setIsCreateModalOpen(false)}
-                title="Yeni Kullanıcı / Patron Oluştur"
+                title={
+                    <div className="flex items-center gap-2">
+                        <div className="p-1.5 bg-primary/10 rounded-lg text-primary">
+                            <UserPlus className="size-5" />
+                        </div>
+                        <span>Yeni Hesap Oluştur</span>
+                    </div>
+                }
                 footer={
-                    <>
-                        <RxButton variant="ghost" size="sm" onClick={() => setIsCreateModalOpen(false)} disabled={createLoading}>
-                            İptal
-                        </RxButton>
-                        <RxButton size="sm" onClick={handleCreateUser} disabled={createLoading}>
-                            {createLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
-                            Hesabı Oluştur
-                        </RxButton>
-                    </>
+                    <div className="flex items-center justify-between w-full">
+                        <p className="text-[11px] text-muted-foreground max-w-[200px] text-left">
+                            Hesap açıldığında e-posta onayı beklenmeden giriş yapılabilir.
+                        </p>
+                        <div className="flex gap-3">
+                            <RxButton variant="ghost" size="sm" onClick={() => setIsCreateModalOpen(false)} disabled={createLoading}>
+                                İptal
+                            </RxButton>
+                            <RxButton size="sm" onClick={handleCreateUser} disabled={createLoading}>
+                                {createLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
+                                Hesabı Oluştur ve Kaydet
+                            </RxButton>
+                        </div>
+                    </div>
                 }
             >
-                <div className="flex flex-col gap-4">
-                    <div className="rounded-lg bg-primary-light/50 p-3 text-sm text-primary-dark">
-                        Oluşturulan bu hesap doğrudan giriş yapabilir ve işletmelerde Owner (Patron) olarak atanabilir.
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-sm font-medium text-foreground">Kullanıcı Rolü</label>
-                        <select
-                            value={createForm.role}
-                            onChange={(e) => setCreateForm({ ...createForm, role: e.target.value })}
-                            className="h-10 rounded-lg border border-input bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                            disabled={createLoading}
-                        >
-                            <option value="patron">Patron (İşletme Sahibi)</option>
-                            <option value="super_admin">Super Admin</option>
-                            <option value="user">Standart Kullanıcı</option>
-                        </select>
-                    </div>
-
-                    <RxInput
-                        label="Ad Soyad (*)"
-                        placeholder="Örn: Ahmet Yılmaz"
-                        value={createForm.name}
-                        onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
-                        disabled={createLoading}
-                    />
-                    <RxInput
-                        label="E-posta Adresi (*)"
-                        type="email"
-                        placeholder="Örn: ahmet@kuafor.com"
-                        value={createForm.email}
-                        onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
-                        disabled={createLoading}
-                    />
-                    <RxInput
-                        label="Telefon Numarası"
-                        type="tel"
-                        placeholder="Örn: 5551234567"
-                        value={createForm.phone}
-                        onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })}
-                        disabled={createLoading}
-                    />
-                    <RxInput
-                        label="Sistem Şifresi (*)"
-                        type="password"
-                        placeholder="En az 6 karakter"
-                        value={createForm.password}
-                        onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
-                        disabled={createLoading}
-                    />
-
-                    {createForm.role === "patron" && (
-                        <div className="mt-2 flex flex-col gap-4 border-t pt-4 border-border">
-                            <h4 className="text-sm font-semibold text-foreground">İşletme Ataması</h4>
-
-                            <div className="flex gap-4">
-                                <label className="flex items-center gap-2 text-sm">
+                <div className="flex flex-col gap-6 py-2">
+                    {/* Section 1: Temel Bilgiler */}
+                    <div className="space-y-4">
+                        <div className="flex items-center gap-2 pb-1 border-b border-border/50">
+                            <UserPlus className="size-4 text-muted-foreground" />
+                            <h4 className="text-[13px] font-bold text-foreground uppercase tracking-wider">Temel Kullanıcı Bilgileri</h4>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                                <label className="text-[13px] font-medium text-foreground flex items-center gap-1.5">
+                                    Ad Soyad <span className="text-danger">*</span>
+                                </label>
+                                <div className="relative">
+                                    <Users className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/50" />
                                     <input
-                                        type="radio"
-                                        name="assignmentType"
-                                        value="new"
-                                        checked={createForm.assignmentType === "new"}
-                                        onChange={() => setCreateForm({ ...createForm, assignmentType: "new" })}
+                                        placeholder="Örn: Ahmet Yılmaz"
+                                        value={createForm.name}
+                                        onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
                                         disabled={createLoading}
+                                        className="h-10 w-full rounded-lg border border-input bg-card pl-10 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                                     />
-                                    Yeni İşletme Oluştur
-                                </label>
-                                <label className="flex items-center gap-2 text-sm">
-                                    <input
-                                        type="radio"
-                                        name="assignmentType"
-                                        value="existing"
-                                        checked={createForm.assignmentType === "existing"}
-                                        onChange={() => setCreateForm({ ...createForm, assignmentType: "existing" })}
-                                        disabled={createLoading || businesses.length === 0}
-                                    />
-                                    Mevcut İşletmeye Ata
-                                </label>
+                                </div>
                             </div>
-
-                            {createForm.assignmentType === "new" ? (
-                                <>
-                                    <RxInput
-                                        label="İşletme Adı (*)"
-                                        placeholder="Örn: Ahmet Erkek Kuaförü"
-                                        value={createForm.businessName}
-                                        onChange={(e) => setCreateForm({ ...createForm, businessName: e.target.value })}
+                            <div className="space-y-1.5">
+                                <label className="text-[13px] font-medium text-foreground flex items-center gap-1.5">
+                                    Telefon Numarası
+                                </label>
+                                <div className="relative">
+                                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/50" />
+                                    <input
+                                        type="tel"
+                                        placeholder="5551234567"
+                                        value={createForm.phone}
+                                        onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })}
                                         disabled={createLoading}
+                                        className="h-10 w-full rounded-lg border border-input bg-card pl-10 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                                     />
-                                    <div className="flex flex-col gap-1.5">
-                                        <label className="text-sm font-medium text-foreground">Sektör / Modül (*)</label>
-                                        <select
-                                            value={createForm.moduleId}
-                                            onChange={(e) => setCreateForm({ ...createForm, moduleId: e.target.value })}
-                                            className="h-10 rounded-lg border border-input bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                                            disabled={createLoading || modules.length === 0}
-                                        >
-                                            {modules.map((m) => (
-                                                <option key={m.id} value={m.id}>{m.display_name}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </>
-                            ) : (
-                                <div className="flex flex-col gap-1.5">
-                                    <label className="text-sm font-medium text-foreground">Mevcut İşletme Seçin (*)</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                                <label className="text-[13px] font-medium text-foreground flex items-center gap-1.5">
+                                    E-posta Adresi <span className="text-danger">*</span>
+                                </label>
+                                <div className="relative">
+                                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/50" />
+                                    <input
+                                        type="email"
+                                        placeholder="ahmet@example.com"
+                                        value={createForm.email}
+                                        onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
+                                        disabled={createLoading}
+                                        className="h-10 w-full rounded-lg border border-input bg-card pl-10 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-[13px] font-medium text-foreground flex items-center gap-1.5">
+                                    Sistem Şifresi <span className="text-danger">*</span>
+                                </label>
+                                <div className="relative">
+                                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/50" />
+                                    <input
+                                        type="password"
+                                        placeholder="En az 6 karakter"
+                                        value={createForm.password}
+                                        onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
+                                        disabled={createLoading}
+                                        className="h-10 w-full rounded-lg border border-input bg-card pl-10 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Section 2: Yetkilendirme */}
+                    <div className="space-y-4">
+                        <div className="flex items-center gap-2 pb-1 border-b border-border/50">
+                            <ShieldCheck className="size-4 text-muted-foreground" />
+                            <h4 className="text-[13px] font-bold text-foreground uppercase tracking-wider">Yetkilendirme ve Erişim</h4>
+                        </div>
+
+                        <div className="space-y-3">
+                            <label className="text-[13px] font-medium text-foreground">Sistem Rolü Tanımı</label>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                {[
+                                    { id: "patron", label: "İşletme Sahibi", desc: "İşletme yönetimi" },
+                                    { id: "personel", label: "Personel", desc: "Çalışan kadrosu" },
+                                    { id: "super_admin", label: "Süper Admin", desc: "Platform yetkilisi" },
+                                    { id: "user", label: "Standart Üye", desc: "Sınırlı müşteri" }
+                                ].map((r) => (
+                                    <button
+                                        key={r.id}
+                                        type="button"
+                                        onClick={() => setCreateForm({ ...createForm, role: r.id })}
+                                        className={cn(
+                                            "flex flex-col items-start gap-1 p-3 rounded-xl border text-left transition-all",
+                                            createForm.role === r.id 
+                                                ? "bg-primary/5 border-primary ring-2 ring-primary/20" 
+                                                : "bg-card border-border hover:border-primary/40"
+                                        )}
+                                    >
+                                        <span className={cn("text-xs font-bold", createForm.role === r.id ? "text-primary" : "text-foreground")}>{r.label}</span>
+                                        <span className="text-[10px] text-muted-foreground leading-tight">{r.desc}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {createForm.role === "patron" && (
+                            <div className="p-4 rounded-xl border-2 border-dashed border-primary/20 bg-primary/5 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                                <div className="flex items-center gap-2">
+                                    <Building2 className="size-4 text-primary" />
+                                    <h5 className="text-[13px] font-bold text-primary italic">İşletme Bağlantısı</h5>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-[12px] font-semibold text-muted-foreground">Bağlanacak Mevcut İşletme</label>
                                     <select
                                         value={createForm.existingBusinessId}
                                         onChange={(e) => setCreateForm({ ...createForm, existingBusinessId: e.target.value })}
-                                        className="h-10 rounded-lg border border-input bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                                        className="h-10 w-full rounded-lg border border-primary/30 bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
                                         disabled={createLoading}
                                     >
-                                        <option value="">İşletme Seçiniz...</option>
+                                        <option value="">Lütfen seçim yapınız...</option>
                                         {businesses.map((b) => (
                                             <option key={b.id} value={b.id}>{b.name}</option>
                                         ))}
                                     </select>
+                                    <p className="text-[10px] text-muted-foreground italic">
+                                        * Patron hesabı oluşturulduğunda bu işletmenin yönetimine sahip olacaktır.
+                                    </p>
                                 </div>
-                            )}
-                        </div>
-                    )}
-
-                    <div className="text-[11px] text-muted-foreground">
-                        Not: Hesap açıldığında e-posta onayı beklenmeden direkt giriş yapılabilir.
+                            </div>
+                        )}
                     </div>
                 </div>
             </RxModal>

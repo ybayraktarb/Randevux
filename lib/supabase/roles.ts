@@ -3,21 +3,29 @@ import { SupabaseClient } from "@supabase/supabase-js"
 export type UserRole = "super_admin" | "patron" | "personel" | "musteri"
 
 /**
- * Kullanıcının rolünü belirler ve doğru dashboard'a yönlendirir.
+ * Kullanıcının rolünü belirler.
  * Öncelik sırası: super_admin > patron > personel > musteri
- * 3 sorgu paralel çalışır (Promise.all).
+ *
+ * Optimizasyon: Super admin kontrolü önce users.global_role kolonuna bakarak
+ * tek sorguda yapılır (migration 036). Patron/personel tespiti için 2 paralel sorgu.
  */
 export async function getUserRole(
     supabase: SupabaseClient,
     userId: string
 ): Promise<UserRole> {
-    // 3 sorguyu paralel çalıştır
-    const [superAdminResult, ownerResult, staffResult] = await Promise.all([
-        supabase
-            .from("super_admins")
-            .select("id")
-            .eq("user_id", userId)
-            .maybeSingle(),
+    // 1. Hızlı yol: global_role kolonu ile super_admin + profil kontrolü
+    const { data: userRow, error: userErr } = await supabase
+        .from("users")
+        .select("global_role")
+        .eq("id", userId)
+        .maybeSingle()
+
+    if (userErr) console.error("getUserRole user fetch error:", userErr.message)
+
+    if (userRow?.global_role === "super_admin") return "super_admin"
+
+    // 2. Patron ve personel kontrolü — paralel
+    const [ownerResult, staffResult] = await Promise.all([
         supabase
             .from("business_owners")
             .select("id")
@@ -28,20 +36,15 @@ export async function getUserRole(
             .select("id")
             .eq("user_id", userId)
             .eq("is_active", true)
-            .eq("is_deleted", false)
             .maybeSingle(),
     ])
 
-    // Diagnostic logging for Super Admin/Staff issues
-    if (superAdminResult.error) console.error("Super Admin check error:", superAdminResult.error)
-    if (staffResult.error) console.error("Staff check error:", staffResult.error)
+    if (ownerResult.error) console.error("Owner check error:", ownerResult.error.message)
+    if (staffResult.error) console.error("Staff check error:", staffResult.error.message)
 
-    // Öncelik sırasıyla kontrol et
-    if (superAdminResult.data) return "super_admin"
     if (ownerResult.data) return "patron"
     if (staffResult.data) return "personel"
 
-    // Default: müşteri
     return "musteri"
 }
 

@@ -2,6 +2,8 @@
 
 import * as Sentry from "@sentry/nextjs"
 import { z } from "zod"
+import { revalidatePath } from "next/cache"
+import { cookies } from "next/headers"
 import type { ActionResult } from "@/lib/validations/action-types"
 import { createClient as createClientJS } from "@supabase/supabase-js"
 import type { User } from "@supabase/supabase-js"
@@ -46,17 +48,6 @@ const CreateUserSchema = z
             })
             .default("user"),
 
-        businessName: z
-            .string()
-            .min(2, "İşletme adı en az 2 karakter olmalıdır.")
-            .max(100, "İşletme adı en fazla 100 karakter olabilir.")
-            .optional(),
-
-        moduleId: z
-            .string()
-            .uuid("Geçerli bir modül seçiniz.")
-            .optional(),
-
         existingBusinessId: z
             .string()
             .uuid("Geçerli bir işletme seçiniz.")
@@ -66,13 +57,13 @@ const CreateUserSchema = z
     .refine(
         (data) => {
             if (data.role === "patron") {
-                return !!data.existingBusinessId || (!!data.businessName && !!data.moduleId)
+                return !!data.existingBusinessId
             }
             return true
         },
         {
             message:
-                "Patron hesabı oluştururken yeni bir İşletme Adı + Modül seçimi veya mevcut bir İşletme seçimi zorunludur.",
+                "Patron hesabı oluştururken mevcut bir İşletme seçimi zorunludur.",
             path: ["existingBusinessId"],
         }
     )
@@ -89,8 +80,6 @@ export async function createUserAction(
             password: formData.get("password")?.toString() ?? "",
             phone: formData.get("phone")?.toString().trim() || undefined,
             role: formData.get("role")?.toString() || "user",
-            businessName: formData.get("businessName")?.toString().trim() || undefined,
-            moduleId: formData.get("moduleId")?.toString() || undefined,
             existingBusinessId: formData.get("existingBusinessId")?.toString() || undefined,
         }
 
@@ -114,8 +103,6 @@ export async function createUserAction(
             password,
             phone,
             role,
-            businessName,
-            moduleId,
             existingBusinessId,
         } = parsed.data
 
@@ -156,42 +143,7 @@ export async function createUserAction(
         } else if (role === "patron") {
             let businessId: string | undefined = existingBusinessId
 
-            // Yeni işletme oluşturulacaksa
-            if (!businessId && businessName && moduleId) {
-                const { data: businessData, error: bizError } = await supabaseAdmin.from("businesses").insert({
-                    name: businessName,
-                    module_id: moduleId,
-                    phone: phone || null,
-                    is_active: true
-                }).select("id").single()
-
-                if (bizError || !businessData) {
-                    Sentry.captureException(bizError ?? new Error("createUserAction: business insert returned null"), {
-                        tags: { action: "createUserAction", step: "createBusiness" },
-                    })
-                    return {
-                        success: false,
-                        error: {
-                            message: "Kullanıcı oluşturuldu ancak işletme oluşturulurken bir hata oluştu.",
-                        },
-                    }
-                }
-
-                businessId = businessData.id
-
-                // Yeni işletmeye varsayılan çalışma saatleri ekle
-                const businessHours = Array.from({ length: 7 }).map((_, idx) => ({
-                    business_id: businessId,
-                    day_of_week: idx, // 0 = Pazar
-                    open_time: "09:00:00",
-                    close_time: "19:00:00",
-                    is_open: idx !== 0 // Sadece pazar (0) kapalı
-                }))
-
-                await supabaseAdmin.from("business_hours").insert(businessHours)
-            }
-
-            // İşletme sahibi ekle (Yeni oluşturulan veya var olan)
+            // İşletme sahibi ekle (Var olan işletmeye ata)
             if (businessId) {
                 await supabaseAdmin.from("business_owners").insert({
                     user_id: userId,
@@ -206,6 +158,16 @@ export async function createUserAction(
                     can_set_own_duration: true
                 })
             }
+        }
+        
+        // EKLENDI — Users tablosundaki role kolonunu güncelle
+        const { error: roleUpdateError } = await supabaseAdmin
+            .from("users")
+            .update({ role: role })
+            .eq("id", userId)
+            
+        if (roleUpdateError) {
+            console.error("createUserAction: role update error:", roleUpdateError)
         }
 
         // DEĞİŞTİRİLDİ — ActionResult formatında döndür
@@ -312,3 +274,122 @@ export async function getQuickRebookDataAction() {
         return { success: false, error: err.message || "Randevu geçmişi alınamadı." }
     }
 }
+/**
+ * Kullanıcıyı kalıcı olarak siler (Auth + Database).
+ * Sadece Super Admin yetkisiyle çalıştırılmalıdır (RLS tarafından korunur ama Admin API kullanıyoruz).
+ */
+export async function deleteUserAction(userId: string): Promise<ActionResult<void>> {
+    try {
+        const supabase = await createClient()
+        const { data: { user: currentUser } } = await supabase.auth.getUser()
+
+        if (!currentUser) {
+            return { success: false, error: { message: "Oturum açılmamış." } }
+        }
+
+        // 1. Yetki Kontrolü (İsteğe bağlı: server tarafında da explicit check)
+        const { data: sa } = await supabase.from("users").select("global_role").eq("id", currentUser.id).single()
+        if (sa?.global_role !== "super_admin") {
+            return { success: false, error: { message: "Bu işlem için yetkiniz yok." } }
+        }
+
+        // 2. Kendi hesabını silmeyi engelle
+        if (userId === currentUser.id) {
+            return { success: false, error: { message: "Kendi hesabınızı silemezsiniz." } }
+        }
+
+        // 3. İşletme Sahipliği Kontrolü (Product Grade Safeguard)
+        // Kullanıcı bir işletme sahibi mi?
+        const { data: ownerships } = await supabase
+            .from("business_owners")
+            .select("business_id, businesses(name, is_active)")
+            .eq("user_id", userId)
+
+        if (ownerships && ownerships.length > 0) {
+            for (const ownership of ownerships) {
+                const business = Array.isArray(ownership.businesses) ? ownership.businesses[0] : ownership.businesses
+                // Eğer işletme aktifse, mülkiyeti kontrol et
+                if (business?.is_active) {
+                    // Bu işletmenin başka sahibi var mı?
+                    const { count } = await supabase
+                        .from("business_owners")
+                        .select("*", { count: 'exact', head: true })
+                        .eq("business_id", ownership.business_id)
+
+                    if (count === 1) {
+                        return { 
+                            success: false, 
+                            error: { 
+                                message: `Bu kullanıcı "${business.name}" işletmesinin tek sahibidir. Silmeden önce mülkiyeti devredin veya işletmeyi pasife alın.` 
+                            } 
+                        }
+                    }
+                }
+            }
+        }
+
+        // 4. Supabase Admin API ile kullanıcıyı sil
+        const { error } = await supabaseAdmin.auth.admin.deleteUser(userId)
+
+        if (error) {
+            console.error("deleteUserAction error:", error)
+            return { success: false, error: { message: "Kullanıcı silinemedi: " + error.message } }
+        }
+
+        return { success: true }
+    } catch (err: any) {
+        Sentry.captureException(err)
+        return { success: false, error: { message: "Bilinmeyen bir hata oluştu." } }
+    }
+}
+
+/**
+ * Süper Admin'in bir kullanıcıyı impersonate (taklit) etmesini sağlar.
+ * Güvenli bir cookie set eder.
+ */
+export async function impersonateUserAction(targetUserId: string): Promise<ActionResult<void>> {
+    try {
+        const cookieStore = await cookies()
+        
+        const supabase = await createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+
+        if (!user) return { success: false, error: { message: "Oturum açılmamış." } }
+
+        // Yetki kontrolü
+        const { data: sa } = await supabase.from("users").select("role").eq("id", user.id).single()
+        if (sa?.role !== "super_admin") {
+            return { success: false, error: { message: "Bu işlem için yetkiniz yok." } }
+        }
+
+        // Impersonation cookie'sini set et (Expires in 2 hours)
+        cookieStore.set("x-impersonate-user-id", targetUserId, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
+            path: "/",
+            maxAge: 60 * 60 * 2 // 2 saat
+        })
+
+        revalidatePath("/")
+        return { success: true }
+    } catch (err: any) {
+        Sentry.captureException(err)
+        return { success: false, error: { message: err.message || "Impersonation başlatılamadı." } }
+    }
+}
+
+/**
+ * Impersonation modundan çıkar.
+ */
+export async function stopImpersonatingAction(): Promise<ActionResult<void>> {
+    try {
+        const cookieStore = await cookies()
+        cookieStore.delete("x-impersonate-user-id")
+        revalidatePath("/")
+        return { success: true }
+    } catch (err: any) {
+        return { success: false, error: { message: "Impersonation sonlandırılamadı." } }
+    }
+}
+

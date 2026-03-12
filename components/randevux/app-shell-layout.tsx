@@ -27,8 +27,12 @@ import {
     TooltipProvider,
 } from "@/components/ui/tooltip"
 import type { NavItem } from "@/lib/nav-config"
+import { getEnabledFeaturesAction } from "@/app/actions/business.actions"
 import { useCurrentUser } from "@/hooks/use-current-user"
 import { useNotifications } from "@/hooks/use-notifications"
+import { SubscriptionBanner } from "./subscription-banner"
+import React, { useMemo } from "react"
+import { PlatformAnnouncementBanner } from "./platform-announcement-banner"
 
 // ─── Props ──────────────────────────────────────────────────────────────────────
 
@@ -51,6 +55,7 @@ function SidebarContent({
     userName,
     userBadge,
     role,
+    businessId,
 }: {
     navItems: NavItem[]
     pathname: string
@@ -59,7 +64,36 @@ function SidebarContent({
     userName: string
     userBadge: string
     role: string
+    businessId: string | null
 }) {
+    const [enabledFeatures, setEnabledFeatures] = useState<string[]>([])
+
+    useEffect(() => {
+        if (!businessId) return
+
+        async function fetchFeatures() {
+            // Role-based logic: Super admin might still want to see everything
+            // or we just trust the enabled_features list for consistent experience.
+            
+            // Note: If we need Super Admin to see everything regardless of the business settings:
+            if (role === 'admin') {
+                setEnabledFeatures(navItems.map(i => i.featureKey).filter(Boolean) as string[])
+                return
+            }
+
+            const res = await getEnabledFeaturesAction(businessId as string)
+            if (res.success && res.data) {
+                setEnabledFeatures(res.data)
+            }
+        }
+        fetchFeatures()
+    }, [businessId, navItems, role])
+
+    const filteredNavItems = navItems.filter(item => {
+        if (!item.featureKey) return true
+        return enabledFeatures.includes(item.featureKey)
+    })
+
     return (
         <div className="flex h-full flex-col p-4">
             {/* Logo */}
@@ -100,7 +134,7 @@ function SidebarContent({
 
             {/* Navigation */}
             <nav className="flex flex-1 flex-col gap-2">
-                {navItems.map((item) => {
+                {filteredNavItems.map((item) => {
                     const isActive = pathname === item.href
                     const Icon = item.icon
                     const linkContent = (
@@ -404,6 +438,7 @@ function MobileDrawer({
     userName,
     userBadge,
     role,
+    businessId,
 }: {
     open: boolean
     onClose: () => void
@@ -413,6 +448,7 @@ function MobileDrawer({
     userName: string
     userBadge: string
     role: string
+    businessId: string | null
 }) {
     return (
         <>
@@ -453,6 +489,7 @@ function MobileDrawer({
                     userName={userName}
                     userBadge={userBadge}
                     role={role}
+                    businessId={businessId}
                 />
             </motion.aside>
         </>
@@ -469,6 +506,7 @@ export function AppShellLayout({
     userBadge,
     businessName,
 }: AppShellLayoutProps) {
+    const { businessId } = useCurrentUser()
     const pathname = usePathname()
     const [drawerOpen, setDrawerOpen] = useState(false)
     const [windowWidth, setWindowWidth] = useState(1200)
@@ -506,6 +544,7 @@ export function AppShellLayout({
                             userName={userName}
                             userBadge={userBadge}
                             role={role}
+                            businessId={businessId}
                         />
                     </aside>
                 )}
@@ -522,6 +561,7 @@ export function AppShellLayout({
                             userName={userName}
                             userBadge={userBadge}
                             role={role}
+                            businessId={businessId}
                         />
                     )}
                 </AnimatePresence>
@@ -547,6 +587,8 @@ export function AppShellLayout({
                             transition={{ duration: 0.4, ease: "easeOut" }}
                             className="max-w-[1600px] mx-auto"
                         >
+                             <SubscriptionBanner businessId={businessId!} role={role as any} />
+                             <PlatformAnnouncementBanner role={role} />
                             {children}
                         </motion.div>
                     </main>

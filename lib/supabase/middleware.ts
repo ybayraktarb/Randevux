@@ -39,7 +39,8 @@ export async function updateSession(request: NextRequest) {
     const pathname = request.nextUrl.pathname
 
     // 1. Public Routes (whitelist) — giriş yapmadan erişilebilir
-    const publicRoutes = ["/", "/login", "/register", "/forgot-password", "/reset-password", "/auth/callback"]
+    //    /book/:business_id → QR / link ile gelen genel randevu sayfası (login gereksiz)
+    const publicRoutes = ["/", "/login", "/register", "/forgot-password", "/reset-password", "/auth/callback", "/book"]
     const isPublicRoute = publicRoutes.some((route) => pathname === route || pathname.startsWith(route + "/"))
 
     // 2. Dashboard Routes (role eşlemesi)

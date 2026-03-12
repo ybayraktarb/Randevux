@@ -229,9 +229,6 @@ export function LoginScreen() {
       if (user) {
         try {
           const role = await getUserRole(supabase, user.id)
-          if (role === "musteri") {
-            console.warn("Sistem rolünüzü bulamadı, Müşteriye yönlendiriliyorsunuz. Lütfen RLS yetkilerinizi kontrol edin.")
-          }
           router.push(getDashboardPath(role))
           router.refresh()
         } catch (roleError: any) {
@@ -387,7 +384,7 @@ export function RegisterFlow() {
     setLoading(true)
     try {
       const cleanEmail = email.trim()
-      const { error: signUpError } = await supabase.auth.signUp({
+      const { data, error: signUpError } = await supabase.auth.signUp({
         email: cleanEmail,
         password,
         options: {
@@ -400,16 +397,21 @@ export function RegisterFlow() {
       })
       if (signUpError) {
         if (signUpError.message.includes("already registered")) {
-          setError("Bu e-posta adresi zaten kayitli.")
+          setError("Bu e-posta adresi zaten kayıtlı.")
         } else {
           setError(signUpError.message)
         }
         return
       }
-      // Kayit basarili — telefon dogrulamaya yonlendir
-      setStep(2)
-    } catch {
-      setError("Bir hata olustu. Lutfen tekrar deneyin.")
+      // Kayıt başarılı — telefon doğrulamaya yönlendir
+      if (data.user) {
+        setStep(2)
+      } else {
+        // E-posta onayı gerekiyorsa
+        setError("Lütfen e-posta adresinizi onaylayın.")
+      }
+    } catch (err: any) {
+      setError("Bir hata oluştu: " + err.message)
     } finally {
       setLoading(false)
     }
@@ -751,19 +753,21 @@ export function RegisterFlow() {
                   }
                   setLoading(true)
                   try {
-                    // DEV MODE: Twilio kurulmadiysa console log birak ve dev OTP kabul et
-                    const { error: otpSendError } = await supabase.auth.signInWithOtp({
-                      phone: `+90${cleanPhone}`,
+                    // Telefonu mevcut kullanıcıya bağla
+                    const { error: updateError } = await supabase.auth.updateUser({
+                      phone: `+90${cleanPhone}`
                     })
-                    if (otpSendError) {
-                      // Dev fallback: Twilio kurulu degilse de devam et
-                      console.warn(`[DEV] SMS gonderilecekti: +90${cleanPhone}. Twilio kurulu degil, dev moda'da 000000 ile dogrulama yapilabilir.`)
+
+                    if (updateError) {
+                      console.warn(`[DEV] SMS gönderilemedi: +90${cleanPhone}. ${updateError.message}`)
+                      // Dev fallback için devam edebiliriz veya hata verebiliriz
                     }
+
                     setSeconds(165)
                     setOtp(Array(6).fill(""))
                     setStep(3)
-                  } catch {
-                    setPhoneError("SMS gonderilemedi. Lutfen tekrar deneyin.")
+                  } catch (err: any) {
+                    setPhoneError("Bir hata oluştu: " + err.message)
                   } finally {
                     setLoading(false)
                   }

@@ -1,12 +1,12 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { AppShellLayout } from "@/components/randevux/app-shell-layout"
+import { AppShellLayout } from "@/src/modules/core/components/app-shell-layout"
 import { musteriNav } from "@/lib/nav-config"
-import { useCurrentUser } from "@/hooks/use-current-user"
+import { useCurrentUser } from "@/src/modules/core/hooks/use-current-user"
 import { Loader2 } from "lucide-react"
 import { useEffect } from "react"
-import { ErrorBoundary } from "@/components/randevux/error-boundary"
+import { ErrorBoundary } from "@/src/modules/core/components/error-boundary"
 
 export default function MusteriLayout({
     children,

@@ -3,8 +3,8 @@ import { streamText, tool } from 'ai';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { checkFeatureAccess } from '@/lib/permissions';
-import { getAvailableSlotsAction } from '@/app/actions/availability.actions';
-import { getQuickRebookDataAction } from '@/app/actions/user.actions';
+import { getAvailableSlotsAction } from '@/src/modules/appointments/actions/availability.actions';
+import { getQuickRebookDataAction } from '@/src/modules/auth/actions/auth.actions';
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;

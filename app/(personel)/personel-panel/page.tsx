@@ -1,4 +1,4 @@
-import { StaffDashboard } from "@/components/randevux/staff-dashboard"
+import { StaffDashboard } from "@/src/modules/staff/components/staff-dashboard"
 
 export default function PersonelPanelPage() {
     return <StaffDashboard />

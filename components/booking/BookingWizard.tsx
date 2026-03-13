@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { cn } from "@/lib/utils"
-import { RxButton } from "../randevux/rx-button"
-import { RxAvatar } from "../randevux/rx-avatar"
+import { RxButton } from "@/src/modules/core/components/rx-button"
+import { RxAvatar } from "@/src/modules/core/components/rx-avatar"
 import {
     ChevronLeft,
     ChevronRight,
@@ -28,14 +28,14 @@ import { motion, AnimatePresence } from "framer-motion"
 import { DateCarousel } from "./DateCarousel"
 import { TimeSlotPicker, type TimeSlot } from "./TimeSlotPicker"
 import { BookingSummary } from "./BookingSummary"
-import { getAvailableSlotsAction } from "@/app/actions/availability.actions"
-import { createBookingAction } from "@/app/actions/booking.actions"
+import { getAvailableSlotsAction } from "@/src/modules/appointments/actions/availability.actions"
+import { createBookingAction } from "@/src/modules/appointments/actions/booking.actions"
 import { format } from "date-fns"
 import { toast } from "sonner"
 import { useRouter, useSearchParams } from "next/navigation"
-import { getFamilyProfilesAction } from "@/app/actions/family.actions"
+import { getFamilyProfilesAction } from "@/src/modules/customers/actions/family.actions"
 import { tr } from "date-fns/locale"
-import { getActiveAnnouncementsAction, type BusinessAnnouncement } from "@/app/actions/announcement.actions"
+import { getActiveAnnouncementsAction, type BusinessAnnouncement } from "@/src/modules/business/actions/announcement.actions"
 
 interface Service {
     id: string

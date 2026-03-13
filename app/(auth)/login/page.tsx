@@ -1,4 +1,4 @@
-import { LoginScreen } from "@/components/randevux/auth-screens"
+import { LoginScreen } from "@/src/modules/auth/components/auth-screens"
 import { Suspense } from "react"
 
 export default function LoginPage() {

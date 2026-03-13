@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
-import { FinanceDashboard } from "@/components/randevux/finance-dashboard"
+import { FinanceDashboard } from "@/src/modules/finance/components/finance-dashboard"
 
 export const metadata = {
     title: "Finans & Muhasebe - Randevuxx",

@@ -1,6 +1,6 @@
 import { SupabaseClient } from "@supabase/supabase-js"
 
-type AuditAction = "viewed" | "created" | "updated" | "deleted"
+type AuditAction = "viewed" | "created" | "updated" | "deleted" | "onboarded"
 
 interface LogAuditParams {
     userId: string

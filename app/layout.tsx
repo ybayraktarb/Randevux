@@ -5,7 +5,7 @@ import { AuthProvider } from '@/contexts/auth-context'
 import { ThemeProvider } from '@/components/theme-provider'
 import { Toaster } from 'sonner'
 import { cookies } from 'next/headers'
-import { ImpersonationBanner } from '@/components/randevux/impersonation-banner'
+import { ImpersonationBanner } from '@/src/modules/admin/components/impersonation-banner'
 import './globals.css'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })

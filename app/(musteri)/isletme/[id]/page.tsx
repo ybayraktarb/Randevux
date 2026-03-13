@@ -1,5 +1,5 @@
-import { BusinessStorefrontModern } from "@/components/booking/BusinessStorefrontModern"
-import { getBusinessStorefrontAction } from "@/app/actions/business.actions"
+import { BusinessStorefrontModern } from "@/src/modules/business/components/BusinessStorefrontModern"
+import { getBusinessStorefrontAction } from "@/src/modules/business/actions/business.actions"
 import { notFound } from "next/navigation"
 
 export default async function BusinessProfileViewPage({ params }: { params: Promise<{ id: string }> }) {

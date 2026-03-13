@@ -1,4 +1,4 @@
-import { RegisterFlow } from "@/components/randevux/auth-screens"
+import { RegisterFlow } from "@/src/modules/auth/components/auth-screens"
 import { Suspense } from "react"
 
 export default function RegisterPage() {

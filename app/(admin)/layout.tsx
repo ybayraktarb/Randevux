@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useCurrentUser } from "@/hooks/use-current-user"
+import { useCurrentUser } from "@/src/modules/core/hooks/use-current-user"
 import { Loader2 } from "lucide-react"
 import { useEffect } from "react"
 

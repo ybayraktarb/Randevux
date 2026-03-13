@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
-import { ProductManagement } from "@/components/randevux/product-management"
+import { ProductManagement } from "@/src/modules/inventory/components/product-management"
 
 export const metadata = {
     title: "Ürün & Stok Yönetimi - Randevuxx",

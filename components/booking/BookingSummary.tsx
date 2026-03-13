@@ -1,7 +1,7 @@
 "use client"
 
 import { cn } from "@/lib/utils"
-import { RxAvatar } from "../randevux/rx-avatar"
+import { RxAvatar } from "@/src/modules/core/components/rx-avatar"
 import { CalendarDays, Clock, MapPin, Scissors, User } from "lucide-react"
 import { format } from "date-fns"
 import { tr } from "date-fns/locale"

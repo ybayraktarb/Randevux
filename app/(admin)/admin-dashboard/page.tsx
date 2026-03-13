@@ -1,7 +1,7 @@
 import dynamic from "next/dynamic"
 
 const SuperAdmin = dynamic(
-    () => import("@/components/randevux/super-admin/index").then(m => ({ default: m.SuperAdmin })),
+    () => import("@/src/modules/admin/components/super-admin/index").then(m => ({ default: m.SuperAdmin })),
     {
         loading: () => (
             <div className="flex items-center justify-center p-8">

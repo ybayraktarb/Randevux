@@ -1,8 +1,8 @@
-import { getBookingDataAction } from "@/app/actions/booking.actions"
+import { getBookingDataAction } from "@/src/modules/appointments/actions/booking.actions"
 import { BookingWizard } from "@/components/booking/BookingWizard"
 import { AlertCircle } from "lucide-react"
 import Link from "next/link"
-import { RxButton } from "@/components/randevux/rx-button"
+import { RxButton } from "@/src/modules/core/components/rx-button"
 
 export default async function RandevuAlPage({
     searchParams

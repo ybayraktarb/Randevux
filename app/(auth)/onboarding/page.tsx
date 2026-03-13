@@ -1,4 +1,4 @@
-import { BusinessOnboarding } from "@/components/randevux/business-onboarding"
+import { BusinessOnboarding } from "@/src/modules/business/components/business-onboarding"
 
 export default function OnboardingPage() {
   return (

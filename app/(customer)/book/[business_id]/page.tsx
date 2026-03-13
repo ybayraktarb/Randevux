@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation"
-import { getBookingDataAction } from "@/app/actions/booking.actions"
+import { getBookingDataAction } from "@/src/modules/appointments/actions/booking.actions"
 import { BookingWizard } from "@/components/booking/BookingWizard"
 
 interface BookingPageProps {

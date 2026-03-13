@@ -1,4 +1,4 @@
-import { CustomerDashboard } from "@/components/randevux/customer-dashboard"
+import { CustomerDashboard } from "@/src/modules/customers/components/customer-dashboard"
 
 export default function MusteriPanelPage() {
     return <CustomerDashboard />

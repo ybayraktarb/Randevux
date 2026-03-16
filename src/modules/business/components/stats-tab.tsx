@@ -42,7 +42,7 @@ export function StatsTab() {
         // Simulate API call
         await new Promise(r => setTimeout(r, 600))
 
-        const days = parseInt(dateRange)
+        const days = Number.parseInt(dateRange)
 
         // --- Mock Data Generation --- //
 

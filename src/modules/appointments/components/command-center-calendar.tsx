@@ -452,7 +452,7 @@ export function CommandCenterCalendar({ businessId }: { businessId?: string }) {
 
     const startHour = useMemo(() => {
         if (!businessHours?.is_open) return DEFAULT_START_HOUR
-        const bhStart = parseInt(businessHours.open_time.split(":")[0])
+        const bhStart = Number.parseInt(businessHours.open_time.split(":")[0])
         if (!isCompact || appointments.length === 0) return bhStart
 
         const firstAptMin = Math.min(...appointments.map(a => timeToMinutes(a.start_time)))
@@ -462,7 +462,7 @@ export function CommandCenterCalendar({ businessId }: { businessId?: string }) {
 
     const endHour = useMemo(() => {
         if (!businessHours?.is_open) return DEFAULT_END_HOUR
-        const bhEnd = parseInt(businessHours.close_time.split(":")[0])
+        const bhEnd = Number.parseInt(businessHours.close_time.split(":")[0])
         if (!isCompact || appointments.length === 0) return bhEnd
 
         const lastAptMin = Math.max(...appointments.map(a => timeToMinutes(a.end_time)))

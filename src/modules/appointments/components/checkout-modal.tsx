@@ -274,7 +274,7 @@ export function CheckoutModal({
                                 <input
                                   type="number"
                                   value={item.quantity}
-                                  onChange={e => updateQuantity(item.product.id, parseInt(e.target.value))}
+                                  onChange={e => updateQuantity(item.product.id, Number.parseInt(e.target.value))}
                                   className="w-full bg-transparent border-none text-center text-[12px] font-black focus:ring-0"
                                 />
                                 <button onClick={() => updateQuantity(item.product.id, item.quantity + 1)} className="p-1 text-gray-400 hover:text-gray-900">+</button>

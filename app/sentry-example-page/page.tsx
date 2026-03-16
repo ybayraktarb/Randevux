@@ -56,7 +56,7 @@ export default function Page() {
             href="https://randevux.sentry.io/issues/?project=4510985699852368"
           >
             Issues Page
-          </a>
+          </a>{" "}
           . For more details about setting up Sentry,{" "}
           <a
             target="_blank"
@@ -64,7 +64,7 @@ export default function Page() {
             href="https://docs.sentry.io/platforms/javascript/guides/nextjs/"
           >
             read our docs
-          </a>
+          </a>{" "}
           .
         </p>
 

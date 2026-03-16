@@ -45,17 +45,17 @@ export function TimeSlotPicker({
 
     // Group slots
     const morning = slots.filter((s) => {
-        const hour = parseInt(s.time.split(":")[0])
+        const hour = Number.parseInt(s.time.split(":")[0])
         return hour < 12 && hour >= 6
     })
 
     const afternoon = slots.filter((s) => {
-        const hour = parseInt(s.time.split(":")[0])
+        const hour = Number.parseInt(s.time.split(":")[0])
         return hour >= 12 && hour < 18
     })
 
     const evening = slots.filter((s) => {
-        const hour = parseInt(s.time.split(":")[0])
+        const hour = Number.parseInt(s.time.split(":")[0])
         return hour >= 18 || hour < 6
     })
 

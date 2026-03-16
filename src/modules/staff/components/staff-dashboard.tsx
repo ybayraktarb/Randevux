@@ -61,7 +61,7 @@ interface WeekAppointment {
 
 function parseTimeToHM(t: string) {
   const parts = t.split(":")
-  return { h: parseInt(parts[0] || "0"), m: parseInt(parts[1] || "0") }
+  return { h: Number.parseInt(parts[0] || "0"), m: Number.parseInt(parts[1] || "0") }
 }
 
 function dateToYMD(d: Date) {

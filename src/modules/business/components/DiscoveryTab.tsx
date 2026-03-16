@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Link from "next/link"
 import { DiscoveryHero } from "@/src/modules/business/components/DiscoveryHero"
 import { CategoryBar } from "@/src/modules/business/components/CategoryBar"
 import { BusinessDiscoverCard } from "@/src/modules/business/components/BusinessDiscoverCard"
@@ -102,9 +103,9 @@ export function DiscoveryTab({ userName, upcomingAppointment, onViewDetails }: D
             />
 
             {!searchQuery && upcomingAppointment && (
-                <div
-                    onClick={() => onViewDetails?.(upcomingAppointment.id)}
-                    className="group relative overflow-hidden rounded-[32px] bg-white border border-gray-100 p-6 shadow-sm hover:shadow-md transition-all cursor-pointer"
+                <Link
+                    href={`/randevularim/${upcomingAppointment.id}`}
+                    className="group relative overflow-hidden rounded-[32px] bg-white border border-gray-100 p-6 shadow-sm hover:shadow-md transition-all cursor-pointer block"
                 >
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
                         <div className="flex items-center gap-5">
@@ -137,7 +138,7 @@ export function DiscoveryTab({ userName, upcomingAppointment, onViewDetails }: D
                             </div>
                         </div>
                     </div>
-                </div>
+                </Link>
             )}
 
             {!searchQuery && <QuickRebookWidget />}
@@ -191,7 +192,6 @@ export function DiscoveryTab({ userName, upcomingAppointment, onViewDetails }: D
                             <BusinessDiscoverCard
                                 key={business.id}
                                 business={business}
-                                onClick={handleBusinessClick}
                             />
                         ))}
                     </div>

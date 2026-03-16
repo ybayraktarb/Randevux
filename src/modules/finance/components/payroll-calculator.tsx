@@ -64,8 +64,9 @@ export function PayrollCalculator({
 
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Personel</label>
+            <label htmlFor="staff-select" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Personel</label>
             <select
+              id="staff-select"
               value={selectedStaff}
               onChange={(e) => setSelectedStaff(e.target.value)}
               className="w-full h-10 px-3 bg-muted/30 border border-input rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none"
@@ -79,8 +80,9 @@ export function PayrollCalculator({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Başlangıç</label>
+              <label htmlFor="period-start" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Başlangıç</label>
               <input
+                id="period-start"
                 type="date"
                 value={periodStart}
                 onChange={(e) => setPeriodStart(e.target.value)}
@@ -88,8 +90,9 @@ export function PayrollCalculator({
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Bitiş</label>
+              <label htmlFor="period-end" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Bitiş</label>
               <input
+                id="period-end"
                 type="date"
                 value={periodEnd}
                 onChange={(e) => setPeriodEnd(e.target.value)}

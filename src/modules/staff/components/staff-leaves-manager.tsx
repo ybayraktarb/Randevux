@@ -81,8 +81,9 @@ export function StaffLeavesManager({
           <div className="grid gap-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Tür</label>
+                <label htmlFor="request-type" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Tür</label>
                 <select
+                  id="request-type"
                   value={form.requestType}
                   onChange={(e) => setForm({ ...form, requestType: e.target.value as any })}
                   className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
@@ -92,8 +93,9 @@ export function StaffLeavesManager({
                 </select>
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Tarih</label>
+                <label htmlFor="leave-date" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Tarih</label>
                 <input
+                  id="leave-date"
                   type="date"
                   value={form.date}
                   onChange={(e) => setForm({ ...form, date: e.target.value })}
@@ -105,8 +107,9 @@ export function StaffLeavesManager({
             {form.requestType === "partial" && (
               <div className="grid grid-cols-2 gap-3 animate-in fade-in duration-200">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Başlangıç</label>
+                  <label htmlFor="start-time" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Başlangıç</label>
                   <input
+                    id="start-time"
                     type="time"
                     value={form.startTime || ""}
                     onChange={(e) => setForm({ ...form, startTime: e.target.value })}
@@ -114,8 +117,9 @@ export function StaffLeavesManager({
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Bitiş</label>
+                  <label htmlFor="end-time" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Bitiş</label>
                   <input
+                    id="end-time"
                     type="time"
                     value={form.endTime || ""}
                     onChange={(e) => setForm({ ...form, endTime: e.target.value })}
@@ -126,8 +130,9 @@ export function StaffLeavesManager({
             )}
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Neden (Opsiyonel)</label>
+              <label htmlFor="leave-reason" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Neden (Opsiyonel)</label>
               <input
+                id="leave-reason"
                 type="text"
                 placeholder="Örn: Doktor randevusu, Şehir dışı..."
                 value={form.reason || ""}

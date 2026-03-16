@@ -60,10 +60,13 @@ export function DiscoveryHero({ onSearch, isSearching, userName }: DiscoveryHero
                     </div>
 
                     <div className="mt-6 flex items-center gap-6 text-sm font-bold text-white/40">
-                        <div className="flex items-center gap-2 hover:text-white cursor-pointer transition-colors">
+                        <button
+                            type="button"
+                            className="flex items-center gap-2 hover:text-white cursor-pointer transition-colors"
+                        >
                             <MapPin className="size-4" />
                             <span>Yakınımdakileri Bul</span>
-                        </div>
+                        </button>
                         <div className="hidden sm:flex items-center gap-2">
                             <div className="size-1.5 rounded-full bg-green-500 animate-pulse" />
                             <span>150+ Aktif İşletme</span>

@@ -443,14 +443,14 @@ export function BusinessesDrawer({ business, isOpen, onClose, onStatusChange }: 
                                 </h4>
                                 <div className="flex flex-col gap-3">
                                     <div className="flex flex-col gap-1.5">
-                                        <label className="text-[11px] font-semibold uppercase text-muted-foreground">Sözleşme Belgesi (URL)</label>
-                                        <input type="text" value={contractUrl} onChange={(e) => setContractUrl(e.target.value)}
+                                        <label htmlFor="contract-url" className="text-[11px] font-semibold uppercase text-muted-foreground">Sözleşme Belgesi (URL)</label>
+                                        <input id="contract-url" type="text" value={contractUrl} onChange={(e) => setContractUrl(e.target.value)}
                                             placeholder="https://drive.google.com/..."
                                             className="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                                     </div>
                                     <div className="flex flex-col gap-1.5">
-                                        <label className="text-[11px] font-semibold uppercase text-muted-foreground">Erişim Bitiş Tarihi (Opsiyonel)</label>
-                                        <input type="date" value={endsAt} onChange={(e) => setEndsAt(e.target.value)}
+                                        <label htmlFor="ends-at" className="text-[11px] font-semibold uppercase text-muted-foreground">Erişim Bitiş Tarihi (Opsiyonel)</label>
+                                        <input id="ends-at" type="date" value={endsAt} onChange={(e) => setEndsAt(e.target.value)}
                                             className="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary uppercase" />
                                         <p className="text-[10px] text-muted-foreground">Bu tarih geçtiğinde sistem aboneliği durdurabilir (Cronjob ile).</p>
                                     </div>
@@ -533,8 +533,8 @@ export function BusinessesDrawer({ business, isOpen, onClose, onStatusChange }: 
                                             Bu işlem <strong>GERİ ALINAMAZ</strong>. Tüm personeller, randevular ve hizmetler kalıcı olarak silinecektir.
                                         </p>
                                         <div className="flex flex-col gap-1.5">
-                                            <label className="text-[10px] font-bold text-red-900 uppercase">Onay için işletme adını yazın:</label>
-                                            <input type="text" value={confirmName} onChange={(e) => setConfirmName(e.target.value)}
+                                            <label htmlFor="confirm-delete-name" className="text-[10px] font-bold text-red-900 uppercase">Onay için işletme adını yazın:</label>
+                                            <input id="confirm-delete-name" type="text" value={confirmName} onChange={(e) => setConfirmName(e.target.value)}
                                                 placeholder={business.name}
                                                 className="h-9 w-full rounded-lg border border-red-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-500" />
                                         </div>

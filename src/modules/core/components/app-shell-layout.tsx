@@ -186,9 +186,13 @@ function SidebarContent({
                     <div className="flex flex-col items-center gap-4">
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <div className="relative cursor-pointer group">
+                                <button
+                                    type="button"
+                                    className="relative cursor-pointer group"
+                                    aria-label="Profil Menüsü"
+                                >
                                     <RxAvatar name={userName} size="sm" online className="ring-2 ring-primary/10 transition-all group-hover:ring-primary/30" />
-                                </div>
+                                </button>
                             </TooltipTrigger>
                             <TooltipContent side="right" sideOffset={12} className="bg-white text-gray-900 shadow-xl border border-gray-100 p-0 rounded-2xl overflow-hidden min-w-[120px]">
                                 <div className="p-3 bg-primary text-white">
@@ -326,10 +330,13 @@ function TopNavbar({
 
             <div className="flex items-center gap-4">
                 {/* Visual Search Trigger */}
-                <div className="hidden md:flex items-center gap-3 bg-gray-100/50 border border-gray-100 px-4 py-2 rounded-2xl w-64 group cursor-pointer hover:bg-white hover:shadow-md transition-all">
+                <button
+                    type="button"
+                    className="hidden md:flex items-center gap-3 bg-gray-100/50 border border-gray-100 px-4 py-2 rounded-2xl w-64 group cursor-pointer hover:bg-white hover:shadow-md transition-all text-left"
+                >
                     <Search className="size-4 text-gray-400 group-hover:text-primary transition-colors" />
                     <span className="text-xs font-bold text-gray-400">Her şeyi ara...</span>
-                </div>
+                </button>
 
                 <div className="flex items-center gap-2">
                     {/* Notifications */}
@@ -412,15 +419,18 @@ function TopNavbar({
                     </div>
 
                     {/* Profile Trigger - Unified with Sidebar Look */}
-                    <div className="hidden sm:flex items-center gap-3 bg-white border border-gray-100 rounded-full pl-2 pr-4 py-1.5 shadow-sm hover:shadow-md transition-all cursor-pointer group ml-2">
+                    <button
+                        type="button"
+                        className="hidden sm:flex items-center gap-3 bg-white border border-gray-100 rounded-full pl-2 pr-4 py-1.5 shadow-sm hover:shadow-md transition-all cursor-pointer group ml-2"
+                    >
                         <RxAvatar name={userName} size="sm" online />
-                        <div className="flex flex-col gap-0.5 min-w-[60px]">
+                        <div className="flex flex-col gap-0.5 min-w-[60px] text-left">
                             <span className="text-xs font-black text-gray-900 leading-none truncate overflow-hidden max-w-[80px]">
                                 {userName}
                             </span>
                         </div>
                         <ChevronDown className="size-3.5 text-gray-400 group-hover:text-primary transition-colors" />
-                    </div>
+                    </button>
                 </div>
             </div>
         </header>

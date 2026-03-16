@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { Star, MapPin, Clock, ArrowRight } from "lucide-react"
 import { RxAvatar } from "@/src/modules/core/components/rx-avatar"
 import { cn } from "@/lib/utils"
@@ -7,14 +8,14 @@ import { DiscoveryBusiness } from "@/src/modules/business/actions/discovery.acti
 
 interface BusinessDiscoverCardProps {
     business: DiscoveryBusiness
-    onClick: (id: string) => void
 }
 
-export function BusinessDiscoverCard({ business, onClick }: BusinessDiscoverCardProps) {
+export function BusinessDiscoverCard({ business }: BusinessDiscoverCardProps) {
     return (
-        <div
-            onClick={() => onClick(business.id)}
-            className="group bg-card border border-border/50 rounded-[32px] p-6 transition-all duration-500 hover:shadow-2xl hover:shadow-primary/5 hover:border-primary/30 cursor-pointer relative overflow-hidden"
+        <Link
+            href={`/isletme/${business.id}`}
+            aria-label={`${business.name} işletme detaylarını gör`}
+            className="group bg-card border border-border/50 rounded-[32px] p-6 transition-all duration-500 hover:shadow-2xl hover:shadow-primary/5 hover:border-primary/30 cursor-pointer relative overflow-hidden text-left w-full block"
         >
             {/* Category Tag */}
             <div className="absolute top-6 right-6 z-10">
@@ -70,6 +71,6 @@ export function BusinessDiscoverCard({ business, onClick }: BusinessDiscoverCard
 
             {/* Background Decor */}
             <div className="absolute -bottom-8 -right-8 size-32 bg-primary/5 rounded-full blur-2xl group-hover:bg-primary/10 transition-colors" />
-        </div>
+        </Link>
     )
 }

@@ -75,8 +75,9 @@ export function BusinessProfileForm({ business }: BusinessProfileFormProps) {
             </h2>
             <div className="grid grid-cols-1 gap-6">
               <div className="flex flex-col gap-2">
-                <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">İşletme Adı</label>
+                <label htmlFor="biz_name" className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">İşletme Adı</label>
                 <input
+                  id="biz_name"
                   type="text"
                   value={formData.name}
                   onChange={e => setFormData(p => ({ ...p, name: e.target.value }))}
@@ -84,8 +85,9 @@ export function BusinessProfileForm({ business }: BusinessProfileFormProps) {
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">İletişim Telefonu</label>
+                <label htmlFor="biz_phone" className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">İletişim Telefonu</label>
                 <input
+                  id="biz_phone"
                   type="tel"
                   value={formData.phone}
                   onChange={e => setFormData(p => ({ ...p, phone: e.target.value }))}
@@ -93,8 +95,9 @@ export function BusinessProfileForm({ business }: BusinessProfileFormProps) {
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Adres</label>
+                <label htmlFor="biz_addr" className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Adres</label>
                 <input
+                  id="biz_addr"
                   type="text"
                   value={formData.address}
                   onChange={e => setFormData(p => ({ ...p, address: e.target.value }))}
@@ -102,8 +105,9 @@ export function BusinessProfileForm({ business }: BusinessProfileFormProps) {
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Hakkımızda / Açıklama</label>
+                <label htmlFor="biz_desc" className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Hakkımızda / Açıklama</label>
                 <textarea
+                  id="biz_desc"
                   value={formData.description}
                   onChange={e => setFormData(p => ({ ...p, description: e.target.value }))}
                   className="min-h-[120px] rounded-2xl border border-gray-100 bg-gray-50/30 px-4 py-3 text-sm font-bold text-gray-900 focus:ring-2 focus:ring-primary/20 outline-none transition-all resize-none"
@@ -123,9 +127,10 @@ export function BusinessProfileForm({ business }: BusinessProfileFormProps) {
 
             <div className="space-y-6">
               <div className="flex flex-col gap-2">
-                <label className="text-[10px] font-black uppercase tracking-widest opacity-70">Özel Kod (URL)</label>
+                <label htmlFor="biz_url" className="text-[10px] font-black uppercase tracking-widest opacity-70">Özel Kod (URL)</label>
                 <div className="flex gap-2">
                   <input
+                    id="biz_url"
                     type="text"
                     value={formData.qrCode}
                     onChange={e => setFormData(p => ({ ...p, qrCode: e.target.value.replace(/\s+/g, '').toUpperCase() }))}
@@ -151,7 +156,7 @@ export function BusinessProfileForm({ business }: BusinessProfileFormProps) {
               )}
 
               <div className="pt-4 border-t border-white/10">
-                <label className="text-[10px] font-black uppercase tracking-widest opacity-70 block mb-3">Sistem Davet Kodu</label>
+                <span className="text-[10px] font-black uppercase tracking-widest opacity-70 block mb-3">Sistem Davet Kodu</span>
                 <div className="flex items-center justify-between gap-4 bg-white/10 rounded-2xl p-3 border border-white/10">
                   <code className="text-xs font-black tracking-widest">{inviteCode}</code>
                   <button onClick={handleRefreshInvite} className="p-2 hover:bg-white/10 rounded-xl transition-all">

@@ -117,14 +117,19 @@ function BusinessHeader({
         <div className="mt-1.5 flex items-center gap-3">
           <RxBadge variant="purple">{business.category || "Genel"}</RxBadge>
           {business.averageRating && (
-            <div className="flex items-center gap-1 cursor-pointer hover:underline" onClick={() => {
-              const el = document.getElementById("reviews-section")
-              if (el) el.scrollIntoView({ behavior: 'smooth' })
-            }}>
+            <button
+              type="button"
+              aria-label="Değerlendirmeleri gör"
+              className="flex items-center gap-1 cursor-pointer hover:underline"
+              onClick={() => {
+                const el = document.getElementById("reviews-section")
+                if (el) el.scrollIntoView({ behavior: 'smooth' })
+              }}
+            >
               <Star className="size-4 fill-yellow-400 text-yellow-400" />
               <span className="text-sm font-bold">{business.averageRating}</span>
               <span className="text-xs text-muted-foreground">({business.reviewCount} yorum)</span>
-            </div>
+            </button>
           )}
         </div>
 

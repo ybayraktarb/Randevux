@@ -61,8 +61,9 @@ export function ClosedDatesConfig({ businessId }: { businessId: string }) {
       <div className="bg-gray-50/50 rounded-[24px] p-6 border border-gray-100 mb-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
           <div className="flex flex-col gap-2">
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Tarih Seçimi</label>
+            <label htmlFor="close_date" className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Tarih Seçimi</label>
             <input
+              id="close_date"
               type="date"
               value={form.date}
               min={today}
@@ -71,8 +72,9 @@ export function ClosedDatesConfig({ businessId }: { businessId: string }) {
             />
           </div>
           <div className="flex flex-col gap-2">
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Açıklama (Opsiyonel)</label>
+            <label htmlFor="close_reason" className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Açıklama (Opsiyonel)</label>
             <input
+              id="close_reason"
               type="text"
               value={form.reason}
               onChange={e => setForm(f => ({ ...f, reason: e.target.value }))}

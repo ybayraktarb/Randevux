@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Link from "next/link"
 import { RefreshCcw, ArrowRight, Star, Clock } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { getQuickRebookDataAction } from "@/src/modules/auth/actions/auth.actions"
@@ -34,10 +35,6 @@ export function QuickRebookWidget() {
 
     if (data.length === 0) return null
 
-    const handleRebook = (item: any) => {
-        router.push(`/randevu-al?business_id=${item.businessId}&services=${item.serviceIds}`)
-    }
-
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -49,9 +46,9 @@ export function QuickRebookWidget() {
 
             <div className="flex gap-4 overflow-x-auto pb-6 scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
                 {data.map((item) => (
-                    <div
+                    <Link
                         key={item.id}
-                        onClick={() => handleRebook(item)}
+                        href={`/randevu-al?business_id=${item.businessId}&services=${item.serviceIds}`}
                         className="w-[320px] shrink-0 group bg-white border border-gray-100 rounded-[32px] p-6 transition-all duration-300 hover:shadow-2xl hover:shadow-primary/5 hover:border-primary/20 cursor-pointer flex flex-col justify-between"
                     >
                         <div className="flex items-start justify-between">
@@ -85,7 +82,7 @@ export function QuickRebookWidget() {
                                 {new Date(item.lastDate).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}
                             </div>
                         </div>
-                    </div>
+                    </Link>
                 ))}
 
                 <div className="w-[100px] shrink-0 flex items-center justify-center">

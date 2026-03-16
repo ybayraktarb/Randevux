@@ -468,12 +468,13 @@ export function UsersTab() {
                         
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-1.5">
-                                <label className="text-[13px] font-medium text-foreground flex items-center gap-1.5">
+                                <label htmlFor="user_name" className="text-[13px] font-medium text-foreground flex items-center gap-1.5">
                                     Ad Soyad <span className="text-danger">*</span>
                                 </label>
                                 <div className="relative">
                                     <Users className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/50" />
                                     <input
+                                        id="user_name"
                                         placeholder="Örn: Ahmet Yılmaz"
                                         value={createForm.name}
                                         onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
@@ -483,12 +484,13 @@ export function UsersTab() {
                                 </div>
                             </div>
                             <div className="space-y-1.5">
-                                <label className="text-[13px] font-medium text-foreground flex items-center gap-1.5">
+                                <label htmlFor="user_phone" className="text-[13px] font-medium text-foreground flex items-center gap-1.5">
                                     Telefon Numarası
                                 </label>
                                 <div className="relative">
                                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/50" />
                                     <input
+                                        id="user_phone"
                                         type="tel"
                                         placeholder="5551234567"
                                         value={createForm.phone}
@@ -502,12 +504,13 @@ export function UsersTab() {
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-1.5">
-                                <label className="text-[13px] font-medium text-foreground flex items-center gap-1.5">
+                                <label htmlFor="user_email" className="text-[13px] font-medium text-foreground flex items-center gap-1.5">
                                     E-posta Adresi <span className="text-danger">*</span>
                                 </label>
                                 <div className="relative">
                                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/50" />
                                     <input
+                                        id="user_email"
                                         type="email"
                                         placeholder="ahmet@example.com"
                                         value={createForm.email}
@@ -518,12 +521,13 @@ export function UsersTab() {
                                 </div>
                             </div>
                             <div className="space-y-1.5">
-                                <label className="text-[13px] font-medium text-foreground flex items-center gap-1.5">
+                                <label htmlFor="user_password" className="text-[13px] font-medium text-foreground flex items-center gap-1.5">
                                     Sistem Şifresi <span className="text-danger">*</span>
                                 </label>
                                 <div className="relative">
                                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/50" />
                                     <input
+                                        id="user_password"
                                         type="password"
                                         placeholder="En az 6 karakter"
                                         value={createForm.password}
@@ -544,7 +548,7 @@ export function UsersTab() {
                         </div>
 
                         <div className="space-y-3">
-                            <label className="text-[13px] font-medium text-foreground">Sistem Rolü Tanımı</label>
+                            <span className="text-[13px] font-medium text-foreground block">Sistem Rolü Tanımı</span>
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                                 {[
                                     { id: "patron", label: "İşletme Sahibi", desc: "İşletme yönetimi" },
@@ -577,8 +581,9 @@ export function UsersTab() {
                                     <h5 className="text-[13px] font-bold text-primary italic">İşletme Bağlantısı</h5>
                                 </div>
                                 <div className="space-y-1.5">
-                                    <label className="text-[12px] font-semibold text-muted-foreground">Bağlanacak Mevcut İşletme</label>
+                                    <label htmlFor="business_select" className="text-[12px] font-semibold text-muted-foreground">Bağlanacak Mevcut İşletme</label>
                                     <select
+                                        id="business_select"
                                         value={createForm.existingBusinessId}
                                         onChange={(e) => setCreateForm({ ...createForm, existingBusinessId: e.target.value })}
                                         className="h-10 w-full rounded-lg border border-primary/30 bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"

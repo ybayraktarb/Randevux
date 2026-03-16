@@ -186,10 +186,11 @@ export function CheckoutModal({
             <FeatureGate featureKey="inventory_module" businessId={businessId} minimal>
               <>
                 <div className="space-y-3">
-                  <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">ÜRÜN EKLE (OPSİYONEL)</label>
+                  <label htmlFor="product-search" className="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">ÜRÜN EKLE (OPSİYONEL)</label>
                   <div className="relative">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
                     <input
+                      id="product-search"
                       type="text"
                       placeholder="Ürün adı veya barkod..."
                       value={searchQuery}
@@ -301,7 +302,7 @@ export function CheckoutModal({
               </div>
 
               <div className="space-y-4">
-                <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">ÖDEME YÖNTEMİ</label>
+                <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">ÖDEME YÖNTEMİ</span>
                 <div className="grid grid-cols-2 gap-3">
                   {[
                     { id: 'credit_card', label: 'Kredi Kartı', icon: <Sparkles className="size-4" /> },

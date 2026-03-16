@@ -185,13 +185,14 @@ export function UsersDrawer({ user, isOpen, onClose, onUpdate }: UsersDrawerProp
                                         { label: "Rol", value: editForm.role, key: "role", icon: ShieldCheck, isSelect: true },
                                     ].map((field) => (
                                         <div key={field.label} className="space-y-1">
-                                            <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                                            <label htmlFor={`field-${field.key}`} className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                                                 <field.icon className="size-3" />
                                                 {field.label}
                                             </label>
                                             {isEditing ? (
                                                 field.isSelect ? (
                                                     <select 
+                                                        id={`field-${field.key}`}
                                                         value={editForm.role}
                                                         onChange={(e) => setEditForm({...editForm, role: e.target.value})}
                                                         className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm focus:ring-1 focus:ring-primary h-8"
@@ -203,6 +204,7 @@ export function UsersDrawer({ user, isOpen, onClose, onUpdate }: UsersDrawerProp
                                                     </select>
                                                 ) : (
                                                     <input 
+                                                        id={`field-${field.key}`}
                                                         type="text" 
                                                         value={field.value}
                                                         onChange={(e) => setEditForm({...editForm, [field.key]: e.target.value})}

@@ -77,8 +77,9 @@ export function ServiceForm({ businessId, service, staffMembers, onClose, onSucc
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <label className="text-[12px] font-black text-gray-600 ml-1">HİZMET ADI</label>
+                <label htmlFor="service_name" className="text-[12px] font-black text-gray-600 ml-1">HİZMET ADI</label>
                 <input
+                  id="service_name"
                   type="text"
                   placeholder="Örn: Saç Kesimi & Yıkama"
                   value={formData.name}
@@ -88,8 +89,9 @@ export function ServiceForm({ businessId, service, staffMembers, onClose, onSucc
               </div>
 
               <div className="space-y-2">
-                <label className="text-[12px] font-black text-gray-600 ml-1">AÇIKLAMA / KATEGORİ</label>
+                <label htmlFor="service_desc" className="text-[12px] font-black text-gray-600 ml-1">AÇIKLAMA / KATEGORİ</label>
                 <textarea
+                  id="service_desc"
                   placeholder="Hizmet kategorisini ilk kelime yapın (Örn: SAÇ Kesimi...)"
                   value={formData.description || ""}
                   onChange={(e) => setFormData(p => ({ ...p, description: e.target.value }))}
@@ -110,8 +112,9 @@ export function ServiceForm({ businessId, service, staffMembers, onClose, onSucc
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-[12px] font-black text-gray-600 ml-1">SÜRE (DK)</label>
+                <label htmlFor="base_duration" className="text-[12px] font-black text-gray-600 ml-1">SÜRE (DK)</label>
                 <input
+                  id="base_duration"
                   type="number"
                   value={formData.baseDurationMinutes}
                   onChange={(e) => setFormData(p => ({ ...p, baseDurationMinutes: Number(e.target.value) }))}
@@ -119,9 +122,10 @@ export function ServiceForm({ businessId, service, staffMembers, onClose, onSucc
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-[12px] font-black text-gray-600 ml-1">BAZ FİYAT (₺)</label>
+                <label htmlFor="base_price" className="text-[12px] font-black text-gray-600 ml-1">BAZ FİYAT (₺)</label>
                 <div className="relative">
                   <input
+                    id="base_price"
                     type="number"
                     value={formData.basePrice}
                     onChange={(e) => setFormData(p => ({ ...p, basePrice: Number(e.target.value) }))}

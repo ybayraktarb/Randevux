@@ -992,7 +992,7 @@ export function CustomerProfile() {
       {/* Add Customer Modal Skeleton */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-foreground/30" onClick={() => setIsAddModalOpen(false)} />
+          <div className="absolute inset-0 bg-foreground/30" onClick={() => setIsAddModalOpen(false)} aria-hidden="true" />
           <div className="relative w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-2xl">
             <h3 className="text-lg font-semibold text-foreground">Yeni Müşteri Ekle</h3>
             <p className="text-sm text-muted-foreground mt-1">Sistemde adı, telefonu veya e-posta adresiyle yeni bir vaka (shadow profil) açabilirsiniz.</p>

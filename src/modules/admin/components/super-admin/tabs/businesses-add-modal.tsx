@@ -214,8 +214,8 @@ export function BusinessesAddModal({ modulesList, onSuccess }: { modulesList: Mo
                                 value={newBiz.name} onChange={(e) => setNewBiz({ ...newBiz, name: e.target.value })} />
 
                             <div className="flex flex-col gap-1.5">
-                                <label className="text-[13px] font-semibold text-foreground">Sektör / Modül (*)</label>
-                                <select value={newBiz.moduleId} onChange={(e) => setNewBiz({ ...newBiz, moduleId: e.target.value })}
+                                <label htmlFor="module-select" className="text-[13px] font-semibold text-foreground">Sektör / Modül (*)</label>
+                                <select id="module-select" value={newBiz.moduleId} onChange={(e) => setNewBiz({ ...newBiz, moduleId: e.target.value })}
                                     className="h-10 w-full rounded-lg border border-input bg-card px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all">
                                     <option value="" disabled>Lütfen Modül Seçin</option>
                                     {modulesList.map((m) => (
@@ -279,7 +279,7 @@ export function BusinessesAddModal({ modulesList, onSuccess }: { modulesList: Mo
                                 
                                 {!isNewOwner ? (
                                     <div className="flex flex-col gap-1.5 relative w-full pt-1">
-                                        <label className="text-[13px] font-semibold text-foreground">Kayıtlı Kullanıcı Seç (*)</label>
+                                        <label htmlFor="owner-search" className="text-[13px] font-semibold text-foreground">Kayıtlı Kullanıcı Seç (*)</label>
                                         <div className={cn(
                                             "flex items-center w-full min-h-10 border rounded-lg px-3 bg-card cursor-text transition-colors",
                                             selectedOwner ? "border-primary ring-1 ring-primary/20 bg-primary/5" : "border-input"
@@ -296,7 +296,7 @@ export function BusinessesAddModal({ modulesList, onSuccess }: { modulesList: Mo
                                                     </button>
                                                 </div>
                                             ) : (
-                                                <input type="text" placeholder="İsim ile abone arayın..." 
+                                                <input id="owner-search" type="text" placeholder="İsim ile abone arayın..." 
                                                     className="w-full bg-transparent text-sm focus:outline-none text-foreground placeholder:text-muted-foreground py-2"
                                                     value={ownerSearchQuery} onChange={(e) => setOwnerSearchQuery(e.target.value)} onFocus={() => setIsOwnerDropdownOpen(true)} />
                                             )}
@@ -342,8 +342,8 @@ export function BusinessesAddModal({ modulesList, onSuccess }: { modulesList: Mo
                                 </div>
 
                                 <div className="flex flex-col gap-1.5 mt-2">
-                                    <label className="text-[13px] font-semibold text-foreground">Abonelik Paketi (*)</label>
-                                    <select value={newBiz.packageId} onChange={(e) => setNewBiz({ ...newBiz, packageId: e.target.value })}
+                                    <label htmlFor="package-select" className="text-[13px] font-semibold text-foreground">Abonelik Paketi (*)</label>
+                                    <select id="package-select" value={newBiz.packageId} onChange={(e) => setNewBiz({ ...newBiz, packageId: e.target.value })}
                                         className="h-10 w-full rounded-lg border border-input bg-card px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all">
                                         <option value="" disabled>Lütfen Paket Seçin</option>
                                         {packages.map((p) => (
@@ -353,8 +353,8 @@ export function BusinessesAddModal({ modulesList, onSuccess }: { modulesList: Mo
                                 </div>
 
                                 <div className="flex flex-col gap-1.5 mt-2">
-                                    <label className="text-[13px] font-semibold text-foreground">Kurulum Aşaması (Pipeline) (*)</label>
-                                    <select value={newBiz.onboardingStatus} onChange={(e) => setNewBiz({ ...newBiz, onboardingStatus: e.target.value })}
+                                    <label htmlFor="onboarding-status-select" className="text-[13px] font-semibold text-foreground">Kurulum Aşaması (Pipeline) (*)</label>
+                                    <select id="onboarding-status-select" value={newBiz.onboardingStatus} onChange={(e) => setNewBiz({ ...newBiz, onboardingStatus: e.target.value })}
                                         className="h-10 w-full rounded-lg border border-input bg-card px-3 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all">
                                         <option value="contract_pending">📝 Sözleşme Bekliyor</option>
                                         <option value="payment_pending">💳 Ödeme Bekliyor</option>

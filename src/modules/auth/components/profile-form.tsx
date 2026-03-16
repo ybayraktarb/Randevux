@@ -65,16 +65,16 @@ export function ProfileForm({ user, initialData }: ProfileFormProps) {
         </h2>
         <div className="space-y-6">
           <div className="flex flex-col gap-2">
-            <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Ad Soyad</label>
-            <input type="text" value={formData.name} onChange={e => setFormData(p => ({ ...p, name: e.target.value }))} className="h-12 rounded-2xl border border-gray-100 bg-gray-50/30 px-4 text-sm font-bold text-gray-900 focus:ring-2 focus:ring-primary/20 outline-none transition-all" />
+            <label htmlFor="full_name" className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Ad Soyad</label>
+            <input id="full_name" type="text" value={formData.name} onChange={e => setFormData(p => ({ ...p, name: e.target.value }))} className="h-12 rounded-2xl border border-gray-100 bg-gray-50/30 px-4 text-sm font-bold text-gray-900 focus:ring-2 focus:ring-primary/20 outline-none transition-all" />
           </div>
           <div className="flex flex-col gap-2">
-            <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Telefon</label>
-            <input type="tel" value={formData.phone} onChange={e => setFormData(p => ({ ...p, phone: e.target.value }))} className="h-12 rounded-2xl border border-gray-100 bg-gray-50/30 px-4 text-sm font-bold text-gray-900 focus:ring-2 focus:ring-primary/20 outline-none transition-all" />
+            <label htmlFor="phone" className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Telefon</label>
+            <input id="phone" type="tel" value={formData.phone} onChange={e => setFormData(p => ({ ...p, phone: e.target.value }))} className="h-12 rounded-2xl border border-gray-100 bg-gray-50/30 px-4 text-sm font-bold text-gray-900 focus:ring-2 focus:ring-primary/20 outline-none transition-all" />
           </div>
           <div className="flex flex-col gap-2">
-            <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">E-posta</label>
-            <div className="h-12 rounded-2xl border border-gray-100 bg-gray-100/50 px-4 flex items-center text-sm font-bold text-gray-500 cursor-not-allowed">
+            <label id="email-label" className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">E-posta</label>
+            <div aria-labelledby="email-label" className="h-12 rounded-2xl border border-gray-100 bg-gray-100/50 px-4 flex items-center text-sm font-bold text-gray-500 cursor-not-allowed">
               {formData.email}
             </div>
           </div>
@@ -91,12 +91,12 @@ export function ProfileForm({ user, initialData }: ProfileFormProps) {
         </h2>
         <div className="space-y-6">
           <div className="flex flex-col gap-2">
-            <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Yeni Şifre</label>
-            <input type="password" value={passwords.new} onChange={e => setPasswords(p => ({ ...p, new: e.target.value }))} className="h-12 rounded-2xl border border-gray-100 bg-gray-50/30 px-4 text-sm font-bold text-gray-900 focus:ring-2 focus:ring-primary/20 outline-none transition-all" placeholder="••••••••" />
+            <label htmlFor="new_password" className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Yeni Şifre</label>
+            <input id="new_password" type="password" value={passwords.new} onChange={e => setPasswords(p => ({ ...p, new: e.target.value }))} className="h-12 rounded-2xl border border-gray-100 bg-gray-50/30 px-4 text-sm font-bold text-gray-900 focus:ring-2 focus:ring-primary/20 outline-none transition-all" placeholder="••••••••" />
           </div>
           <div className="flex flex-col gap-2">
-            <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Şifre Tekrar</label>
-            <input type="password" value={passwords.confirm} onChange={e => setPasswords(p => ({ ...p, confirm: e.target.value }))} className="h-12 rounded-2xl border border-gray-100 bg-gray-50/30 px-4 text-sm font-bold text-gray-900 focus:ring-2 focus:ring-primary/20 outline-none transition-all" placeholder="••••••••" />
+            <label htmlFor="confirm_password" className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Şifre Tekrar</label>
+            <input id="confirm_password" type="password" value={passwords.confirm} onChange={e => setPasswords(p => ({ ...p, confirm: e.target.value }))} className="h-12 rounded-2xl border border-gray-100 bg-gray-50/30 px-4 text-sm font-bold text-gray-900 focus:ring-2 focus:ring-primary/20 outline-none transition-all" placeholder="••••••••" />
           </div>
           <RxButton onClick={handleChangePassword} disabled={changingPw} className="w-full h-12 rounded-2xl shadow-md font-black uppercase tracking-widest text-[11px] transition-all bg-gray-900 hover:bg-gray-800 text-white mt-4">
             {changingPw ? <Loader2 className="size-4 animate-spin" /> : <Lock className="size-4 mr-1" />} Şifreyi Değiştir

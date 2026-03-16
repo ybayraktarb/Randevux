@@ -86,8 +86,9 @@ export function CommissionEditor({
                 {isEditing ? (
                   <>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-primary">Hizmet Primi (%)</label>
+                      <label htmlFor={`rate-${staff.id}`} className="text-[10px] font-black uppercase tracking-widest text-primary">Hizmet Primi (%)</label>
                       <input 
+                        id={`rate-${staff.id}`}
                         type="number" 
                         value={form.rate} 
                         onChange={e => setForm({...form, rate: Number(e.target.value)})}
@@ -95,8 +96,9 @@ export function CommissionEditor({
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-primary">Taban Maaş (₺)</label>
+                      <label htmlFor={`salary-${staff.id}`} className="text-[10px] font-black uppercase tracking-widest text-primary">Taban Maaş (₺)</label>
                       <input 
+                        id={`salary-${staff.id}`}
                         type="number" 
                         value={form.salary} 
                         onChange={e => setForm({...form, salary: Number(e.target.value)})}

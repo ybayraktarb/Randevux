@@ -248,41 +248,34 @@ function ProductFormModal({ product, businessId, onClose, onSuccess }: { product
                 <div className="overflow-y-auto p-5">
                     <form id="productForm" onSubmit={handleSubmit} className="flex flex-col gap-4">
                         <div>
-                            <label className="text-sm font-medium mb-1.5 block">Ürün Adı *</label>
-                            <RxInput required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="Örn: Argan Yağlı Şampuan 500ml" />
+                            <RxInput label="Ürün Adı *" required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="Örn: Argan Yağlı Şampuan 500ml" />
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">
                             <div>
-                                <label className="text-sm font-medium mb-1.5 block">Stok Kodu (SKU)</label>
-                                <RxInput value={formData.sku} onChange={e => setFormData({ ...formData, sku: e.target.value })} placeholder="Barkod veya Kod" />
+                                <RxInput label="Stok Kodu (SKU)" value={formData.sku} onChange={e => setFormData({ ...formData, sku: e.target.value })} placeholder="Barkod veya Kod" />
                             </div>
                             <div>
-                                <label className="text-sm font-medium mb-1.5 block">Kategori</label>
-                                <RxInput value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })} placeholder="Şampuan, Bakım..." />
+                                <RxInput label="Kategori" value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })} placeholder="Şampuan, Bakım..." />
                             </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-3 p-3 bg-muted/30 rounded-lg border border-border">
                             <div>
-                                <label className="text-sm font-medium mb-1.5 block text-muted-foreground">Alış Fiyatı (Maliyet ₺)</label>
-                                <RxInput type="number" required min="0" step="0.01" value={formData.purchasePrice} onChange={e => setFormData({ ...formData, purchasePrice: Number(e.target.value) })} />
+                                <RxInput label="Alış Fiyatı (Maliyet ₺)" type="number" required min="0" step="0.01" value={formData.purchasePrice} onChange={e => setFormData({ ...formData, purchasePrice: Number(e.target.value) })} />
                             </div>
                             <div>
-                                <label className="text-sm font-medium mb-1.5 block">Satış Fiyatı (₺) *</label>
-                                <RxInput type="number" required min="0" step="0.01" value={formData.sellingPrice} onChange={e => setFormData({ ...formData, sellingPrice: Number(e.target.value) })} />
+                                <RxInput label="Satış Fiyatı (₺) *" type="number" required min="0" step="0.01" value={formData.sellingPrice} onChange={e => setFormData({ ...formData, sellingPrice: Number(e.target.value) })} />
                             </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">
                             <div>
-                                <label className="text-sm font-medium mb-1.5 block" title="Sadece yeni ürün eklerken girilebilir. Mevcut ürünler için stok düzeltme menüsünü kullanın.">Başlangıç Stoğu</label>
-                                <RxInput type="number" min="0" required disabled={!!product} value={formData.stockQuantity} onChange={e => setFormData({ ...formData, stockQuantity: Number(e.target.value) })} />
+                                <RxInput label="Başlangıç Stoğu" type="number" min="0" required disabled={!!product} value={formData.stockQuantity} onChange={e => setFormData({ ...formData, stockQuantity: Number(e.target.value) })} />
                                 {product && <span className="text-[10px] text-muted-foreground">Stok güncellemek için ana ekrandaki "Düzenle" butonunu kullanın.</span>}
                             </div>
                             <div>
-                                <label className="text-sm font-medium mb-1.5 block">Kritik Stok Uyarısı</label>
-                                <RxInput type="number" min="0" required value={formData.minStockAlert} onChange={e => setFormData({ ...formData, minStockAlert: Number(e.target.value) })} />
+                                <RxInput label="Kritik Stok Uyarısı" type="number" min="0" required value={formData.minStockAlert} onChange={e => setFormData({ ...formData, minStockAlert: Number(e.target.value) })} />
                             </div>
                         </div>
 
@@ -366,13 +359,13 @@ function StockAdjustModal({ product, businessId, onClose, onSuccess }: { product
                     </div>
 
                     <div>
-                        <label className="text-sm font-medium mb-1.5 block">Eklenecek / Düşülecek Miktar</label>
-                        <RxInput type="number" required min="1" value={amountToAdjust} onChange={e => setAmountToAdjust(e.target.value)} placeholder="0" />
+                        <label htmlFor="adjust-amount" className="text-sm font-medium mb-1.5 block">Eklenecek / Düşülecek Miktar</label>
+                        <RxInput id="adjust-amount" type="number" required min="1" value={amountToAdjust} onChange={e => setAmountToAdjust(e.target.value)} placeholder="0" />
                     </div>
 
                     <div>
-                        <label className="text-sm font-medium mb-1.5 block">Not (Opsiyonel)</label>
-                        <RxInput value={notes} onChange={e => setNotes(e.target.value)} placeholder="Tedarikçiden geldi, kırıldı iptal vs." />
+                        <label htmlFor="adjust-notes" className="text-sm font-medium mb-1.5 block">Not (Opsiyonel)</label>
+                        <RxInput id="adjust-notes" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Tedarikçiden geldi, kırıldı iptal vs." />
                     </div>
 
                     <div className="flex justify-end gap-2 mt-2">

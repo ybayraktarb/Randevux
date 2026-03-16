@@ -281,7 +281,7 @@ export function BusinessOnboarding() {
             />
             
             <div className="flex flex-col gap-3">
-              <label className="text-sm font-bold text-foreground/80 lowercase tracking-wider pl-1">Sektör Seçimi</label>
+              <span className="text-sm font-bold text-foreground/80 lowercase tracking-wider pl-1">Sektör Seçimi</span>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {sectors.map(sector => (
                   <button 

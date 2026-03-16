@@ -166,8 +166,9 @@ export function StaffServicesConfig({
                 {isEditing && (
                   <div className="border-t border-border px-4 py-3 flex items-center gap-4 flex-wrap bg-muted/20 rounded-b-xl animate-in fade-in duration-200">
                     <div className="flex items-center gap-2">
-                      <label className="text-xs font-bold text-muted-foreground">Süre (dk):</label>
+                      <label htmlFor={`duration-${svc.id}`} className="text-xs font-bold text-muted-foreground">Süre (dk):</label>
                       <input
+                        id={`duration-${svc.id}`}
                         type="number"
                         min={5}
                         placeholder={svc.base_duration_minutes.toString()}
@@ -182,8 +183,9 @@ export function StaffServicesConfig({
                       />
                     </div>
                     <div className="flex items-center gap-2">
-                      <label className="text-xs font-bold text-muted-foreground">Fiyat (₺):</label>
+                      <label htmlFor={`price-${svc.id}`} className="text-xs font-bold text-muted-foreground">Fiyat (₺):</label>
                       <input
+                        id={`price-${svc.id}`}
                         type="number"
                         min={0}
                         placeholder={svc.base_price.toString()}

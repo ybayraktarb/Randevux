@@ -59,9 +59,10 @@ export function AppointmentPoliciesForm({ business }: AppointmentPoliciesFormPro
           </div>
 
           <div className="flex flex-col gap-3">
-            <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">İptal Süresi (Dakika)</label>
+            <label htmlFor="cancel_buffer" className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">İptal Süresi (Dakika)</label>
             <div className="flex items-center gap-4">
               <input
+                id="cancel_buffer"
                 type="number"
                 value={cancelBuffer}
                 onChange={e => setCancelBuffer(Number(e.target.value))}

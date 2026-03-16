@@ -97,7 +97,7 @@ export async function getBookingDataAction(businessId: string) {
             }
         }))
 
-        console.log(`getBookingDataAction: Found ${servicesRes.data.length} services and ${formattedStaff.length} staff members.`)
+        // console.log(`getBookingDataAction: Found ${servicesRes.data.length} services and ${formattedStaff.length} staff members.`)
 
         return {
             success: true,
@@ -126,11 +126,13 @@ export async function createBookingAction(data: {
     customerNote?: string
     familyProfileId?: string | null
 }) {
+    /*
     console.log("createBookingAction: Received request", { ...data, customerNote: "..." })
     console.log("createBookingAction - ENV CHECK:", {
         url: process.env.NEXT_PUBLIC_SUPABASE_URL,
         hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     })
+    */
     try {
         const supabase = await createClient()
         const { data: { user } } = await supabase.auth.getUser()
@@ -172,7 +174,7 @@ export async function createBookingAction(data: {
             customer_note: data.customerNote || "",
             status: "Bekliyor"
         }
-        console.log("createBookingAction: Inserting appointment", aptData)
+        // console.log("createBookingAction: Inserting appointment", aptData)
 
         const { data: apt, error: aptError } = await supabase
             .from("appointments")
@@ -185,7 +187,7 @@ export async function createBookingAction(data: {
             throw aptError
         }
 
-        console.log(`createBookingAction: Created appointment ${apt.id}. Mapping services...`)
+        // console.log(`createBookingAction: Created appointment ${apt.id}. Mapping services...`)
 
         // 3. Insert Appointment Services (Snapshots)
         const { data: services } = await supabase
@@ -212,7 +214,7 @@ export async function createBookingAction(data: {
             throw svcError
         }
 
-        console.log("createBookingAction: Success!")
+        // console.log("createBookingAction: Success!")
         revalidatePath("/(customer)/randevularim", "page")
 
         return { success: true, appointmentId: apt.id }

@@ -58,8 +58,7 @@ export function FeatureGate({ businessId, featureKey, fallback = null, children,
     }, [businessId, featureKey, supabase])
 
     if (isEnabled === null) {
-        return minimal ? null : null // Already null, but emphasizes intention. 
-        // We could add a small skeleton here if minimal is false.
+        return null
     }
 
     if (!isEnabled) return <>{fallback}</>

@@ -139,10 +139,12 @@ export function BusinessStorefrontModern({ initialData }: BusinessStorefrontMode
             return
         }
         const res = await toggleFavoriteAction(business.id)
-        if (res.success && 'isFavorite' in res) {
-            setIsFavorite(res.isFavorite || false)
-            toast.success(res.isFavorite ? "Favorilere eklendi." : "Favorilerden çıkarıldı.")
-        }
+    if (res.success && res.data) {
+        setIsFavorite(res.data.isFavorite)
+        toast.success(res.data.isFavorite ? "Favorilere eklendi." : "Favorilerden çıkarıldı.")
+    } else if (!res.success) {
+        toast.error(res.error?.message || "Favori işlemi başarısız oldu.")
+    }
     }
 
     const handleBooking = () => {

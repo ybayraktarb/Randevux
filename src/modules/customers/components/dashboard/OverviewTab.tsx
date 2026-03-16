@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { Calendar, Sun, Moon, Trash2, Heart } from "lucide-react"
+import { Calendar, Sun, Moon, Trash2, Heart, Plus, X } from "lucide-react"
 import { useTheme } from "next-themes"
 import { createClient } from "@/lib/supabase/client"
 import { RxButton } from "@/src/modules/core/components/rx-button"
@@ -8,7 +8,8 @@ import { SectionHeader } from "./SectionHeader"
 import { AppointmentCard } from "./AppointmentCard"
 import { NotificationBell } from "./NotificationBell"
 import { QrScanner } from "./QrScanner"
-import { Appointment, Business, TabView } from "./types"
+import { Appointment, Business, TabView, Notification } from "./types"
+import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime"
 
 export function OverviewTab({
   upcoming,
@@ -33,11 +34,11 @@ export function OverviewTab({
   onJoinBusiness: (code: string) => Promise<void>
   onRebook: (businessId: string, services: string) => void
   onLeave: (id: string) => Promise<void>
-  notifications: any[]
+  notifications: Notification[]
   onMarkAsRead: (id: string) => Promise<void>
   onViewDetails: (id: string) => void
   onReview?: (apt: Appointment) => void
-  router: any
+  router: AppRouterInstance
 }) {
   const [showJoinForm, setShowJoinForm] = useState(false)
   const [showScanner, setShowScanner] = useState(false)

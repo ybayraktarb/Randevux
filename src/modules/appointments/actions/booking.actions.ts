@@ -3,8 +3,10 @@
 import { createClient } from "@/lib/supabase/server"
 import * as Sentry from "@sentry/nextjs"
 import { revalidatePath } from "next/cache"
+import type { ActionResult } from "@/lib/validations/action-types"
+import type { BookingData, CreateBookingInput } from "../types"
 
-export async function getBookingDataAction(businessId: string) {
+export async function getBookingDataAction(businessId: string): Promise<ActionResult<BookingData>> {
     try {
         const supabase = await createClient()
 
@@ -108,24 +110,15 @@ export async function getBookingDataAction(businessId: string) {
                 staffList: formattedStaff
             }
         }
-    } catch (err: any) {
+    } catch (err: unknown) {
         console.error("getBookingDataAction Error:", err)
         Sentry.captureException(err)
-        return { success: false, error: err.message }
+        const message = err instanceof Error ? err.message : "Randevu verileri alınamadı."
+        return { success: false, error: { message } }
     }
 }
 
-export async function createBookingAction(data: {
-    businessId: string
-    staffBusinessId: string
-    serviceIds: string[]
-    appointmentDate: string // YYYY-MM-DD
-    startTime: string // HH:mm
-    totalPrice: number
-    totalDuration: number
-    customerNote?: string
-    familyProfileId?: string | null
-}) {
+export async function createBookingAction(data: CreateBookingInput): Promise<ActionResult<{ appointmentId: string }>> {
     /*
     console.log("createBookingAction: Received request", { ...data, customerNote: "..." })
     console.log("createBookingAction - ENV CHECK:", {
@@ -217,10 +210,11 @@ export async function createBookingAction(data: {
         // console.log("createBookingAction: Success!")
         revalidatePath("/(customer)/randevularim", "page")
 
-        return { success: true, appointmentId: apt.id }
-    } catch (err: any) {
+        return { success: true, data: { appointmentId: apt.id } }
+    } catch (err: unknown) {
         console.error("createBookingAction Error:", err)
         Sentry.captureException(err)
-        return { success: false, error: err.message || "Randevu kaydedilirken bir hata oluştu." }
+        const message = err instanceof Error ? err.message : "Randevu kaydedilirken bir hata oluştu."
+        return { success: false, error: { message } }
     }
 }

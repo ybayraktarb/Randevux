@@ -12,14 +12,17 @@ import {
 import type { 
   BusinessProfileInput, 
   AppointmentPolicyInput, 
-  ServiceInput 
+  ServiceInput,
+  Service
 } from "../types"
 import { revalidatePath } from "next/cache"
 import { checkFeatureAccess, isSuperAdmin } from "@/lib/permissions"
 import { logAuditAction } from "@/src/modules/admin/actions/audit.actions"
 import { createNotificationAction } from "@/src/modules/core/actions/notification.actions"
+import type { ActionResult } from "@/lib/validations/action-types"
+import { AtomicOnboardPayload, ReviewInput } from "../types"
 
-export async function toggleBusinessActiveAction(businessId: string, isActive: boolean) {
+export async function toggleBusinessActiveAction(businessId: string, isActive: boolean): Promise<ActionResult<void>> {
     try {
         if (!await isSuperAdmin()) throw new Error("Yetkisiz erişim.")
         const supabase = await createClient()
@@ -33,14 +36,15 @@ export async function toggleBusinessActiveAction(businessId: string, isActive: b
         })
 
         revalidatePath("/admin-dashboard")
-        return { success: true }
-    } catch (err: any) {
+        return { success: true, data: undefined }
+    } catch (err: unknown) {
         Sentry.captureException(err)
-        return { success: false, error: err.message }
+        const message = err instanceof Error ? err.message : "İşletme durumu güncellenemedi."
+        return { success: false, error: { message } }
     }
 }
 
-export async function atomicOnboardAction(payload: any) {
+export async function atomicOnboardAction(payload: AtomicOnboardPayload): Promise<ActionResult<{ businessId: string }>> {
   try {
     if (!await isSuperAdmin()) throw new Error("Yetkisiz erişim.")
 
@@ -50,6 +54,7 @@ export async function atomicOnboardAction(payload: any) {
     let finalOwnerId = ownerId
 
     if (isNewOwner) {
+      if (!newOwnerData) throw new Error("Yeni sahip bilgileri eksik.")
       const { data: authUser, error: authErr } = await supabase.auth.admin.createUser({
         email: newOwnerData.email,
         password: newOwnerData.password,
@@ -97,13 +102,14 @@ export async function atomicOnboardAction(payload: any) {
 
     revalidatePath("/admin-dashboard")
     return { success: true, data: { businessId: business.id } }
-  } catch (err: any) {
+  } catch (err: unknown) {
     Sentry.captureException(err)
-    return { success: false, error: { message: err.message || "Onboarding failure" } }
+    const message = err instanceof Error ? err.message : "Onboarding failure"
+    return { success: false, error: { message } }
   }
 }
 
-export async function toggleFavoriteAction(businessId: string, isFavorite?: boolean) {
+export async function toggleFavoriteAction(businessId: string, isFavorite?: boolean): Promise<ActionResult<{ isFavorite: boolean }>> {
     try {
         const supabase = await createClient()
         const { data: { user } } = await supabase.auth.getUser()
@@ -121,10 +127,11 @@ export async function toggleFavoriteAction(businessId: string, isFavorite?: bool
             await supabase.from("user_favorites").delete().eq("user_id", user.id).eq("business_id", businessId)
         }
 
-        return { success: true, isFavorite: newState }
-    } catch (err: any) {
+        return { success: true, data: { isFavorite: newState } }
+    } catch (err: unknown) {
         Sentry.captureException(err)
-        return { success: false, error: err.message }
+        const message = err instanceof Error ? err.message : "Favori işlemi başarısız."
+        return { success: false, error: { message } }
     }
 }
 
@@ -143,14 +150,15 @@ export async function deleteBusinessAction(id: string) {
         })
 
         revalidatePath("/admin-dashboard")
-        return { success: true }
-    } catch (err: any) {
+        return { success: true, data: undefined }
+    } catch (err: unknown) {
         Sentry.captureException(err)
-        return { success: false, error: { message: err.message } }
+        const message = err instanceof Error ? err.message : "İşletme silinemedi."
+        return { success: false, error: { message } }
     }
 }
 
-export async function addReviewAction(data: any) {
+export async function addReviewAction(data: ReviewInput): Promise<ActionResult<void>> {
     try {
         const supabase = await createClient()
         const { data: { user } } = await supabase.auth.getUser()
@@ -165,14 +173,15 @@ export async function addReviewAction(data: any) {
         })
 
         if (error) throw error
-        return { success: true }
-    } catch (err: any) {
+        return { success: true, data: undefined }
+    } catch (err: unknown) {
         Sentry.captureException(err)
-        return { success: false, error: err.message }
+        const message = err instanceof Error ? err.message : "Yorum eklenemedi."
+        return { success: false, error: { message } }
     }
 }
 
-export async function getEnabledFeaturesAction(businessId: string) {
+export async function getEnabledFeaturesAction(businessId: string): Promise<ActionResult<string[]>> {
     try {
         const supabase = await createClient()
         const { data, error } = await supabase
@@ -183,79 +192,97 @@ export async function getEnabledFeaturesAction(businessId: string) {
 
         if (error) throw error
         return { success: true, data: data.map((f: any) => f.feature.key) }
-    } catch (err: any) {
+    } catch (err: unknown) {
         Sentry.captureException(err)
-        return { success: false, error: err.message, data: [] }
+        const message = err instanceof Error ? err.message : "Özellikler alınamadı."
+        return { success: false, error: { message } }
     }
 }
 
 // ─── Business Actions ────────────────────────────────────────────────────────
 
-export async function updateBusinessProfileAction(input: BusinessProfileInput) {
+export async function updateBusinessProfileAction(input: BusinessProfileInput): Promise<ActionResult<void>> {
   try {
     const validated = businessProfileSchema.safeParse(input)
-    if (!validated.success) return { success: false, error: validated.error.errors[0].message }
-    return await BusinessService.updateProfile(validated.data)
-  } catch (err: any) {
+    if (!validated.success) return { success: false, error: { message: validated.error.errors[0].message } }
+    const res = await BusinessService.updateProfile(validated.data)
+    if (!res.success) return { success: false, error: { message: res.error || "Güncelleme hatası" } }
+    return { success: true }
+  } catch (err: unknown) {
     Sentry.captureException(err)
-    return { success: false, error: "İşletme bilgileri güncellenemedi." }
+    const message = err instanceof Error ? err.message : "İşletme bilgileri güncellenemedi."
+    return { success: false, error: { message } }
   }
 }
 
-export async function updateAppointmentPoliciesAction(input: AppointmentPolicyInput) {
+export async function updateAppointmentPoliciesAction(input: AppointmentPolicyInput): Promise<ActionResult<void>> {
   try {
     const validated = appointmentPolicySchema.safeParse(input)
-    if (!validated.success) return { success: false, error: validated.error.errors[0].message }
-    return await BusinessService.updateAppointmentPolicies(validated.data)
-  } catch (err: any) {
+    if (!validated.success) return { success: false, error: { message: validated.error.errors[0].message } }
+    const res = await BusinessService.updateAppointmentPolicies(validated.data)
+    if (!res.success) return { success: false, error: { message: res.error || "Güncelleme hatası" } }
+    return { success: true }
+  } catch (err: unknown) {
     Sentry.captureException(err)
-    return { success: false, error: "Politikalar güncellenemedi." }
+    const message = err instanceof Error ? err.message : "Politikalar güncellenemedi."
+    return { success: false, error: { message } }
   }
 }
 
-export async function refreshInviteCodeAction(businessId: string) {
+export async function refreshInviteCodeAction(businessId: string): Promise<ActionResult<{ newCode: string }>> {
   try {
-    return await BusinessService.refreshInviteCode(businessId)
-  } catch (err: any) {
+    const res = await BusinessService.refreshInviteCode(businessId)
+    if (!res.success) return { success: false, error: { message: res.error || "Hata" } }
+    return { success: true, data: { newCode: res.newCode! } }
+  } catch (err: unknown) {
     Sentry.captureException(err)
-    return { success: false, error: "Davet kodu yenilenemedi." }
+    const message = err instanceof Error ? err.message : "Davet kodu yenilenemedi."
+    return { success: false, error: { message } }
   }
 }
 
 // ─── Service Actions ─────────────────────────────────────────────────────────
 
-export async function upsertServiceAction(input: ServiceInput) {
+export async function upsertServiceAction(input: ServiceInput): Promise<ActionResult<void>> {
   try {
     const validated = serviceSchema.safeParse(input)
-    if (!validated.success) return { success: false, error: validated.error.errors[0].message }
-    return await ServiceConfigService.upsertService(validated.data)
-  } catch (err: any) {
+    if (!validated.success) return { success: false, error: { message: validated.error.errors[0].message } }
+    const res = await ServiceConfigService.upsertService(validated.data)
+    if (!res.success) return { success: false, error: { message: res.error || "Hata" } }
+    return { success: true }
+  } catch (err: unknown) {
     Sentry.captureException(err)
-    return { success: false, error: "Hizmet kaydedilemedi." }
+    const message = err instanceof Error ? err.message : "Hizmet kaydedilemedi."
+    return { success: false, error: { message } }
   }
 }
 
-export async function toggleServiceStatusAction(id: string, isActive: boolean) {
+export async function toggleServiceStatusAction(id: string, isActive: boolean): Promise<ActionResult<void>> {
   try {
-    return await ServiceConfigService.toggleServiceStatus(id, isActive)
-  } catch (err: any) {
+    const res = await ServiceConfigService.toggleServiceStatus(id, isActive)
+    if (!res.success) return { success: false, error: { message: res.error || "Hata" } }
+    return { success: true }
+  } catch (err: unknown) {
     Sentry.captureException(err)
-    return { success: false, error: "Hizmet durumu değiştirilemedi." }
+    const message = err instanceof Error ? err.message : "Hizmet durumu değiştirilemedi."
+    return { success: false, error: { message } }
   }
 }
 
-export async function getBusinessServicesAction(businessId: string) {
+export async function getBusinessServicesAction(businessId: string): Promise<ActionResult<Service[]>> {
   try {
-    return await ServiceConfigService.getServices(businessId)
-  } catch (err: any) {
+    const res = await ServiceConfigService.getServices(businessId)
+    // res.data implicitly typed correctly if ServiceConfigService.getServices is typed
+    return { success: true, data: res.data as Service[] } 
+  } catch (err: unknown) {
     Sentry.captureException(err)
-    return { success: false, error: "Hizmetler yüklenemedi.", data: [] }
+    const message = err instanceof Error ? err.message : "Hizmetler yüklenemedi."
+    return { success: false, error: { message } }
   }
 }
-export async function getSubscriptionAction(businessId: string) {
+export async function getSubscriptionAction(businessId: string): Promise<ActionResult<{ status: string; daysRemaining: number | null }>> {
     try {
         const supabase = await createClient()
-        // Mocking logic or connecting to a real subscription service
         const { data, error } = await supabase.from("businesses").select("subscription_status, subscription_ends_at").eq("id", businessId).single()
         if (error) throw error
         
@@ -265,16 +292,17 @@ export async function getSubscriptionAction(businessId: string) {
         return { 
             success: true, 
             data: { 
-                status: data.subscription_status || "trialing", 
+                status: (data.subscription_status as string) || "trialing", 
                 daysRemaining 
             } 
         }
-    } catch (err: any) {
+    } catch (err: unknown) {
         Sentry.captureException(err)
-        return { success: false, error: err.message }
+        const message = err instanceof Error ? err.message : "Abonelik bilgisi alınamadı."
+        return { success: false, error: { message } }
     }
 }
-export async function getBusinessStorefrontAction(businessId: string) {
+export async function getBusinessStorefrontAction(businessId: string): Promise<ActionResult<any>> {
     try {
         const supabase = await createClient()
         const { data, error } = await supabase
@@ -293,8 +321,9 @@ export async function getBusinessStorefrontAction(businessId: string) {
 
         if (error) throw error
         return { success: true, data }
-    } catch (err: any) {
+    } catch (err: unknown) {
         Sentry.captureException(err)
-        return { success: false, error: err.message }
+        const message = err instanceof Error ? err.message : "İşletme sayfası yüklenemedi."
+        return { success: false, error: { message } }
     }
 }

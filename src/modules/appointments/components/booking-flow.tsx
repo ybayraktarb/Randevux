@@ -7,9 +7,11 @@ import { ChevronLeft, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 
 import { RxButton } from "@/src/modules/core/components/rx-button"
-import { getAvailableSlotsAction, TimeSlot } from "@/src/modules/appointments/actions/availability.actions"
-import { createManualAppointmentAction } from "@/src/modules/appointments/actions/appointment.actions"
+import { getAvailableSlotsAction } from "@/src/modules/appointments/actions/availability.actions"
+import { TimeSlot } from "@/src/modules/appointments/types"
+import { createBookingAction } from "@/src/modules/appointments/actions/booking.actions"
 import { getFamilyProfilesAction } from "@/src/modules/customers/actions/family.actions"
+import { FamilyProfileRecord as FamilyProfile } from "@/src/modules/customers/types"
 
 // Booking Modules
 import { StepIndicator } from "./booking/StepIndicator"
@@ -44,7 +46,7 @@ export function BookingFlow({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
 
-  const [familyProfiles, setFamilyProfiles] = useState<any[]>([])
+  const [familyProfiles, setFamilyProfiles] = useState<FamilyProfile[]>([])
   const [selectedFamilyId, setSelectedFamilyId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -68,11 +70,11 @@ export function BookingFlow({
       staffBusinessId: selectedStaff || "ANY",
       serviceIds: selectedServices,
     })
-    if (res.success && res.slots) {
-      setTimeSlots(res.slots)
+    if (res.success) {
+      if (res.data) setTimeSlots(res.data)
       setFetchStatus("success")
     } else {
-      toast.error(res.error || "Musaitlik yuklenemedi")
+      toast.error(res.error.message || "Musaitlik yuklenemedi")
       setFetchStatus("error")
     }
   }
@@ -89,21 +91,29 @@ export function BookingFlow({
   const handleConfirm = async () => {
     if (!selectedTime) return
     setIsSubmitting(true)
-    const res = await createManualAppointmentAction({
+    
+    const selectedSvcs = initialServices.filter(s => selectedServices.includes(s.id))
+    const totalPrice = selectedSvcs.reduce((acc, s) => acc + s.price, 0)
+    const totalDuration = selectedSvcs.reduce((acc, s) => acc + s.duration, 0)
+
+    const res = await createBookingAction({
       businessId,
-      staffBusinessId: selectedStaff === "ANY" ? undefined : selectedStaff,
+      staffBusinessId: selectedStaff === "ANY" || !selectedStaff ? "" : selectedStaff,
       serviceIds: selectedServices,
-      date: selectedDate,
+      appointmentDate: selectedDate.toISOString().split("T")[0],
       startTime: selectedTime,
-      note,
-      familyProfileId: selectedFamilyId || undefined
+      totalPrice,
+      totalDuration,
+      customerNote: note,
+      familyProfileId: selectedFamilyId,
     })
-    setIsSubmitting(false)
+
     if (res.success) {
       setIsSuccess(true)
     } else {
-      toast.error(res.error || "Randevu olusturulurken hata olustu")
+      toast.error(res.error?.message || "Randevu olusturulurken bir hata olustu")
     }
+    setIsSubmitting(false)
   }
 
   if (isSuccess) return <SuccessState router={router} />

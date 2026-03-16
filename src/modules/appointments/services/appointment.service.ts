@@ -21,7 +21,7 @@ export class AppointmentService {
         process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
-    static async createAppointment(input: CreateManualAppointmentInput) {
+    static async createAppointment(input: CreateManualAppointmentInput): Promise<{ success: boolean; appointmentId?: string; error?: { message: string } }> {
         try {
             // 1. Validate Input using shared Zod schema
             const data = createManualAppointmentSchema.parse(input)
@@ -48,7 +48,7 @@ export class AppointmentService {
 
             if (checkError) throw checkError
             if (existingApts) {
-                return { success: false, error: "Personelin bu saatte başka bir randevusu bulunmaktadır." }
+                return { success: false, error: { message: "Personelin bu saatte başka bir randevusu bulunmaktadır." } }
             }
 
             // 3. Guest Customer Logic
@@ -105,18 +105,15 @@ export class AppointmentService {
 
             return { success: true, appointmentId: aptData?.id }
 
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error("[AppointmentService] Create Error:", err)
             Sentry.captureException(err)
-            // Zod Error Handling
-            if (err.name === 'ZodError') {
-                 return { success: false, error: err.errors[0].message || "Doğrulama hatası." }
-            }
-            return { success: false, error: err.message || "Randevu eklenirken bilinmeyen bir hata oluştu." }
+            const message = err instanceof Error ? err.message : "Randevu eklenirken bilinmeyen bir hata oluştu."
+            return { success: false, error: { message } }
         }
     }
 
-    static async cancelAppointment(input: CancelAppointmentInput, initiatorRole: "staff" | "customer") {
+    static async cancelAppointment(input: CancelAppointmentInput, initiatorRole: "staff" | "customer"): Promise<{ success: boolean; error?: { message: string } }> {
         try {
             // 1. Zod Validate
             const data = cancelAppointmentSchema.parse(input)
@@ -143,7 +140,7 @@ export class AppointmentService {
             if (initiatorRole === "customer" && diffMins < bufferMinutes) {
                 return {
                     success: false,
-                    error: `İptal politikası gereği randevuya ${bufferMinutes} dakikadan az kala iptal edilemez.`
+                    error: { message: `İptal politikası gereği randevuya ${bufferMinutes} dakikadan az kala iptal edilemez.` }
                 }
             }
 
@@ -162,17 +159,15 @@ export class AppointmentService {
 
             return { success: true }
 
-        } catch (err: any) {
+        } catch (err: unknown) {
              console.error("[AppointmentService] Cancel Error:", err)
              Sentry.captureException(err)
-             if (err.name === 'ZodError') {
-                 return { success: false, error: err.errors[0].message || "Doğrulama hatası." }
-             }
-             return { success: false, error: err.message || "İptal işlemi başarısız oldu." }
+             const message = err instanceof Error ? err.message : "İptal işlemi başarısız oldu."
+             return { success: false, error: { message } }
         }
     }
 
-    static async updateAppointmentStatus(input: UpdateAppointmentStatusInput, initiatorRole: "staff" | "patron" | "system", initiatorUserId?: string) {
+    static async updateAppointmentStatus(input: UpdateAppointmentStatusInput, initiatorRole: "staff" | "patron" | "system", initiatorUserId?: string): Promise<{ success: boolean; error?: { message: string } }> {
         try {
             const data = updateAppointmentStatusSchema.parse(input)
             const now = new Date().toISOString()
@@ -223,17 +218,15 @@ export class AppointmentService {
             }
 
             return { success: true }
-        } catch (err: any) {
+        } catch (err: unknown) {
              console.error("[AppointmentService] Update Status Error:", err)
              Sentry.captureException(err)
-             if (err.name === 'ZodError') {
-                 return { success: false, error: err.errors[0].message || "Doğrulama hatası." }
-             }
-             return { success: false, error: err.message || "Durum güncellenirken bir hata oluştu." }
+             const message = err instanceof Error ? err.message : "Durum güncellenirken bir hata oluştu."
+             return { success: false, error: { message } }
         }
     }
 
-    static async getDetails(appointmentId: string) {
+    static async getDetails(appointmentId: string): Promise<{ success: boolean; data?: any; error?: { message: string } }> {
         try {
             const { data, error } = await this.supabaseAdmin
                 .from("appointments")
@@ -248,9 +241,10 @@ export class AppointmentService {
 
             if (error) throw error
             return { success: true, data }
-        } catch (err: any) {
+        } catch (err: unknown) {
             Sentry.captureException(err)
-            return { success: false, error: err.message || "Detaylar yüklenemedi." }
+            const message = err instanceof Error ? err.message : "Detaylar yüklenemedi."
+            return { success: false, error: { message } }
         }
     }
 }

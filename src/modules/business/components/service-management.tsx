@@ -51,7 +51,7 @@ export function ServiceManagement() {
     setLoading(true)
     try {
       const res = await getBusinessServicesAction(businessId)
-      if (res.success) setServices(res.data)
+      if (res.success && res.data) setServices(res.data)
 
       // Fetch staff for this business (Still using direct supabase for now as it belongs to staff module)
       const { data: staffData } = await supabase

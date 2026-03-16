@@ -2,16 +2,18 @@
 
 import { createClient } from "@/lib/supabase/server"
 import * as Sentry from "@sentry/nextjs"
+import type { ActionResult } from "@/lib/validations/action-types"
+import type { CustomerStats } from "@/src/modules/customers/components/dashboard/types"
 
 /**
  * Müşteriye özel harcama ve randevu istatistiklerini getirir
  */
-export async function getCustomerStatsAction() {
+export async function getCustomerStatsAction(): Promise<ActionResult<CustomerStats>> {
     try {
         const supabase = await createClient()
         const { data: { user } } = await supabase.auth.getUser()
 
-        if (!user) throw new Error("Oturum açmanız gerekiyor.")
+        if (!user) return { success: false, error: { message: "Oturum açmanız gerekiyor." } }
 
         // 1. Tüm randevuları çek (Completed olanlar için istatistik)
         const { data: appointments, error } = await supabase
@@ -85,8 +87,9 @@ export async function getCustomerStatsAction() {
                 spendingByMonth
             }
         }
-    } catch (err: any) {
+    } catch (err: unknown) {
         Sentry.captureException(err)
-        return { success: false, error: err.message || "İstatistikler yüklenirken hata oluştu." }
+        const message = err instanceof Error ? err.message : "İstatistikler yüklenirken hata oluştu."
+        return { success: false, error: { message } }
     }
 }

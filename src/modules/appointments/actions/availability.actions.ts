@@ -3,24 +3,14 @@
 import { createClient } from "@/lib/supabase/server"
 import * as Sentry from "@sentry/nextjs"
 
-interface SlotParams {
-    businessId: string
-    date: string // YYYY-MM-DD
-    staffBusinessId: string | "ANY"
-    serviceIds: string[]
-}
-
-export interface TimeSlot {
-    time: string
-    status: "available" | "booked" | "break"
-    staffId?: string // NEW: Candidate staff member for this slot
-}
+import type { ActionResult } from "@/lib/validations/action-types"
+import type { SlotParams, TimeSlot } from "../types"
 
 /**
  * Müşteri için müsait randevu saatlerini hesaplar.
  * Buffer time ve personel bazlı özel süreleri dikkate alır.
  */
-export async function getAvailableSlotsAction(params: SlotParams) {
+export async function getAvailableSlotsAction(params: SlotParams): Promise<ActionResult<TimeSlot[]>> {
     try {
         const supabase = await createClient()
         const { businessId, date, staffBusinessId, serviceIds } = params
@@ -33,7 +23,7 @@ export async function getAvailableSlotsAction(params: SlotParams) {
             .eq("date", date)
             .maybeSingle()
 
-        if (isClosed) return { success: true, slots: [] }
+        if (isClosed) return { success: true, data: [] }
 
         // 3. Gün bilgilerini çöz (Timezone hatasını önlemek için manuel parçala)
         // new Date(date) bazen yerel saat dilimine göre bir önceki günü verebilir.
@@ -50,7 +40,7 @@ export async function getAvailableSlotsAction(params: SlotParams) {
                 .in("service_id", serviceIds)
                 .eq("is_active", true)
 
-            if (!capableStaff) return { success: true, slots: [] }
+            if (!capableStaff) return { success: true, data: [] }
 
             // Sadece tüm hizmetleri verebilenleri filtrele (client-side filter for simplicity)
             const staffSvcCount: Record<string, number> = {}
@@ -62,7 +52,7 @@ export async function getAvailableSlotsAction(params: SlotParams) {
             staffIds = [staffBusinessId]
         }
 
-        if (staffIds.length === 0) return { success: true, slots: [] }
+        if (staffIds.length === 0) return { success: true, data: [] }
 
         // 4. Verileri paralel çek
         const [
@@ -106,7 +96,7 @@ export async function getAvailableSlotsAction(params: SlotParams) {
 
         // Business hours fallback check
         const businessDay = businessHoursRes.data?.[0]
-        if (businessDay && !businessDay.is_open) return { success: true, slots: [] }
+        if (businessDay && !businessDay.is_open) return { success: true, data: [] }
 
         // Determine global start/end for the loop
         if (workTemplatesRes.data && workTemplatesRes.data.length > 0) {
@@ -119,7 +109,7 @@ export async function getAvailableSlotsAction(params: SlotParams) {
             latestEnd = toMin(businessDay.close_time)
         }
 
-        if (earliestStart >= latestEnd) return { success: true, slots: [] }
+        if (earliestStart >= latestEnd) return { success: true, data: [] }
 
         // 15 dakikalık adımlarla tara
         for (let time = earliestStart; time < latestEnd; time += 15) {
@@ -183,10 +173,11 @@ export async function getAvailableSlotsAction(params: SlotParams) {
             })
         }
 
-        return { success: true, slots }
-    } catch (err: any) {
-        console.error("Availability Engine Error:", JSON.stringify(err, null, 2))
+        return { success: true, data: slots }
+    } catch (err: unknown) {
+        console.error("Availability Engine Error:", err)
         Sentry.captureException(err)
-        return { success: false, error: "Müsaitlik bilgisi alınamadı." }
+        const message = err instanceof Error ? err.message : "Müsaitlik bilgisi alınamadı."
+        return { success: false, error: { message } }
     }
 }

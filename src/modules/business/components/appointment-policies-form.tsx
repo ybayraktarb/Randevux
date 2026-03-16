@@ -26,7 +26,7 @@ export function AppointmentPoliciesForm({ business }: AppointmentPoliciesFormPro
     })
     setLoading(false)
     if (res.success) toast.success("Randevu politikaları güncellendi!")
-    else toast.error(res.error || "Hata oluştu.")
+    else toast.error(res.error?.message || "Hata oluştu.")
   }
 
   return (

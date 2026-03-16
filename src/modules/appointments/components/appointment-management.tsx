@@ -841,7 +841,7 @@ export function AppointmentManagement() {
       const res = await updateAppointmentStatusAction(id, status as any, businessId!)
       if (!res.success) {
         setAppointments(previousAppointments)
-        toast.error(res.error || "Hata oluştu.")
+        toast.error(res.error?.message || "Hata oluştu.")
       } else {
         fetchAppointments()
       }

@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { cn } from "@/lib/utils"
 import { Sparkles, ChevronLeft, ChevronRight, CalendarDays, Loader2 } from "lucide-react"
-import { TimeSlot } from "@/src/modules/appointments/actions/availability.actions"
+import { TimeSlot } from "@/src/modules/appointments/types"
 import { Service, Staff, MONTHS_TR, DAYS_TR, DAYS_FULL_TR } from "./types"
 
 export function StepDateTime({

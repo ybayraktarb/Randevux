@@ -49,7 +49,7 @@ export function ServiceForm({ businessId, service, staffMembers, onClose, onSucc
       toast.success(service ? "Hizmet güncellendi." : "Hizmet oluşturuldu.")
       onSuccess()
     } else {
-      toast.error(res.error || "Hata oluştu.")
+      toast.error(res.error?.message || "Hata oluştu.")
     }
   }
 

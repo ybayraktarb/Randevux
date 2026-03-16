@@ -70,3 +70,27 @@ export interface Service {
   staffNames?: string[]
   staffIds?: string[]
 }
+export interface AtomicOnboardPayload {
+  isNewOwner: boolean
+  ownerId?: string
+  newOwnerData?: {
+    name: string
+    email: string
+    password?: string
+  }
+  businessData: {
+    name: string
+    city: string
+    phone: string
+    description?: string
+    onboardingStatus: string
+    packageId: string
+  }
+}
+
+export interface ReviewInput {
+  businessId: string
+  rating: number
+  comment?: string
+  appointmentId: string
+}

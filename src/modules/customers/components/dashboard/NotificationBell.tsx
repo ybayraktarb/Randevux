@@ -1,8 +1,9 @@
 import { Bell } from "lucide-react"
 import { useState } from "react"
 import { cn } from "@/lib/utils"
+import { Notification } from "./types"
 
-export function NotificationBell({ notifications, onMarkAsRead }: { notifications: any[], onMarkAsRead: (id: string) => Promise<void> }) {
+export function NotificationBell({ notifications, onMarkAsRead }: { notifications: Notification[], onMarkAsRead: (id: string) => Promise<void> }) {
   const [open, setOpen] = useState(false)
   const unreadCount = notifications.filter(n => !n.is_read).length
 

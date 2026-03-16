@@ -1,4 +1,5 @@
-import { TimeSlot } from "@/src/modules/appointments/actions/availability.actions"
+import { TimeSlot } from "@/src/modules/appointments/types"
+import { FamilyProfileRecord as FamilyProfile } from "@/src/modules/customers/types"
 
 export interface Service {
   id: string

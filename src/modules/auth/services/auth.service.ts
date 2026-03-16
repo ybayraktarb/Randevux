@@ -1,12 +1,13 @@
 // Auth service layer
 
 import { createClient } from "@/lib/supabase/server"
+import { NotificationSettings, QuickRebookData } from "../types"
 
 export class AuthService {
   /**
    * Profil bilgilerini günceller.
    */
-  static async updateProfile(userId: string, data: { name: string, phone: string, notificationSettings: any }) {
+  static async updateProfile(userId: string, data: { name: string, phone: string, notificationSettings: NotificationSettings }) {
     const supabase = await createClient()
     const { error } = await supabase
       .from("users")
@@ -24,7 +25,7 @@ export class AuthService {
   /**
    * Hızlı tekrar randevu verilerini getirir.
    */
-  static async getQuickRebookData(userId: string) {
+  static async getQuickRebookData(userId: string): Promise<QuickRebookData[]> {
     const supabase = await createClient()
     const { data, error } = await supabase
       .from("appointments")
@@ -41,7 +42,7 @@ export class AuthService {
 
     if (error) throw error
 
-    return (data || []).map((a: any) => {
+    return (data || []).map((a: any): QuickRebookData => {
       const b = Array.isArray(a.business) ? a.business[0] : a.business
       const s = Array.isArray(a.services) ? a.services : []
       return {

@@ -18,7 +18,7 @@ export class LeaveService {
   /**
    * Patron tarafından personele izin ekler (otomatik 'approved').
    */
-  static async add(input: AddLeaveInput) {
+  static async add(input: AddLeaveInput): Promise<{ success: boolean; error?: { message: string } }> {
     const supabase = await createClient()
 
     const { error } = await supabase.rpc("owner_add_staff_leave", {
@@ -38,7 +38,7 @@ export class LeaveService {
   /**
    * İzin kaydını siler.
    */
-  static async remove(leaveId: string) {
+  static async remove(leaveId: string): Promise<{ success: boolean; error?: { message: string } }> {
     const supabase = await createClient()
 
     const { error } = await supabase
@@ -54,7 +54,7 @@ export class LeaveService {
   /**
    * Personele ait tüm izinleri listeler.
    */
-  static async list(staffBusinessId: string): Promise<{ success: boolean; data: LeaveRecord[]; error?: string }> {
+  static async list(staffBusinessId: string): Promise<{ success: boolean; data: LeaveRecord[]; error?: { message: string } }> {
     const supabase = await createClient()
 
     const { data, error } = await supabase
@@ -63,14 +63,14 @@ export class LeaveService {
       .eq("staff_business_id", staffBusinessId)
       .order("date", { ascending: false })
 
-    if (error) return { success: false, error: error.message, data: [] }
+    if (error) return { success: false, error: { message: error.message }, data: [] }
     return { success: true, data: (data || []) as LeaveRecord[] }
   }
 
   /**
    * İzin talebini onaylar veya reddeder.
    */
-  static async review(leaveId: string, status: "approved" | "rejected") {
+  static async review(leaveId: string, status: "approved" | "rejected"): Promise<{ success: boolean; error?: { message: string } }> {
     const supabase = await createClient()
 
     const { error } = await supabase

@@ -32,14 +32,14 @@ export function BusinessProfileForm({ business }: BusinessProfileFormProps) {
       ...formData
     })
     setLoading(false)
-    if (res.success) toast.success("İşletme bilgileri güncellendi!")
-    else toast.error(res.error || "Hata oluştu.")
+    if (res.success) toast.success("Randevu politikaları güncellendi!")
+    else toast.error(res.error?.message || "Hata oluştu.")
   }
 
   const handleRefreshInvite = async () => {
     const res = await refreshInviteCodeAction(business.id)
-    if (res.success && res.newCode) {
-      setInviteCode(res.newCode)
+    if (res.success && res.data?.newCode) {
+      setInviteCode(res.data.newCode)
       toast.success("Davet kodu yenilendi!")
     }
   }

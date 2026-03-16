@@ -11,7 +11,7 @@ import {
     getCategoriesAction,
     getRecommendedBusinessesAction,
 } from "@/src/modules/business/actions/discovery.actions"
-import type { DiscoveryBusiness } from "@/src/modules/business/actions/discovery.actions"
+import type { DiscoveryBusiness, Category } from "@/src/modules/business/actions/discovery.actions"
 import { BusinessCardSkeleton, CategorySkeleton } from "@/src/modules/business/components/DiscoverySkeleton"
 import { Loader2, SearchX } from "lucide-react"
 import { toast } from "sonner"
@@ -32,7 +32,7 @@ export interface DiscoveryTabProps {
 
 export function DiscoveryTab({ userName, upcomingAppointment, onViewDetails }: DiscoveryTabProps) {
     const router = useRouter()
-    const [categories, setCategories] = useState<any[]>([])
+    const [categories, setCategories] = useState<Category[]>([])
     const [businesses, setBusinesses] = useState<DiscoveryBusiness[]>([])
     const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
     const [searchQuery, setSearchQuery] = useState("")

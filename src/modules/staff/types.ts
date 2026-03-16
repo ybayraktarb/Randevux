@@ -51,6 +51,8 @@ export const updateBreaksSchema = z.object({
   })),
 })
 
+export type StaffLeave = LeaveRecord
+
 // ─── TypeScript Types ─────────────────────────────────────────────────────────
 
 export type CreateStaffInput = z.infer<typeof createStaffSchema>

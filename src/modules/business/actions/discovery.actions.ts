@@ -3,6 +3,8 @@
 import { createClient } from "@/lib/supabase/server"
 import * as Sentry from "@sentry/nextjs"
 
+import { ActionResult } from "@/lib/validations/action-types"
+
 export interface DiscoveryBusiness {
     id: string
     name: string
@@ -15,10 +17,16 @@ export interface DiscoveryBusiness {
     review_count?: number
 }
 
+export interface Category {
+    id: string
+    name: string
+    display_name: string
+}
+
 /**
  * Searches for businesses by name or category
  */
-export async function searchBusinessesAction(query: string, categoryId?: string) {
+export async function searchBusinessesAction(query: string, categoryId?: string): Promise<ActionResult<DiscoveryBusiness[]>> {
     try {
         const supabase = await createClient()
 
@@ -66,7 +74,7 @@ export async function searchBusinessesAction(query: string, categoryId?: string)
 
         if (error) throw error
 
-        const formatted = data.map((b: any) => {
+        const formatted: DiscoveryBusiness[] = (data || []).map((b: any) => {
             const ratings = b.business_reviews?.map((r: any) => r.rating) || []
             const avgRating = ratings.length > 0
                 ? ratings.reduce((a: number, b: number) => a + b, 0) / ratings.length
@@ -79,7 +87,7 @@ export async function searchBusinessesAction(query: string, categoryId?: string)
                 phone: b.phone,
                 description: b.description,
                 logo_url: b.logo_url,
-                category_name: b.module?.display_name || "Diğer",
+                category_name: (b.module as any)?.display_name || "Diğer",
                 rating: Number(avgRating.toFixed(1)),
                 review_count: ratings.length
             }
@@ -89,14 +97,14 @@ export async function searchBusinessesAction(query: string, categoryId?: string)
     } catch (err: any) {
         console.error("searchBusinessesAction Error:", err)
         Sentry.captureException(err)
-        return { success: false, error: err.message }
+        return { success: false, error: { message: err.message || "Arama yapilirken bir hata olustu" } }
     }
 }
 
 /**
  * Fetches all active modules/categories
  */
-export async function getCategoriesAction() {
+export async function getCategoriesAction(): Promise<ActionResult<Category[]>> {
     try {
         const supabase = await createClient()
         const { data, error } = await supabase
@@ -105,17 +113,17 @@ export async function getCategoriesAction() {
             .eq("is_active", true)
 
         if (error) throw error
-        return { success: true, data }
+        return { success: true, data: data as Category[] }
     } catch (err: any) {
         Sentry.captureException(err)
-        return { success: false, error: err.message }
+        return { success: false, error: { message: err.message || "Kategoriler yuklenemedi" } }
     }
 }
 
 /**
  * Fetches recommended businesses (featured or top rated)
  */
-export async function getRecommendedBusinessesAction() {
+export async function getRecommendedBusinessesAction(): Promise<ActionResult<DiscoveryBusiness[]>> {
     try {
         const supabase = await createClient()
 
@@ -138,7 +146,7 @@ export async function getRecommendedBusinessesAction() {
 
         if (error) throw error
 
-        const formatted = data.map((b: any) => {
+        const formatted: DiscoveryBusiness[] = (data || []).map((b: any) => {
             const ratings = b.business_reviews?.map((r: any) => r.rating) || []
             const avgRating = ratings.length > 0
                 ? ratings.reduce((a: number, b: number) => a + b, 0) / ratings.length
@@ -151,7 +159,7 @@ export async function getRecommendedBusinessesAction() {
                 phone: b.phone,
                 description: b.description,
                 logo_url: b.logo_url,
-                category_name: b.module?.display_name || "Diğer",
+                category_name: (b.module as any)?.display_name || "Diğer",
                 rating: Number(avgRating.toFixed(1)),
                 review_count: ratings.length
             }
@@ -160,6 +168,6 @@ export async function getRecommendedBusinessesAction() {
         return { success: true, data: formatted }
     } catch (err: any) {
         Sentry.captureException(err)
-        return { success: false, error: err.message }
+        return { success: false, error: { message: err.message || "Onerilen isletmeler yuklenemedi" } }
     }
 }

@@ -71,8 +71,9 @@ export function RegisterFlow({ onToggle, onSocialLogin }: { onToggle: () => void
       }
       if (data.user) setStep(2)
       else setError("Lütfen e-posta adresinizi onaylayın.")
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Bir hata oluştu"
+      setError(msg)
     } finally {
       setLoading(false)
     }
@@ -97,8 +98,9 @@ export function RegisterFlow({ onToggle, onSocialLogin }: { onToggle: () => void
       setSeconds(165)
       setOtp(Array(6).fill(""))
       setStep(3)
-    } catch (err: any) {
-      setPhoneError(err.message)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Bir hata oluştu"
+      setPhoneError(msg)
     } finally {
       setLoading(false)
     }

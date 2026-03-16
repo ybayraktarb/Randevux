@@ -56,3 +56,9 @@ export interface FamilyProfile {
   gender?: "male" | "female" | "other"
   createdAt: string
 }
+
+export interface FamilyProfileRecord {
+  id: string
+  full_name: string
+  relationship: string
+}

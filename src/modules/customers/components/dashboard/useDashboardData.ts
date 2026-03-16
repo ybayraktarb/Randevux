@@ -9,21 +9,22 @@ import { getFamilyProfilesAction, addFamilyProfileAction, deleteFamilyProfileAct
 import { getCustomerStatsAction } from "@/src/modules/core/actions/stats.actions"
 import { updateUserProfileAction } from "@/src/modules/auth/actions/auth.actions"
 import { leaveBusinessAction } from "@/src/modules/customers/actions/customer.actions"
-import { Appointment, Business } from "./types"
+import { Appointment, Business, Notification, CustomerProfile, FamilyProfile, CustomerStats } from "./types"
+import type { User } from "@supabase/supabase-js"
 
-export function useDashboardData(user: any) {
+export function useDashboardData(user: User | null) {
   const supabase = createClient()
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [businesses, setBusinesses] = useState<Business[]>([])
   const [loading, setLoading] = useState(true)
-  const [notifications, setNotifications] = useState<any[]>([])
-  const [profile, setProfile] = useState<{ name: string; phone: string; notification_settings: any }>({
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [profile, setProfile] = useState<CustomerProfile>({
     name: "",
     phone: "",
     notification_settings: { push: true, email: true, sms: false }
   })
-  const [familyProfiles, setFamilyProfiles] = useState<any[]>([])
-  const [stats, setStats] = useState<any>(null)
+  const [familyProfiles, setFamilyProfiles] = useState<FamilyProfile[]>([])
+  const [stats, setStats] = useState<CustomerStats | null>(null)
   const [loadingFamily, setLoadingFamily] = useState(false)
   const [loadingStats, setLoadingStats] = useState(false)
 
@@ -53,7 +54,7 @@ export function useDashboardData(user: any) {
         .order("created_at", { ascending: false })
         .limit(10)
 
-      setNotifications(notifData || [])
+      setNotifications((notifData || []) as Notification[])
 
       const { data: aptData } = await supabase
         .from("appointments")
@@ -91,7 +92,7 @@ export function useDashboardData(user: any) {
           time: `${timeParts[0]?.padStart(2, "0")}:${timeParts[1]?.padStart(2, "0")} - ${endParts[0]?.padStart(2, "0")}:${endParts[1]?.padStart(2, "0")}`,
           fullDate: fullDateObj,
           staffName: staffUser?.name || "?",
-          status: a.status as any,
+          status: a.status as Appointment["status"],
           price: `${a.total_price} TL`,
           isWithinHour
         }
@@ -137,8 +138,8 @@ export function useDashboardData(user: any) {
         getFamilyProfilesAction(),
         getCustomerStatsAction()
       ])
-      if (familyRes.success) setFamilyProfiles(familyRes.data || [])
-      if (statsRes.success) setStats(statsRes.data)
+      if (familyRes.success) setFamilyProfiles(familyRes.data as FamilyProfile[])
+      if (statsRes.success) setStats(statsRes.data as CustomerStats)
       setLoadingFamily(false)
       setLoadingStats(false)
     } catch (e) {
@@ -174,7 +175,7 @@ export function useDashboardData(user: any) {
       fetchData()
       return true
     } else {
-      toast.error(res.error || "İptal işleminde bir sorun oluştu.")
+      toast.error(res.error.message || "İptal işleminde bir sorun oluştu.")
       return false
     }
   }
@@ -235,7 +236,7 @@ export function useDashboardData(user: any) {
       toast.success("Aile profili eklendi.")
       fetchData()
     } else {
-      toast.error(res.error || "Hata.")
+      toast.error(res.error.message || "Hata.")
     }
   }
 

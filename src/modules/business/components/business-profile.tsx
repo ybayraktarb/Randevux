@@ -660,10 +660,10 @@ export function BusinessProfile({ businessId: propBusinessId }: BusinessProfileP
     }
     const res = await toggleFavoriteAction(businessId)
     if (res.success) {
-      setBusiness(prev => prev ? { ...prev, isFavorite: res.isFavorite } : null)
-      toast.success(res.isFavorite ? "Favorilere eklendi." : "Favorilerden çıkarıldı.")
+      if (res.data) setBusiness(prev => prev ? { ...prev, isFavorite: res.data!.isFavorite } : null)
+      toast.success(res.data?.isFavorite ? "Favorilere eklendi." : "Favorilerden çıkarıldı.")
     } else {
-      toast.error(res.error || "Bir hata oluştu.")
+      toast.error(res.error?.message || "Bir hata oluştu.")
     }
   }
 

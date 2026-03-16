@@ -62,7 +62,7 @@ export function CustomerDashboard({ defaultTab = "kesfet" }: { defaultTab?: TabV
     if (res.success) {
       setSelectedAppointment(res.data)
     } else {
-      toast.error(res.error || "Randevu detayları yüklenemedi.")
+      toast.error(res.error?.message || "Randevu detayları yüklenemedi.")
       setShowDetails(false)
     }
     setDetailLoading(false)
@@ -89,7 +89,7 @@ export function CustomerDashboard({ defaultTab = "kesfet" }: { defaultTab?: TabV
       toast.success("Değerlendirmeniz için teşekkürler!")
       setReviewModalOpen(false)
     } else {
-      toast.error(res.error || "Hata oluştu.")
+      toast.error(res.error?.message || "Hata oluştu.")
     }
   }
 

@@ -1,4 +1,4 @@
-import { LoginScreen } from "@/src/modules/auth/components/auth-screens"
+import { AuthScreens } from "@/src/modules/auth/components/auth-screens"
 import { Suspense } from "react"
 
 export default function LoginPage() {
@@ -8,7 +8,7 @@ export default function LoginPage() {
                 <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
             </div>
         }>
-            <LoginScreen />
+            <AuthScreens initialView="login" />
         </Suspense>
     )
 }

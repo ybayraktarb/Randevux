@@ -135,7 +135,7 @@ function AppointmentPopover({
         onRefresh()
         onClose()
       } else {
-        toast.error(res.error || "Hata oluştu.")
+        toast.error(res.error?.message || "Hata oluştu.")
       }
     } finally {
       setUpdating(false)

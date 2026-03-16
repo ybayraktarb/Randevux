@@ -1,5 +1,5 @@
 import { getBookingDataAction } from "@/src/modules/appointments/actions/booking.actions"
-import { BookingWizard } from "@/components/booking/BookingWizard"
+import { BookingFlow } from "@/src/modules/appointments/components/booking-flow"
 import { AlertCircle } from "lucide-react"
 import Link from "next/link"
 import { RxButton } from "@/src/modules/core/components/rx-button"
@@ -49,12 +49,11 @@ export default async function RandevuAlPage({
 
     return (
         <div className="min-h-screen bg-[#FDFDFF]">
-            <BookingWizard
+            <BookingFlow
                 businessId={businessId}
                 businessName={res.data.businessName}
-                businessHours={res.data.businessHours}
-                initialServices={res.data.services}
-                initialStaff={res.data.staffList}
+                initialServices={res.data.services as any}
+                initialStaff={res.data.staffList as any}
             />
         </div>
     )

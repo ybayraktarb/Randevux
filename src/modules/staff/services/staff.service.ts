@@ -25,7 +25,7 @@ export class StaffService {
    * 2. staff_business tablosuna ekler
    * 3. Karşılama bildirimi gönderir
    */
-  static async create(input: CreateStaffInput) {
+  static async create(input: CreateStaffInput): Promise<{ success: boolean; data?: { user: any }; error?: { message: string } }> {
     const supabaseAdmin = getAdmin()
 
     // 1. Auth user oluştur
@@ -79,7 +79,7 @@ export class StaffService {
   /**
    * Personelin aktiflik durumunu değiştirir.
    */
-  static async toggleActive(staffBusinessId: string, isActive: boolean) {
+  static async toggleActive(staffBusinessId: string, isActive: boolean): Promise<{ success: boolean; error?: { message: string } }> {
     const supabase = await createClient()
     const { error } = await supabase
       .from("staff_business")
@@ -94,7 +94,7 @@ export class StaffService {
   /**
    * Personeli işletmeden kaldırır (hard delete).
    */
-  static async remove(staffBusinessId: string) {
+  static async remove(staffBusinessId: string): Promise<{ success: boolean; error?: { message: string } }> {
     const supabase = await createClient()
     const { error } = await supabase
       .from("staff_business")

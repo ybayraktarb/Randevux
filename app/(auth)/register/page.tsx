@@ -1,4 +1,4 @@
-import { RegisterFlow } from "@/src/modules/auth/components/auth-screens"
+import { AuthScreens } from "@/src/modules/auth/components/auth-screens"
 import { Suspense } from "react"
 
 export default function RegisterPage() {
@@ -8,7 +8,7 @@ export default function RegisterPage() {
                 <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
             </div>
         }>
-            <RegisterFlow />
+            <AuthScreens initialView="register" />
         </Suspense>
     )
 }

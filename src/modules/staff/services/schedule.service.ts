@@ -17,7 +17,7 @@ export class ScheduleService {
   /**
    * Personelin haftalık çalışma saatlerini günceller (replace-all stratejisi).
    */
-  static async updateWorkSchedules(staffBusinessId: string, schedules: WorkSchedule[]) {
+  static async updateWorkSchedules(staffBusinessId: string, schedules: WorkSchedule[]): Promise<{ success: boolean; error?: { message: string } }> {
     const admin = getAdmin()
 
     // 1. Mevcut kayıtları temizle
@@ -56,7 +56,7 @@ export class ScheduleService {
   /**
    * Personelin mola bloklarını günceller (replace-all stratejisi).
    */
-  static async updateBreaks(staffBusinessId: string, breaks: BreakSchedule[]) {
+  static async updateBreaks(staffBusinessId: string, breaks: BreakSchedule[]): Promise<{ success: boolean; error?: { message: string } }> {
     const admin = getAdmin()
 
     // 1. Mola kayıtlarını temizle

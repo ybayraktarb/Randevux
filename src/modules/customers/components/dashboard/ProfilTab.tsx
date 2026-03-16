@@ -2,6 +2,8 @@ import { useState } from "react"
 import { TrendingUp, Loader2, Users, X, Plus, Trash2, User, Bell, Smartphone, Mail, Phone, CheckCircle2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { RxButton } from "@/src/modules/core/components/rx-button"
+import { CustomerProfile, FamilyProfile, CustomerStats } from "./types"
+import { NotificationSettings } from "@/src/modules/auth/types"
 
 export function ProfilTab({
   profile,
@@ -13,13 +15,13 @@ export function ProfilTab({
   stats,
   loadingStats
 }: {
-  profile: { name: string; phone: string; notification_settings: any },
-  onUpdate: (name: string, phone: string, settings: any) => Promise<void>,
-  familyProfiles: any[],
+  profile: CustomerProfile,
+  onUpdate: (name: string, phone: string, settings: NotificationSettings) => Promise<void>,
+  familyProfiles: FamilyProfile[],
   onAddFamily: (name: string, rel: string) => Promise<void>,
   onDeleteFamily: (id: string) => Promise<void>,
   loadingFamily: boolean,
-  stats: any,
+  stats: CustomerStats | null,
   loadingStats: boolean
 }) {
   const [name, setName] = useState(profile.name)
@@ -75,7 +77,7 @@ export function ProfilTab({
                 <div className="col-span-2 mt-2">
                   <span className="text-xs font-bold text-muted-foreground uppercase mb-2 block">En Çok Alınan Hizmetler</span>
                   <div className="flex flex-wrap gap-2">
-                    {stats.topServices.map((s: any, i: number) => (
+                    {stats.topServices.map((s, i) => (
                       <span key={i} className="px-3 py-1 bg-background border border-border rounded-full text-xs font-medium">
                         {s.name} ({s.count})
                       </span>
@@ -205,15 +207,15 @@ export function ProfilTab({
                   </div>
                 </div>
                 <button
-                  onClick={() => setSettings({ ...settings, [item.id]: !settings[item.id] })}
+                  onClick={() => setSettings({ ...settings, [item.id as keyof NotificationSettings]: !settings[item.id as keyof NotificationSettings] })}
                   className={cn(
                     "relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50",
-                    settings[item.id] ? "bg-primary" : "bg-muted"
+                    settings[item.id as keyof NotificationSettings] ? "bg-primary" : "bg-muted"
                   )}
                 >
                   <span className={cn(
                     "pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg ring-0 transition-transform",
-                    settings[item.id] ? "translate-x-4" : "translate-x-1"
+                    settings[item.id as keyof NotificationSettings] ? "translate-x-4" : "translate-x-1"
                   )} />
                 </button>
               </div>

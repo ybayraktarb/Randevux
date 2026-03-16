@@ -6,6 +6,8 @@ import { revalidatePath } from "next/cache"
 import { AppointmentService } from "../services/appointment.service"
 import type { AppointmentStatus } from "@/shared/types/appointment.types"
 
+import type { ActionResult } from "@/lib/validations/action-types"
+
 /**
  * Randevu durumunu günceller.
  */
@@ -13,7 +15,7 @@ export async function updateAppointmentStatusAction(
     appointmentId: string,
     status: AppointmentStatus | any,
     businessId: string
-) {
+): Promise<ActionResult<void>> {
     try {
         const supabase = await createClient()
         const { data: { user } } = await supabase.auth.getUser()
@@ -30,12 +32,14 @@ export async function updateAppointmentStatusAction(
         if (result.success) {
             revalidatePath("/patron/dashboard")
             revalidatePath("/patron/calendar")
+            return { success: true, data: undefined }
         }
 
-        return result
-    } catch (err) {
+        return { success: false, error: { message: (result as any).error || "Hata oluştu." } }
+    } catch (err: unknown) {
         Sentry.captureException(err)
-        return { success: false, error: "Durum güncellenirken bir hata oluştu." }
+        const message = err instanceof Error ? err.message : "Durum güncellenirken bir hata oluştu."
+        return { success: false, error: { message } }
     }
 }
 

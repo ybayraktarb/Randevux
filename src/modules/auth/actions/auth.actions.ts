@@ -8,6 +8,8 @@ import type { ActionResult } from "@/lib/validations/action-types"
 import { createClient as createAdminClient } from "@supabase/supabase-js"
 import { createClient } from "@/lib/supabase/server"
 import { AuthService } from "@/src/modules/auth/services/auth.service"
+import { NotificationSettings, QuickRebookData, UserRole } from "../types"
+import type { User } from "@supabase/supabase-js"
 
 const supabaseAdmin = createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -23,7 +25,7 @@ const CreateUserSchema = z.object({
     existingBusinessId: z.string().uuid().optional(),
 })
 
-export async function createUserAction(formData: FormData): Promise<ActionResult<any>> {
+export async function createUserAction(formData: FormData): Promise<ActionResult<{ user: User }>> {
     try {
         const rawData = {
             name: formData.get("name")?.toString() || "",
@@ -64,13 +66,18 @@ export async function createUserAction(formData: FormData): Promise<ActionResult
         await AuthService.updateUserRole(userId, role)
 
         return { success: true, data: { user: data.user } }
-    } catch (error: any) {
+    } catch (error: unknown) {
         Sentry.captureException(error)
-        return { success: false, error: { message: error.message || "Beklenmedik bir hata oluştu." } }
+        const message = error instanceof Error ? error.message : "Beklenmedik bir hata oluştu."
+        return { success: false, error: { message } }
     }
 }
 
-export async function updateUserProfileAction(name: string, phone: string, notificationSettings: any): Promise<ActionResult<void>> {
+export async function updateUserProfileAction(
+    name: string, 
+    phone: string, 
+    notificationSettings: NotificationSettings
+): Promise<ActionResult<void>> {
     try {
         const supabase = await createClient()
         const { data: { user } } = await supabase.auth.getUser()
@@ -79,25 +86,27 @@ export async function updateUserProfileAction(name: string, phone: string, notif
         const result = await AuthService.updateProfile(user.id, { name, phone, notificationSettings })
         if (result.success) {
             await supabase.auth.updateUser({ data: { name } })
-            return { success: true, data: undefined as any }
+            return { success: true, data: undefined }
         }
         return { success: false, error: { message: result.error || "Profil güncellenemedi." } }
-    } catch (err: any) {
-        return { success: false, error: { message: err.message } }
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Profil güncellenirken hata oluştu."
+        return { success: false, error: { message } }
     }
 }
 
-export async function getQuickRebookDataAction() {
+export async function getQuickRebookDataAction(): Promise<ActionResult<QuickRebookData[]>> {
     try {
         const supabase = await createClient()
         const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return { success: false, error: "Oturum açılmamış." }
+        if (!user) return { success: false, error: { message: "Oturum açılmamış." } }
 
         const data = await AuthService.getQuickRebookData(user.id)
         return { success: true, data }
-    } catch (err: any) {
+    } catch (err: unknown) {
         Sentry.captureException(err)
-        return { success: false, error: err.message }
+        const message = err instanceof Error ? err.message : "Tekrar randevu verileri alınamadı."
+        return { success: false, error: { message } }
     }
 }
 
@@ -107,9 +116,10 @@ export async function deleteUserAction(userId: string): Promise<ActionResult<voi
         const { error } = await supabaseAdmin.auth.admin.deleteUser(userId)
         if (error) throw error
         return { success: true }
-    } catch (err: any) {
+    } catch (err: unknown) {
         Sentry.captureException(err)
-        return { success: false, error: { message: err.message } }
+        const message = err instanceof Error ? err.message : "Kullanıcı silinemedi."
+        return { success: false, error: { message } }
     }
 }
 

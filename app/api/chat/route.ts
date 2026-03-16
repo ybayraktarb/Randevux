@@ -107,9 +107,9 @@ export async function POST(req: Request) {
                             serviceIds
                         });
                         if (res.success) {
-                            return (res.slots || []).filter(s => s.status === 'available');
+                            return (res.data || []).filter(s => s.status === 'available');
                         }
-                        return { error: 'Müsaitlik bilgisi alınamadı.' };
+                        return { error: res.error.message || 'Müsaitlik bilgisi alınamadı.' };
                     },
                 }),
             },

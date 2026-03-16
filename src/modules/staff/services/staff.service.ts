@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { createClient as createAdminClient } from "@supabase/supabase-js"
+import { randomBytes } from "crypto"
 import { revalidatePath } from "next/cache"
 import { createNotificationAction } from "@/src/modules/core/actions/notification.actions"
 import type { CreateStaffInput, UpdateStaffInput } from "../types"
@@ -28,9 +29,10 @@ export class StaffService {
     const supabaseAdmin = getAdmin()
 
     // 1. Auth user oluştur
+    const generatedPassword = "Randevuxx!" + randomBytes(8).toString("hex")
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email: input.email,
-      password: "Randevuxx" + Math.random().toString(36).slice(2) + "!",
+      password: generatedPassword,
       phone: input.phone || undefined,
       email_confirm: true,
       user_metadata: { name: input.name },

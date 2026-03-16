@@ -2,11 +2,12 @@ import { test, expect, Page } from "@playwright/test"
 
 const PATRON_EMAIL = process.env.TEST_PATRON_EMAIL ?? "test-patron@randevux.dev"
 const PATRON_PASSWORD = process.env.TEST_PATRON_PASSWORD ?? "test-password-123"
+const TEST_STAFF_PASSWORD = process.env.TEST_STAFF_PASSWORD ?? "Test1234!"
 
 const TEST_PERSONEL = {
     name: `Test Personel ${Date.now()}`,
     email: `test-personel-${Date.now()}@randevux.test`,
-    password: "Test1234!",
+    password: TEST_STAFF_PASSWORD,
 }
 
 const EXISTING_EMAIL = PATRON_EMAIL // Var olan bir email (duplicate testi için)
@@ -95,7 +96,7 @@ test.describe("Staff Creation — Personel Oluşturma Akışı", () => {
         await fillStaffForm(page, {
             name: "Test Personel",
             email: "bu-gecersiz-format", // @ eksik
-            password: "Test1234!",
+            password: TEST_STAFF_PASSWORD,
         })
 
         const saveBtn = page.locator(
@@ -130,7 +131,7 @@ test.describe("Staff Creation — Personel Oluşturma Akışı", () => {
         await fillStaffForm(page, {
             name: "Duplicate Personel",
             email: EXISTING_EMAIL, // zaten var olan email
-            password: "Test1234!",
+            password: TEST_STAFF_PASSWORD,
         })
 
         const saveBtn2 = page.locator('[role="dialog"] button').filter({ hasText: /kaydet|ekle|davet/i }).last()

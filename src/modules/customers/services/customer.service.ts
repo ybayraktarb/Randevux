@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { createClient as createAdminClient } from "@supabase/supabase-js"
+import { randomBytes } from "crypto"
 import type {
   AddCustomerInput,
   UpdateCustomerNotesInput,
@@ -39,9 +40,10 @@ export class CustomerService {
         process.env.SUPABASE_SERVICE_ROLE_KEY!
       )
 
+      const generatedPassword = "Randevuxx!" + randomBytes(8).toString("hex")
       const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
         email: input.email,
-        password: "Randevuxx" + Math.random().toString(36).slice(2) + "!",
+        password: generatedPassword,
         phone: input.phone || undefined,
         email_confirm: true,
         user_metadata: { name: targetUserName },

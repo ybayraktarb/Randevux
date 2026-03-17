@@ -314,14 +314,80 @@ export async function getBusinessStorefrontAction(businessId: string): Promise<A
                     *,
                     user:users(*)
                 ),
-                reviews(*, user:users(name, avatar_url))
+                reviews:business_reviews(
+                    *,
+                    user:users(name, avatar_url)
+                ),
+                working_hours:business_hours(*)
             `)
             .eq("id", businessId)
             .single()
 
         if (error) throw error
-        return { success: true, data }
+
+        // ─── Mapping snake_case to camelCase for the frontend ───────────────────
+        const formatted = {
+            business: {
+                id: data.id,
+                name: data.name,
+                category: data.category || "Genel",
+                address: data.address || "",
+                phone: data.phone || "",
+                logo_url: data.logo_url,
+                description: data.description,
+                isFavorite: false, // Will be updated on client if needed
+                isConnected: true,
+                averageRating: 0,
+                reviewCount: 0,
+                features: []
+            },
+            services: (data.services || []).map((s: any) => ({
+                id: s.id,
+                name: s.name,
+                duration: `${s.base_duration_minutes} dk`,
+                rawDuration: s.base_duration_minutes,
+                price: s.base_price,
+                priceLabel: `${s.base_price} ₺`,
+                category: s.category || "Genel"
+            })),
+            staff: (data.staff || []).map((s: any) => ({
+                id: s.id,
+                name: s.user?.name || "İsimsiz",
+                specialty: s.expertise_level || "Uzman",
+                avatar_url: s.user?.avatar_url,
+                rating: "5.0",
+                online: true
+            })),
+            workingHours: (data.working_hours || []).map((h: any) => {
+                const days = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
+                return {
+                    day: days[h.day_of_week] || "GÜN",
+                    hours: `${h.start_time?.substring(0, 5)} - ${h.end_time?.substring(0, 5)}`,
+                    isClosed: h.is_closed,
+                    dayOfWeek: h.day_of_week
+                }
+            }).sort((a: any, b: any) => a.dayOfWeek - b.dayOfWeek),
+            reviews: (data.reviews || []).map((r: any) => ({
+                id: r.id,
+                userName: r.user?.name || "Müşteri",
+                avatarUrl: r.user?.avatar_url,
+                rating: r.rating,
+                comment: r.comment,
+                createdAt: r.created_at
+            })),
+            announcements: [] // Placeholder
+        }
+
+        // Calculate ratings
+        if (formatted.reviews.length > 0) {
+            const sum = formatted.reviews.reduce((acc: number, r: any) => acc + r.rating, 0)
+            formatted.business.averageRating = Number((sum / formatted.reviews.length).toFixed(1))
+            formatted.business.reviewCount = formatted.reviews.length
+        }
+
+        return { success: true, data: formatted }
     } catch (err: unknown) {
+        console.error("getBusinessStorefrontAction Error:", err)
         Sentry.captureException(err)
         const message = err instanceof Error ? err.message : "İşletme sayfası yüklenemedi."
         return { success: false, error: { message } }

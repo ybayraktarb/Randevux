@@ -58,9 +58,9 @@ export const musteriNav: NavItem[] = [
 // ─── Admin Navigation (4 items) ─────────────────────────────────────────────
 
 export const adminNav: NavItem[] = [
-    { label: "Genel Bakış", icon: LayoutDashboard, href: "/admin-dashboard" },
-    { label: "İşletmeler", icon: Building2, href: "/isletmeler" },
-    { label: "Kullanıcılar", icon: Users, href: "/kullanicilar" },
-    { label: "Modüller", icon: Settings, href: "/moduller" },
+    { label: "Genel Bakış", icon: LayoutDashboard, href: "/admin-dashboard?tab=overview" },
+    { label: "İşletmeler", icon: Building2, href: "/admin-dashboard?tab=businesses" },
+    { label: "Kullanıcılar", icon: Users, href: "/admin-dashboard?tab=users" },
+    { label: "Modüller", icon: Settings, href: "/admin-dashboard?tab=modules" },
 ]
 

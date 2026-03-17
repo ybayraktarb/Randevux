@@ -23,7 +23,10 @@ import { BusinessesTab } from "./tabs/businesses-tab"
 import { ModulesTab } from "./tabs/modules-tab"
 
 export function SuperAdmin() {
-    const [activeTab, setActiveTab] = useState<"overview" | "businesses" | "users" | "finance" | "modules" | "packages" | "announcements" | "stats" | "logs" | "settings" | "features">("overview")
+    const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
+    const initialTab = (searchParams?.get("tab") as any) || "overview"
+    
+    const [activeTab, setActiveTab] = useState<"overview" | "businesses" | "users" | "finance" | "modules" | "packages" | "announcements" | "stats" | "logs" | "settings" | "features">(initialTab)
     const [drawerOpen, setDrawerOpen] = useState(false)
     const [windowWidth, setWindowWidth] = useState(1200)
 
@@ -31,8 +34,14 @@ export function SuperAdmin() {
         const handleResize = () => setWindowWidth(window.innerWidth)
         handleResize()
         window.addEventListener("resize", handleResize)
+        
+        // Sync URL with active tab
+        const url = new URL(window.location.href)
+        url.searchParams.set("tab", activeTab)
+        window.history.pushState({}, "", url.toString())
+
         return () => window.removeEventListener("resize", handleResize)
-    }, [])
+    }, [activeTab])
 
     const isMobile = windowWidth < 768
     const isTablet = windowWidth >= 768 && windowWidth < 1024

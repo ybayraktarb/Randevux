@@ -7,11 +7,15 @@ import { RxButton } from "@/src/modules/core/components/rx-button"
 export default async function RandevuAlPage({
     searchParams
 }: {
-    searchParams: Promise<{ business_id?: string }>
+    searchParams: Promise<{ business_id?: string; services?: string; staff_id?: string }>
 }) {
-    const businessId = (await searchParams).business_id
+    const params = await searchParams
+    const businessId = params.business_id
+    const selectedSvcIds = params.services ? params.services.split(",").filter(Boolean) : []
+    const selectedStaffId = params.staff_id || null
 
     if (!businessId) {
+        // ... (existing error UI - remains same)
         return (
             <div className="container max-w-2xl mx-auto py-20 px-4 text-center">
                 <div className="size-20 rounded-full bg-amber-50 flex items-center justify-center mx-auto mb-6">
@@ -31,6 +35,7 @@ export default async function RandevuAlPage({
     const res = await getBookingDataAction(businessId)
 
     if (!res.success || !res.data) {
+        // ... (existing error UI - remains same)
         return (
             <div className="container max-w-2xl mx-auto py-20 px-4 text-center">
                 <div className="size-20 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-6">
@@ -54,6 +59,8 @@ export default async function RandevuAlPage({
                 businessName={res.data.businessName}
                 initialServices={res.data.services as any}
                 initialStaff={res.data.staffList as any}
+                initialSelectedServices={selectedSvcIds}
+                initialSelectedStaff={selectedStaffId}
             />
         </div>
     )

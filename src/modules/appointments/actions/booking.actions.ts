@@ -208,7 +208,7 @@ export async function createBookingAction(data: CreateBookingInput): Promise<Act
         }
 
         // console.log("createBookingAction: Success!")
-        revalidatePath("/(customer)/randevularim", "page")
+        revalidatePath("/randevularim", "page")
 
         return { success: true, data: { appointmentId: apt.id } }
     } catch (err: unknown) {

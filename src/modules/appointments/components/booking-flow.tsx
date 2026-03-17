@@ -27,16 +27,25 @@ export function BookingFlow({
   businessName,
   initialServices,
   initialStaff,
+  initialSelectedServices = [],
+  initialSelectedStaff = null,
 }: {
   businessId: string
   businessName: string
   initialServices: Service[]
   initialStaff: Staff[]
+  initialSelectedServices?: string[]
+  initialSelectedStaff?: string | null
 }) {
   const router = useRouter()
-  const [step, setStep] = useState(0)
-  const [selectedServices, setSelectedServices] = useState<string[]>([])
-  const [selectedStaff, setSelectedStaff] = useState<string | null>(null)
+  const [step, setStep] = useState(() => {
+    if (initialSelectedServices.length > 0) {
+      return initialSelectedStaff ? 2 : 1
+    }
+    return 0
+  })
+  const [selectedServices, setSelectedServices] = useState<string[]>(initialSelectedServices)
+  const [selectedStaff, setSelectedStaff] = useState<string | null>(initialSelectedStaff)
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [selectedTime, setSelectedTime] = useState<string | null>(null)
   const [note, setNote] = useState("")
@@ -98,7 +107,9 @@ export function BookingFlow({
 
     const res = await createBookingAction({
       businessId,
-      staffBusinessId: selectedStaff === "ANY" || !selectedStaff ? "" : selectedStaff,
+      staffBusinessId: (selectedStaff === "ANY" || !selectedStaff) 
+        ? (timeSlots.find(s => s.time === selectedTime)?.staffId || "")
+        : selectedStaff,
       serviceIds: selectedServices,
       appointmentDate: selectedDate.toISOString().split("T")[0],
       startTime: selectedTime,
@@ -120,20 +131,7 @@ export function BookingFlow({
 
   return (
     <div className="flex flex-col min-h-[600px]">
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card sticky top-0 z-20">
-        <div className="flex items-center gap-3">
-          {step > 0 && (
-            <button onClick={handleBack} className="p-2 -ml-2 rounded-full hover:bg-muted transition-colors cursor-pointer">
-              <ChevronLeft className="size-5" />
-            </button>
-          )}
-          <h1 className="text-lg font-bold text-foreground">{businessName}</h1>
-        </div>
-        <button onClick={() => router.back()} className="text-sm font-medium text-muted-foreground hover:text-foreground">
-          Iptal
-        </button>
-      </div>
+      {/* Header kaldırıldı - AppShellLayout kullanılıyor */}
 
       <StepIndicator current={step} />
 
@@ -141,10 +139,13 @@ export function BookingFlow({
         <AnimatePresence mode="wait">
           <motion.div
             key={step}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.2 }}
+            initial={{ opacity: 0, y: 10, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.98 }}
+            transition={{ 
+              duration: 0.4, 
+              ease: [0.23, 1, 0.32, 1] // Apple-style ease out
+            }}
           >
             {step === 0 && (
               <StepServices

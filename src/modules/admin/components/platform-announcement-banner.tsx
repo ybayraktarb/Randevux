@@ -1,16 +1,16 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Megaphone, X, Info, AlertTriangle, ShieldCheck, CheckCircle2 } from "lucide-react"
+import { X, Info, AlertTriangle, ShieldCheck, CheckCircle2 } from "lucide-react"
 import { getActivePlatformAnnouncementsAction, type PlatformAnnouncement } from "@/src/modules/business/actions/announcement.actions"
 import { cn } from "@/lib/utils"
 import { motion, AnimatePresence } from "framer-motion"
 
 interface BannerProps {
-    role: "patron" | "personel" | "musteri" | "admin"
+    readonly role: "patron" | "personel" | "musteri" | "admin"
 }
 
-export function PlatformAnnouncementBanner({ role }: BannerProps) {
+export function PlatformAnnouncementBanner({ role }: Readonly<BannerProps>) {
     const [announcements, setAnnouncements] = useState<PlatformAnnouncement[]>([])
     const [dismissedIds, setDismissedIds] = useState<string[]>([])
     const [loading, setLoading] = useState(true)

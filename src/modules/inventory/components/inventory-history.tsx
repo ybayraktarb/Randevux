@@ -15,7 +15,7 @@ export function InventoryHistory({
   product,
   onClose,
   onFetchLogs,
-}: InventoryHistoryProps) {
+}: Readonly<InventoryHistoryProps>) {
   const [logs, setLogs] = useState<InventoryLog[]>([])
   const [loading, setLoading] = useState(true)
 

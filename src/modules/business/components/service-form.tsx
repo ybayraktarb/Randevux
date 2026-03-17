@@ -18,7 +18,7 @@ interface ServiceFormProps {
   onSuccess: () => void
 }
 
-export function ServiceForm({ businessId, service, staffMembers, onClose, onSuccess }: ServiceFormProps) {
+export function ServiceForm({ businessId, service, staffMembers, onClose, onSuccess }: Readonly<ServiceFormProps>) {
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState<ServiceInput>({
     id: service?.id,

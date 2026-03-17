@@ -35,7 +35,7 @@ function AvatarStack({ names, max = 3 }: { names: string[]; max?: number }) {
   )
 }
 
-export function ServiceCard({ service, onEdit, onToggleStatus }: ServiceCardProps) {
+export function ServiceCard({ service, onEdit, onToggleStatus }: Readonly<ServiceCardProps>) {
   return (
     <motion.div
       layout

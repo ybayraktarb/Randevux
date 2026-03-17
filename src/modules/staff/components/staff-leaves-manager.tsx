@@ -24,7 +24,7 @@ export function StaffLeavesManager({
   onRemoveLeave,
   onReviewLeave,
   isOwner = true,
-}: StaffLeavesManagerProps) {
+}: Readonly<StaffLeavesManagerProps>) {
   const [leaves, setLeaves] = useState<LeaveRecord[]>(initialLeaves)
   const [showForm, setShowForm] = useState(false)
   const [loading, setLoading] = useState(false)

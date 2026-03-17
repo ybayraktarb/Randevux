@@ -12,13 +12,13 @@ interface RxEmptyStateProps {
 }
 
 export function RxEmptyState({
-  icon,
   title,
   description,
+  icon,
   actionLabel,
   onAction,
   className,
-}: RxEmptyStateProps) {
+}: Readonly<RxEmptyStateProps>) {
   return (
     <div
       className={cn(

@@ -28,7 +28,7 @@ export function CommissionEditor({
   staffList,
   loading,
   onUpdate,
-}: CommissionEditorProps) {
+}: Readonly<CommissionEditorProps>) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({ rate: 0, salary: 0 })

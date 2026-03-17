@@ -7,7 +7,7 @@ interface RxCardProps {
   className?: string
 }
 
-export function RxCard({ children, header, footer, className }: RxCardProps) {
+export function RxCard({ children, header, footer, className }: Readonly<RxCardProps>) {
   return (
     <div
       className={cn(

@@ -238,7 +238,7 @@ function SidebarContent({
                                 onClick={async () => {
                                     const supabase = createClient()
                                     await supabase.auth.signOut()
-                                    window.location.href = "/login"
+                                    globalThis.location.href = "/login"
                                 }}
                                 className="shrink-0 size-8 flex items-center justify-center rounded-xl text-gray-300 transition-all hover:bg-red-50 hover:text-red-500"
                                 aria-label="Çıkış Yap"
@@ -522,10 +522,10 @@ export function AppShellLayout({
     const [windowWidth, setWindowWidth] = useState(1200)
 
     useEffect(() => {
-        const handleResize = () => setWindowWidth(window.innerWidth)
+        const handleResize = () => setWindowWidth(globalThis.innerWidth)
         handleResize()
-        window.addEventListener("resize", handleResize)
-        return () => window.removeEventListener("resize", handleResize)
+        globalThis.addEventListener("resize", handleResize)
+        return () => globalThis.removeEventListener("resize", handleResize)
     }, [])
 
     const isMobile = windowWidth < 1024

@@ -12,7 +12,6 @@ import {
     CalendarDays,
     LogOut,
     Package,
-    ShieldCheck,
     Megaphone,
     CreditCard,
     Zap
@@ -54,11 +53,11 @@ const adminNavGroups = [
     }
 ]
 
-export function AdminSidebar({ collapsed, activeItem, onNavClick }: {
+export function AdminSidebar({ collapsed, activeItem, onNavClick }: Readonly<{
     collapsed: boolean
     activeItem: string
     onNavClick: (key: string) => void
-}) {
+}>) {
     return (
         <div className="flex h-full flex-col bg-card border-r border-border shadow-sm">
             {/* Logo Alanı */}
@@ -80,8 +79,8 @@ export function AdminSidebar({ collapsed, activeItem, onNavClick }: {
 
             {/* Navigasyon Listesi */}
             <nav className={cn("mt-4 flex flex-1 flex-col gap-4 overflow-y-auto overflow-x-hidden", collapsed ? "px-2" : "px-4")}>
-                {adminNavGroups.map((group, groupIdx) => (
-                    <div key={groupIdx} className="flex flex-col gap-1">
+                {adminNavGroups.map((group) => (
+                    <div key={group.title} className="flex flex-col gap-1">
                         {!collapsed && (
                             <h4 className="px-2 mb-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                                 {group.title}
@@ -125,7 +124,7 @@ export function AdminSidebar({ collapsed, activeItem, onNavClick }: {
                             return <div key={item.key}>{btn}</div>
                         })}
                         {/* Gruplar arası ayrıştırıcı çizgi (son grup hariç) */}
-                        {!collapsed && groupIdx < adminNavGroups.length - 1 && (
+                        {!collapsed && group.title !== adminNavGroups[adminNavGroups.length - 1].title && (
                             <div className="mx-2 mt-3 mb-1 h-px bg-border/50" />
                         )}
                     </div>

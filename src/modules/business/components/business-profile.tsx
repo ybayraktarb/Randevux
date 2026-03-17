@@ -163,7 +163,7 @@ function BusinessHeader({
         {/* Action Buttons */}
         <div className="mt-5 flex gap-3">
           <RxButton variant="secondary" size="md" className="gap-2" onClick={() => {
-            if (business.phone) window.open(`tel:${business.phone}`)
+            if (business.phone) globalThis.open(`tel:${business.phone}`)
           }}>
             <Phone className="size-4" />
             Ara

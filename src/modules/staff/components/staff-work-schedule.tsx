@@ -32,7 +32,7 @@ export function StaffWorkSchedule({
   initialBreaks,
   onSaveSchedule,
   onSaveBreaks,
-}: StaffWorkScheduleProps) {
+}: Readonly<StaffWorkScheduleProps>) {
   const [schedule, setSchedule] = useState<WorkSchedule[]>(initialSchedule)
   const [breaks, setBreaks] = useState<(BreakSchedule & { _id: string })[]>(
     initialBreaks.map((b, i) => ({ ...b, _id: `${i}-${Date.now()}` }))

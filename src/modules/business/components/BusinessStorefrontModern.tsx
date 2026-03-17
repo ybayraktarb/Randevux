@@ -108,9 +108,9 @@ export function BusinessStorefrontModern({ initialData }: BusinessStorefrontMode
     const distance = "1.2 km"
 
     useEffect(() => {
-        const handleScroll = () => setIsScrolled(window.scrollY > 50)
-        window.addEventListener("scroll", handleScroll)
-        return () => window.removeEventListener("scroll", handleScroll)
+        const handleScroll = () => setIsScrolled(globalThis.scrollY > 50)
+        globalThis.addEventListener("scroll", handleScroll)
+        return () => globalThis.removeEventListener("scroll", handleScroll)
     }, [])
 
     const categories = useMemo(() => {
@@ -297,7 +297,7 @@ export function BusinessStorefrontModern({ initialData }: BusinessStorefrontMode
                         </div>
                     </div>
                     <div className="flex items-center gap-4 w-full md:w-auto">
-                        <RxButton variant="secondary" className="flex-1 md:flex-none rounded-2xl h-14 px-8 font-black uppercase tracking-widest text-xs" onClick={() => window.open(`tel:${business.phone}`)}>ArayIn</RxButton>
+                        <RxButton variant="secondary" className="flex-1 md:flex-none rounded-2xl h-14 px-8 font-black uppercase tracking-widest text-xs" onClick={() => globalThis.open(`tel:${business.phone}`)}>ArayIn</RxButton>
                         <RxButton className="flex-1 md:flex-none rounded-2xl h-14 px-10 font-black uppercase tracking-widest text-xs shadow-xl shadow-primary/20" onClick={() => router.push(`/randevu-al?business_id=${business.id}`)}>Randevu Al</RxButton>
                     </div>
                 </div>

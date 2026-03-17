@@ -18,7 +18,7 @@ export function StockAdjustDialog({
   product,
   onClose,
   onAdjust,
-}: StockAdjustDialogProps) {
+}: Readonly<StockAdjustDialogProps>) {
   const [loading, setLoading] = useState(false)
   const [amount, setAmount] = useState("")
   const [reason, setReason] = useState<"addition" | "reduction" | "adjustment">("addition")

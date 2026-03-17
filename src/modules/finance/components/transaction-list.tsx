@@ -21,7 +21,7 @@ export function TransactionList({
   onAdd,
   onRefresh,
   onDelete,
-}: TransactionListProps) {
+}: Readonly<TransactionListProps>) {
   const totalIncome = transactions
     .filter((t) => t.type === "income")
     .reduce((acc, curr) => acc + Number(curr.amount), 0)
@@ -112,7 +112,7 @@ export function TransactionList({
   )
 }
 
-function StatCard({ title, value, variant }: { title: string; value: number; variant: "success" | "danger" | "neutral" }) {
+function StatCard({ title, value, variant }: Readonly<{ title: string; value: number; variant: "success" | "danger" | "neutral" }>) {
   const colors = {
     success: "text-success bg-success/5 border-success/10",
     danger: "text-destructive bg-destructive/5 border-destructive/10",

@@ -95,7 +95,7 @@ interface StaffDetailProps {
     onClose: () => void
 }
 
-export function StaffDetail({ staff, businessId, onClose }: StaffDetailProps) {
+export function StaffDetail({ staff, businessId, onClose }: Readonly<StaffDetailProps>) {
     const supabase = createClient()
     const [activeTab, setActiveTab] = useState<"profile" | "services" | "schedule" | "leaves">("profile")
 
@@ -186,7 +186,7 @@ export function StaffDetail({ staff, businessId, onClose }: StaffDetailProps) {
 
 // ─── Profile Tab ──────────────────────────────────────────────
 
-function ProfileTab({ staff, onClose }: { staff: StaffRecord; onClose: () => void }) {
+function ProfileTab({ staff, onClose }: Readonly<{ staff: StaffRecord; onClose: () => void }>) {
     const u = staff.user
     const [activeStaff, setActiveStaff] = useState<{ id: string; user: { name: string } }[]>([])
     const [isTransferModalOpen, setIsTransferModalOpen] = useState(false)
@@ -465,11 +465,11 @@ function ServicesTab({
     staffBusinessId,
     businessId,
     supabase,
-}: {
+}: Readonly<{
     staffBusinessId: string
     businessId: string
     supabase: ReturnType<typeof createClient>
-}) {
+}>) {
     const [allServices, setAllServices] = useState<Service[]>([])
     const [assignedServices, setAssignedServices] = useState<StaffService[]>([])
     const [loading, setLoading] = useState(true)
@@ -699,10 +699,10 @@ type BreakBlock = BreakSchedule & { _id?: string }
 function ScheduleTab({
     staffBusinessId,
     supabase,
-}: {
+}: Readonly<{
     staffBusinessId: string
     supabase: ReturnType<typeof createClient>
-}) {
+}>) {
     const defaultSchedule: DaySchedule[] = DAYS.map((d) => ({
         day_of_week: d.key,
         is_working: d.key !== 0, // Pazar kapalı varsayılan

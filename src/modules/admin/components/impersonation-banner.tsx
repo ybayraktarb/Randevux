@@ -10,7 +10,7 @@ interface ImpersonationBannerProps {
     userName: string
 }
 
-export function ImpersonationBanner({ userName }: ImpersonationBannerProps) {
+export function ImpersonationBanner({ userName }: Readonly<ImpersonationBannerProps>) {
     const router = useRouter()
 
     async function handleExit() {

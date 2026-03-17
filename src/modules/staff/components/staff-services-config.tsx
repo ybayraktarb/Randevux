@@ -38,7 +38,7 @@ export function StaffServicesConfig({
   loading,
   onToggle,
   onUpdateCustom,
-}: StaffServicesConfigProps) {
+}: Readonly<StaffServicesConfigProps>) {
   const [savingId, setSavingId] = useState<string | null>(null)
   const [editingCustom, setEditingCustom] = useState<Record<string, { price: string; duration: string }>>({})
 

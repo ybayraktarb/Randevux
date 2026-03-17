@@ -17,7 +17,7 @@ export function PayrollCalculator({
   staffList,
   onGeneratePreview,
   onSavePayroll,
-}: PayrollCalculatorProps) {
+}: Readonly<PayrollCalculatorProps>) {
   const [selectedStaff, setSelectedStaff] = useState("")
   const [periodStart, setPeriodStart] = useState("")
   const [periodEnd, setPeriodEnd] = useState("")
@@ -165,7 +165,7 @@ export function PayrollCalculator({
   )
 }
 
-function ResultRow({ label, value }: { label: string; value: string }) {
+function ResultRow({ label, value }: Readonly<{ label: string; value: string }>) {
   return (
     <div className="flex items-center justify-between p-5 rounded-2xl bg-muted/40 border border-border/40">
       <span className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">{label}</span>

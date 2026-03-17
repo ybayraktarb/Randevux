@@ -24,12 +24,12 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
-export function AdminTopNav({ title, onMenuToggle, showMenu, onSettingsClick }: {
+export function AdminTopNav({ title, onMenuToggle, showMenu, onSettingsClick }: Readonly<{
     title: string
     onMenuToggle: () => void
     showMenu: boolean
     onSettingsClick?: () => void
-}) {
+}>) {
     const supabase = createClient()
     const [notifications, setNotifications] = useState<any[]>([])
     const [unreadCount, setUnreadCount] = useState(0)
@@ -73,7 +73,7 @@ export function AdminTopNav({ title, onMenuToggle, showMenu, onSettingsClick }: 
 
     async function handleLogout() {
         await supabase.auth.signOut()
-        window.location.href = '/login'
+        globalThis.location.href = '/login'
     }
 
     return (
@@ -114,10 +114,10 @@ export function AdminTopNav({ title, onMenuToggle, showMenu, onSettingsClick }: 
                                         <button
                                             key={notif.id}
                                             type="button"
-                                            onClick={() => !notif.is_read && markAsRead(notif.id)}
+                                            onClick={() => { if (!notif.is_read) markAsRead(notif.id) }}
                                             className={cn(
                                                 "flex flex-col items-start gap-1 border-b border-border px-4 py-3 text-left transition-colors hover:bg-muted/50 last:border-0",
-                                                !notif.is_read ? "bg-primary-light/30" : "bg-card"
+                                                notif.is_read ? "bg-card" : "bg-primary-light/30"
                                             )}
                                         >
                                             <div className="flex w-full items-center justify-between gap-2">

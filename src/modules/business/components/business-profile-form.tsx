@@ -13,7 +13,7 @@ interface BusinessProfileFormProps {
   business: Business
 }
 
-export function BusinessProfileForm({ business }: BusinessProfileFormProps) {
+export function BusinessProfileForm({ business }: Readonly<BusinessProfileFormProps>) {
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     name: business.name,

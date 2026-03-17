@@ -34,14 +34,7 @@ function getInitials(name: string): string {
     .join("")
 }
 
-export function RxAvatar({
-  src,
-  alt,
-  name,
-  size = "md",
-  online,
-  className,
-}: RxAvatarProps) {
+export function RxAvatar({ name, alt, src, size = "md", online, className }: Readonly<RxAvatarProps>) {
   const [imgError, setImgError] = useState(false)
   const initials = name ? getInitials(name) : "?"
 

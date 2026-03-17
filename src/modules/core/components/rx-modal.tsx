@@ -8,21 +8,27 @@ interface RxModalProps {
   open: boolean
   onClose: () => void
   title: React.ReactNode
+  description?: React.ReactNode
   children: React.ReactNode
   footer?: React.ReactNode
   className?: string
   ariaLabel?: string
+  maxWidth?: string
+  showClose?: boolean
 }
 
 export function RxModal({
   open,
   onClose,
   title,
+  description,
   children,
   footer,
   className,
   ariaLabel,
-}: RxModalProps) {
+  maxWidth = "maxWidth2xl",
+  showClose = true
+}: Readonly<RxModalProps>) {
   const overlayRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {

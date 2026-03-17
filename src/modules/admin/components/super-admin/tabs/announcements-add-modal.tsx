@@ -9,13 +9,13 @@ import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 
 interface ModalProps {
-    isOpen: boolean
-    onClose: () => void
-    onSuccess: () => void
-    editingAnnouncement?: PlatformAnnouncement | null
+    readonly isOpen: boolean
+    readonly onClose: () => void
+    readonly onSuccess: () => void
+    readonly editingAnnouncement?: PlatformAnnouncement | null
 }
 
-export function AnnouncementsAddModal({ isOpen, onClose, onSuccess, editingAnnouncement }: ModalProps) {
+export function AnnouncementsAddModal({ isOpen, onClose, onSuccess, editingAnnouncement }: Readonly<ModalProps>) {
     const supabase = createClient()
     const [loading, setLoading] = useState(false)
     const [modules, setModules] = useState<{ id: string, name: string }[]>([])
@@ -113,8 +113,9 @@ export function AnnouncementsAddModal({ isOpen, onClose, onSuccess, editingAnnou
                     {/* Body */}
                     <div className="max-h-[70vh] overflow-y-auto p-6 flex flex-col gap-5">
                         <div className="flex flex-col gap-1.5">
-                            <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Başlık</label>
+                            <label htmlFor="announcement-title" className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Başlık</label>
                             <input
+                                id="announcement-title"
                                 required
                                 type="text"
                                 value={formData.title}
@@ -125,8 +126,9 @@ export function AnnouncementsAddModal({ isOpen, onClose, onSuccess, editingAnnou
                         </div>
 
                         <div className="flex flex-col gap-1.5">
-                            <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">İçerik</label>
+                            <label htmlFor="announcement-content" className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">İçerik</label>
                             <textarea
+                                id="announcement-content"
                                 required
                                 rows={4}
                                 value={formData.content}
@@ -163,8 +165,9 @@ export function AnnouncementsAddModal({ isOpen, onClose, onSuccess, editingAnnou
                             </div>
 
                             <div className="flex flex-col gap-1.5">
-                                <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Hedef Kitle</label>
+                                <label htmlFor="announcement-target-role" className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Hedef Kitle</label>
                                 <select
+                                    id="announcement-target-role"
                                     value={formData.target_role}
                                     onChange={(e) => setFormData({ ...formData, target_role: e.target.value as any })}
                                     className="h-10 w-full rounded-xl border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
@@ -178,8 +181,9 @@ export function AnnouncementsAddModal({ isOpen, onClose, onSuccess, editingAnnou
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="flex flex-col gap-1.5">
-                                <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Sektör Filtresi (Opsiyonel)</label>
+                                <label htmlFor="announcement-sector" className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Sektör Filtresi (Opsiyonel)</label>
                                 <select
+                                    id="announcement-sector"
                                     value={formData.target_sector_id || ""}
                                     onChange={(e) => setFormData({ ...formData, target_sector_id: e.target.value || null })}
                                     className="h-10 w-full rounded-xl border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
@@ -211,8 +215,9 @@ export function AnnouncementsAddModal({ isOpen, onClose, onSuccess, editingAnnou
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="flex flex-col gap-1.5">
-                                <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Başlangıç Zamanı</label>
+                                <label htmlFor="announcement-starts-at" className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Başlangıç Zamanı</label>
                                 <input
+                                    id="announcement-starts-at"
                                     type="datetime-local"
                                     value={formData.starts_at}
                                     onChange={(e) => setFormData({ ...formData, starts_at: e.target.value })}
@@ -220,8 +225,9 @@ export function AnnouncementsAddModal({ isOpen, onClose, onSuccess, editingAnnou
                                 />
                             </div>
                             <div className="flex flex-col gap-1.5">
-                                <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Bitiş Zamanı (Opsiyonel)</label>
+                                <label htmlFor="announcement-ends-at" className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Bitiş Zamanı (Opsiyonel)</label>
                                 <input
+                                    id="announcement-ends-at"
                                     type="datetime-local"
                                     value={formData.ends_at}
                                     onChange={(e) => setFormData({ ...formData, ends_at: e.target.value })}

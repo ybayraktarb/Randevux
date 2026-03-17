@@ -45,7 +45,7 @@ export function StaffProfileCard({
   onUpdateDetail,
   onTransferAppointments,
   onDelete,
-}: StaffProfileCardProps) {
+}: Readonly<StaffProfileCardProps>) {
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false)
   const [targetStaffId, setTargetStaffId] = useState<string>("")
   const [isTransferring, setIsTransferring] = useState(false)

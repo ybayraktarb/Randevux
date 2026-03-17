@@ -17,7 +17,7 @@ export function ProductCard({
   onEdit,
   onAdjust,
   onHistory,
-}: ProductCardProps) {
+}: Readonly<ProductCardProps>) {
   const isCritical = product.stock_quantity <= product.min_stock_alert
   const isOut = product.stock_quantity === 0
   const isInactive = !product.is_active

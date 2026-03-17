@@ -16,7 +16,7 @@ interface ServiceListProps {
   onToggleStatus: (id: string, currentStatus: boolean) => void
 }
 
-export function ServiceList({ services, loading, onAddNew, onEdit, onToggleStatus }: ServiceListProps) {
+export function ServiceList({ services, loading, onAddNew, onEdit, onToggleStatus }: Readonly<ServiceListProps>) {
   const [searchQuery, setSearchQuery] = useState("")
   const [activeCategory, setActiveCategory] = useState<string>("TÜMÜ")
 

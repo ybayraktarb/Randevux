@@ -16,7 +16,7 @@ const variantStyles: Record<BadgeVariant, string> = {
   gray: "bg-badge-gray-bg text-badge-gray-text",
 }
 
-export function RxBadge({ variant, children, className }: RxBadgeProps) {
+export function RxBadge({ variant, children, className }: Readonly<RxBadgeProps>) {
   return (
     <span
       className={cn(

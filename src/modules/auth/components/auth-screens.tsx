@@ -16,7 +16,7 @@ export function AuthScreens({ initialView = "login" }: { initialView?: "login" |
     await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `${globalThis.location.origin}/auth/callback`,
       },
     })
   }

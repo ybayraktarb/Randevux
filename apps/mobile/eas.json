@@ -1,0 +1,34 @@
+{
+  "cli": {
+    "version": ">= 7.0.0"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "your-development-supabase-url",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "your-development-supabase-anon-key",
+        "EXPO_PUBLIC_SENTRY_DSN": "your-development-sentry-dsn"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "your-preview-supabase-url",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "your-preview-supabase-anon-key",
+        "EXPO_PUBLIC_SENTRY_DSN": "your-preview-sentry-dsn"
+      }
+    },
+    "production": {
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "your-production-supabase-url",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "your-production-supabase-anon-key",
+        "EXPO_PUBLIC_SENTRY_DSN": "your-production-sentry-dsn"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

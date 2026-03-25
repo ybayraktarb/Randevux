@@ -1,0 +1,26 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: randevux-web-ingress
+  namespace: default
+  annotations:
+    # Example annotations for cert-manager (if you use it)
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: app.randevux.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: randevux-web-svc
+                port:
+                  number: 80
+  # Uncomment to enable TLS
+  # tls:
+  #   - hosts:
+  #       - app.randevux.com
+  #     secretName: randevux-web-tls

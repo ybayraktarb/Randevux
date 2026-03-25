@@ -1,0 +1,16 @@
+{
+  "expo": {
+    "name": "Randevux Mobile",
+    "slug": "randevux-mobile",
+    "scheme": "randevux",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "plugins": [
+      "expo-router",
+      "expo-notifications"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

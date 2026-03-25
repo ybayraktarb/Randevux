@@ -1,0 +1,26 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "types": [
+      "expo-router"
+    ],
+    "paths": {
+      "@/*": [
+        "./*"
+      ],
+      "@randevux/shared": [
+        "../../packages/shared/src/index.ts"
+      ],
+      "@randevux/shared/*": [
+        "../../packages/shared/src/*"
+      ]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts"
+  ]
+}

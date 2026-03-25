@@ -8,6 +8,12 @@ node_modules/
 .next/
 out/
 build/
+apps/mobile/.expo/
+apps/mobile/dist/
+apps/web/.next/
+
+# Turborepo
+.turbo/
 
 # IDE & OS
 .DS_Store
@@ -64,4 +70,3 @@ next-env.d.ts
 /verify_sprint13_v2.js
 /verify_staff_active.js
 /verify_user_names.js
-

@@ -1,0 +1,10 @@
+node_modules
+npm-debug.log
+.next
+.git
+.gitignore
+.dockerignore
+.turbo
+apps/mobile
+packages/shared/node_modules
+out

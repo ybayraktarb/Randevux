@@ -4,6 +4,7 @@ import { useCurrentUser } from "@/src/modules/core/hooks/use-current-user"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
 import { toggleFavoriteAction } from "@/src/modules/business/actions/business.actions"
+import * as Sentry from "@sentry/nextjs"
 import type { Business, Service, StaffMember, WorkingDay, Review } from "./types"
 
 export function useBusinessProfileData(propBusinessId?: string) {
@@ -133,7 +134,7 @@ export function useBusinessProfileData(propBusinessId?: string) {
         }
 
       } catch (err) {
-        console.error(err)
+        Sentry.captureException(err, { tags: { module: 'business', action: 'fetchBusinessProfileData' } })
       } finally {
         setLoading(false)
       }

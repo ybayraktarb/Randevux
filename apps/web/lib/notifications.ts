@@ -1,4 +1,5 @@
 import { SupabaseClient } from "@supabase/supabase-js"
+import * as Sentry from "@sentry/nextjs"
 
 type NotificationType =
     | "appointment_created"
@@ -36,7 +37,7 @@ export async function createNotification(
         is_read: false,
     })
     if (error) {
-        console.error("[createNotification] Error:", error.message)
+        Sentry.captureException(new Error(error.message), { tags: { module: 'core', action: 'createNotification' } })
     }
 }
 
@@ -59,6 +60,6 @@ export async function createNotificationBulk(
     }))
     const { error } = await supabase.from("notifications").insert(rows)
     if (error) {
-        console.error("[createNotificationBulk] Error:", error.message)
+        Sentry.captureException(new Error(error.message), { tags: { module: 'core', action: 'createNotificationBulk' } })
     }
 }

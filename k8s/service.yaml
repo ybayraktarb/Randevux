@@ -1,14 +1,14 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: randevux-web-svc
+  name: randesk-web-svc
   namespace: default
   labels:
-    app: randevux-web
+    app: randesk-web
 spec:
   type: ClusterIP
   selector:
-    app: randevux-web
+    app: randesk-web
   ports:
     - name: http
       port: 80

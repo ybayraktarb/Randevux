@@ -95,8 +95,7 @@ export async function searchBusinessesAction(query: string, categoryId?: string)
 
         return { success: true, data: formatted }
     } catch (err: any) {
-        console.error("searchBusinessesAction Error:", err)
-        Sentry.captureException(err)
+        Sentry.captureException(err, { tags: { module: 'business', action: 'searchBusinessesAction' } })
         return { success: false, error: { message: err.message || "Arama yapilirken bir hata olustu" } }
     }
 }

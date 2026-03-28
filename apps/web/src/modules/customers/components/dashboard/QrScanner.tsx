@@ -1,6 +1,7 @@
 import { useEffect } from "react"
 import { Html5QrcodeScanner } from "html5-qrcode"
 import { X } from "lucide-react"
+import * as Sentry from "@sentry/nextjs"
 
 export function QrScanner({ onScan, onClose }: { onScan: (code: string) => void, onClose: () => void }) {
   useEffect(() => {
@@ -21,7 +22,7 @@ export function QrScanner({ onScan, onClose }: { onScan: (code: string) => void,
     )
 
     return () => {
-      scanner.clear().catch(console.error)
+      scanner.clear().catch(e => Sentry.captureException(e, { tags: { module: 'customers', action: 'QrScanner' } }))
     }
   }, [onScan])
 

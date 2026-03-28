@@ -48,7 +48,7 @@ export class StaffService {
     // ─── Limit Kontrolü Sonu ───
 
     // 1. Auth user oluştur
-    const generatedPassword = "Randevuxx!" + randomBytes(8).toString("hex")
+    const generatedPassword = "Randesk!" + randomBytes(8).toString("hex")
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email: input.email,
       password: generatedPassword,

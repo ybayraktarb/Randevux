@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import type { BusinessSummary } from "@randevux/shared"
+import type { BusinessSummary } from "@randesk/shared"
 import { StyleSheet, Text, View } from "react-native"
 import { ScreenShell } from "@/src/components/screen-shell"
 import { mobileApi } from "@/src/lib/api"

@@ -8,7 +8,6 @@ import {
     CalendarDays,
     ChevronDown,
     LogOut,
-    Search,
     Bell,
     Menu,
     X,
@@ -108,7 +107,7 @@ function SidebarContent({
                 </div>
                 {!collapsed && (
                     <div className="flex flex-col">
-                        <span className="text-xl font-black text-gray-900 tracking-tight leading-none">RandevuX</span>
+                        <span className="text-xl font-black text-gray-900 tracking-tight leading-none">Randesk</span>
                         <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mt-1">Premium Platform</span>
                     </div>
                 )}
@@ -329,15 +328,6 @@ function TopNavbar({
             </div>
 
             <div className="flex items-center gap-4">
-                {/* Visual Search Trigger */}
-                <button
-                    type="button"
-                    className="hidden md:flex items-center gap-3 bg-gray-100/50 border border-gray-100 px-4 py-2 rounded-2xl w-64 group cursor-pointer hover:bg-white hover:shadow-md transition-all text-left"
-                >
-                    <Search className="size-4 text-gray-400 group-hover:text-primary transition-colors" />
-                    <span className="text-xs font-bold text-gray-400">Her şeyi ara...</span>
-                </button>
-
                 <div className="flex items-center gap-2">
                     {/* Notifications */}
                     <div ref={notifRef} className="relative">
@@ -533,7 +523,7 @@ export function AppShellLayout({
 
     // Derive page title from current path
     const activeNav = navItems.find((item) => pathname === item.href)
-    const pageTitle = activeNav?.label ?? "RandevuX"
+    const pageTitle = activeNav?.label ?? "Randesk"
 
     return (
         <TooltipProvider delayDuration={100}>

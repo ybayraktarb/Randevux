@@ -48,6 +48,7 @@ import { checkUpcomingAppointmentsAction } from "@/src/modules/appointments/acti
 import { createClient } from "@/lib/supabase/client"
 import { updateAppointmentTimeAction } from "@/src/modules/appointments/actions/appointment-time.actions"
 import { useCurrentUser } from "@/src/modules/core/hooks/use-current-user"
+import * as Sentry from "@sentry/nextjs"
 import { motion, AnimatePresence } from "framer-motion"
 import { FeatureGate } from "@/src/modules/admin/components/feature-gate"
 import {
@@ -384,7 +385,7 @@ export function CommandCenterCalendar({ businessId }: { businessId?: string }) {
                 toast.error(errMsg)
             }
         } catch (err: any) {
-            console.error("fetchData error:", err)
+            Sentry.captureException(err, { tags: { module: 'booking', action: 'commandCenterFetchData' } })
             setFetchError("Sunucu bağlantısı sırasında bir hata oluştu.")
             toast.error("Bağlantı hatası.")
         } finally {

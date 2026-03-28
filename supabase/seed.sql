@@ -1,13 +1,13 @@
 -- ============================================================
--- RandevuX — Seed Data
+-- Randesk — Seed Data
 -- ============================================================
 -- ⚠️ Bu script çalıştırılmadan önce aşağıdaki kullanıcıların
 -- Supabase Auth üzerinden kayıt olması gerekir:
--- 1. Patron: patron@randevux.com (sonra business_owners'a ekle)
--- 2. Personel 1: ayse@randevux.com
--- 3. Personel 2: fatma@randevux.com
--- 4. Personel 3: mehmet@randevux.com
--- 5. Müşteri 1-5: musteri1@randevux.com ... musteri5@randevux.com
+-- 1. Patron: patron@randesk.com (sonra business_owners'a ekle)
+-- 2. Personel 1: ayse@randesk.com
+-- 3. Personel 2: fatma@randesk.com
+-- 4. Personel 3: mehmet@randesk.com
+-- 5. Müşteri 1-5: musteri1@randesk.com ... musteri5@randesk.com
 --
 -- Kullanıcı bağımlı tablolara (business_owners, staff_business,
 -- business_customers, appointments vb.) bu script ile veri

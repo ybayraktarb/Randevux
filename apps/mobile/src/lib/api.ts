@@ -1,4 +1,4 @@
-import type { CustomerDashboardData, CustomerProfile, FamilyProfile } from "@randevux/shared"
+import type { CustomerDashboardData, CustomerProfile, FamilyProfile } from "@randesk/shared"
 import { supabase } from "./supabase"
 
 interface ApiResult<T> {

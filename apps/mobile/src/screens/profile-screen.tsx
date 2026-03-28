@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import type { CustomerProfile } from "@randevux/shared"
+import type { CustomerProfile } from "@randesk/shared"
 import { Alert, Pressable, StyleSheet, Switch, Text, TextInput, View } from "react-native"
 import { ScreenShell } from "@/src/components/screen-shell"
 import { mobileApi } from "@/src/lib/api"

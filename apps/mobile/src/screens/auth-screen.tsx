@@ -30,7 +30,7 @@ export function AuthScreen({ mode }: { mode: Mode }) {
 
     if (mode === "forgot-password") {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: "randevux://reset-password"
+        redirectTo: "randesk://reset-password"
       })
       if (error) Alert.alert("İşlem başarısız", error.message)
       else Alert.alert("Mail gönderildi", "Şifre sıfırlama bağlantısı gönderildi.")

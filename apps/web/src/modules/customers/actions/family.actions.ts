@@ -2,7 +2,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import * as Sentry from "@sentry/nextjs"
-import { createCustomerRepositories, type AddFamilyProfileInput } from "@randevux/shared"
+import { createCustomerRepositories, type AddFamilyProfileInput } from "@randesk/shared"
 import type { ActionResult } from "@/lib/validations/action-types"
 import type { FamilyProfile } from "@/src/modules/customers/components/dashboard/types"
 

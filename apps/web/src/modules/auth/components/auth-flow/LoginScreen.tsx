@@ -29,12 +29,20 @@ export function LoginScreen({
     }
 
     setLoading(true)
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) {
-      toast.error(error.message === "Invalid login credentials" ? "E-posta veya şifre hatalı." : error.message)
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) {
+        toast.error(error.message === "Invalid login credentials" ? "E-posta veya şifre hatalı." : error.message)
+        setLoading(false)
+      } else if (data.user) {
+        // Oturum açıldı. Middleware'in rolümüze göre doğru dashboard'a yönlendirmesini tetikliyoruz.
+        window.location.href = "/login"
+      } else {
+        setLoading(false)
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Bilinmeyen bir hata oluştu.")
       setLoading(false)
-    } else {
-      window.location.href = "/musteri-panel"
     }
   }
 

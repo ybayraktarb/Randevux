@@ -11,8 +11,8 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 
 export const metadata: Metadata = {
-  title: 'RandevuX - Randevu Yönetimi',
-  description: 'RandevuX randevu yönetim uygulaması',
+  title: 'Randesk - Randevu Yönetimi',
+  description: 'Randesk randevu yönetim uygulaması',
 }
 
 export default async function RootLayout({

@@ -3,6 +3,7 @@ import { Building2, CreditCard, Download, ExternalLink, Filter, Package, Loader2
 import { RxButton } from "@/src/modules/core/components/rx-button"
 import { createClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
+import * as Sentry from "@sentry/nextjs"
 
 export function FinanceTab() {
     const supabase = createClient()
@@ -66,7 +67,7 @@ export function FinanceTab() {
                 setSubscriptions(listData || [])
 
             } catch (err) {
-                console.error("Finance data fetch error:", err)
+                Sentry.captureException(err, { tags: { module: 'billing', action: 'fetchFinanceData' } })
             } finally {
                 setLoading(false)
             }

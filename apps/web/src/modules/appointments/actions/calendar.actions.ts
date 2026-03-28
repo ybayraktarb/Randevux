@@ -137,8 +137,7 @@ export async function getCalendarGridDataAction(businessId: string, date: string
             staffBreaks
         }
     } catch (err: any) {
-        console.error("Calendar fetch error:", err)
-        Sentry.captureException(err)
+        Sentry.captureException(err, { tags: { module: 'booking', action: 'getCalendarGridDataAction' } })
         return { success: false, error: err.message || "Takvim verisi alınamadı." }
     }
 }

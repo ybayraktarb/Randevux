@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
 import type { User } from "@supabase/supabase-js"
+import * as Sentry from "@sentry/nextjs"
 import { getDashboardStatsAction, type DashboardStats } from "@/src/modules/core/actions/dash-stats.actions"
 import type { TodayApt, PendingItem, NoShowRecord } from "./types"
 
@@ -168,7 +169,7 @@ export function usePatronDashboardData(user: User | null) {
         setStaffEfficiency(s.staffEfficiency)
       }
       } catch (err) {
-        console.error("fetchDashboard error:", err)
+        Sentry.captureException(err, { tags: { module: 'business', action: 'fetchPatronDashboard' } })
         toast.error("Veriler yüklenirken bir hata oluştu.")
       } finally {
         setLoading(false)

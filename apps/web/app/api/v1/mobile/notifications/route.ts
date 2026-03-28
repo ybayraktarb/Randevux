@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { createCustomerRepositories } from "@randevux/shared"
+import { createCustomerRepositories } from "@randesk/shared"
 import { createMobileRequestContext } from "@/lib/supabase/mobile-server"
 
 export async function GET(request: Request) {

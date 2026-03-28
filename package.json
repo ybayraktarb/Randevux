@@ -1,5 +1,5 @@
 {
-  "name": "randevux-workspace",
+  "name": "randesk-workspace",
   "private": true,
   "packageManager": "npm@10.9.3",
   "workspaces": [
@@ -8,17 +8,17 @@
   ],
   "scripts": {
     "build": "turbo run build",
-    "build:web": "turbo run build --filter=@randevux/web",
-    "dev": "turbo run dev --filter=@randevux/web",
-    "dev:web": "turbo run dev --filter=@randevux/web",
-    "dev:mobile": "turbo run dev --filter=@randevux/mobile",
+    "build:web": "turbo run build --filter=@randesk/web",
+    "dev": "turbo run dev --filter=@randesk/web",
+    "dev:web": "turbo run dev --filter=@randesk/web",
+    "dev:mobile": "turbo run dev --filter=@randesk/mobile",
     "lint": "turbo run lint",
-    "lint:web": "turbo run lint --filter=@randevux/web",
+    "lint:web": "turbo run lint --filter=@randesk/web",
     "test": "turbo run test",
-    "test:web": "turbo run test --filter=@randevux/web",
-    "test:e2e:web": "turbo run test:e2e --filter=@randevux/web",
+    "test:web": "turbo run test --filter=@randesk/web",
+    "test:e2e:web": "turbo run test:e2e --filter=@randesk/web",
     "typecheck": "turbo run typecheck",
-    "typecheck:mobile": "turbo run typecheck --filter=@randevux/mobile",
+    "typecheck:mobile": "turbo run typecheck --filter=@randesk/mobile",
     "clean": "turbo run clean"
   },
   "devDependencies": {

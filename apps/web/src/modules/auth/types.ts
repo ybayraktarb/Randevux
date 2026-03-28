@@ -1,4 +1,4 @@
-export type { UserRole } from "@randevux/shared"
+export type { UserRole } from "@randesk/shared"
 
 export interface NotificationSettings {
   email: boolean

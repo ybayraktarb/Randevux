@@ -1,5 +1,6 @@
-import { SupabaseClient } from "@supabase/supabase-js"
-import { getDashboardPath, type UserRole } from "@randevux/shared"
+import { SupabaseClient, User } from "@supabase/supabase-js"
+import { getDashboardPath, type UserRole } from "@randesk/shared"
+import * as Sentry from "@sentry/nextjs"
 
 export type { UserRole }
 
@@ -7,21 +8,34 @@ export type { UserRole }
  * Kullanıcının rolünü belirler.
  * Öncelik sırası: super_admin > patron > personel > musteri
  *
- * Optimizasyon: Super admin kontrolü önce users.global_role kolonuna bakarak
- * tek sorguda yapılır (migration 036). Patron/personel tespiti için 2 paralel sorgu.
+ * Optimizasyon: Role önce Supabase JWT (app_metadata.role) içerisinden okunur.
+ * Sadece token içinde rol bilgisi bulunmuyorsa fallback olarak paralel DB sorguları atılır.
  */
 export async function getUserRole(
     supabase: SupabaseClient,
-    userId: string
+    userOrId: User | string
 ): Promise<UserRole> {
-    // 1. Hızlı yol: global_role kolonu ile super_admin + profil kontrolü
+    const user = typeof userOrId === "string" ? null : (userOrId as User)
+    const userId = typeof userOrId === "string" ? userOrId : user!.id
+
+    // 0. Nano-saniye JWT okuması (Aktif Optimizasyon!)
+    if (user?.app_metadata?.role) {
+        return user.app_metadata.role as UserRole
+    }
+
+    // 1. Fallback: Hızlı yol, global_role kolonu ile super_admin + profil kontrolü
     const { data: userRow, error: userErr } = await supabase
         .from("users")
         .select("global_role")
         .eq("id", userId)
         .maybeSingle()
 
-    if (userErr) console.error("getUserRole user fetch error:", userErr.message)
+    if (userErr) {
+        Sentry.captureException(userErr, {
+            tags: { module: 'auth' },
+            extra: { context: 'getUserRole user fetch error' }
+        })
+    }
 
     if (userRow?.global_role === "super_admin") return "super_admin"
 
@@ -40,8 +54,18 @@ export async function getUserRole(
             .maybeSingle(),
     ])
 
-    if (ownerResult.error) console.error("Owner check error:", ownerResult.error.message)
-    if (staffResult.error) console.error("Staff check error:", staffResult.error.message)
+    if (ownerResult.error) {
+        Sentry.captureException(ownerResult.error, {
+            tags: { module: 'auth' },
+            extra: { context: 'Owner check error' }
+        })
+    }
+    if (staffResult.error) {
+        Sentry.captureException(staffResult.error, {
+            tags: { module: 'auth' },
+            extra: { context: 'Staff check error' }
+        })
+    }
 
     if (ownerResult.data) return "patron"
     if (staffResult.data) return "personel"

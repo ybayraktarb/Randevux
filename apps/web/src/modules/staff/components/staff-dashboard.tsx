@@ -28,6 +28,7 @@ import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
 import { createNotificationAction } from "@/src/modules/core/actions/notification.actions" // DEĞİŞTİRİLDİ
 import { logAuditAction } from "@/src/modules/admin/actions/audit.actions" // DEĞİŞTİRİLDİ
+import * as Sentry from "@sentry/nextjs"
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
 
@@ -280,11 +281,11 @@ function OverviewTab({
         const typeMap: Record<string, string> = { "Onaylandı": "appointment_confirmed", "İptal": "appointment_cancelled", "Tamamlandı": "appointment_confirmed", "Gelmedi": "appointment_cancelled" }
         await createNotificationAction({ userId: aptRow.customer_user_id, type: (typeMap[newStatus] || "system") as any, title: titleMap[newStatus] || "Randevu guncellendi", body: `${aptRow.appointment_date} tarihinde saat ${String(aptRow.start_time).slice(0, 5)}`, relatedId: aptId, relatedType: "appointment" })
       }
-    } catch (e) { console.error("[Notification]", e) }
+    } catch (e) { Sentry.captureException(e, { tags: { module: 'staff', action: 'handleStatusUpdate.notification' } }) }
 
     try {
       await logAuditAction({ action: "updated", targetTable: "appointments", targetId: aptId })
-    } catch (err) { console.error("[Audit]", err) }
+    } catch (err) { Sentry.captureException(err, { tags: { module: 'staff', action: 'handleStatusUpdate.audit' } }) }
 
 
     toast?.success ? toast.success("Randevu guncellendi.") : null

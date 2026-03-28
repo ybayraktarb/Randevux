@@ -289,7 +289,7 @@ export function UsersDrawer({ user, isOpen, onClose, onUpdate }: UsersDrawerProp
                 {/* Footer */}
                 <div className="border-t border-border p-4 bg-muted/10">
                     <p className="text-[10px] text-center text-muted-foreground uppercase tracking-widest font-semibold">
-                        RandevuX Super Admin v2.0 • User ID: {user.id}
+                        Randesk Super Admin v2.0 • User ID: {user.id}
                     </p>
                 </div>
             </aside>

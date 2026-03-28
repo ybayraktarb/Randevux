@@ -207,7 +207,7 @@ export function BusinessOnboarding() {
           <div className="flex items-center justify-center size-12 rounded-2xl bg-primary shadow-[0_0_20px_rgba(108,99,255,0.3)]">
             <Calendar className="size-7 text-primary-foreground" />
           </div>
-          <span className="text-3xl font-black bg-clip-text text-transparent bg-gradient-to-br from-primary via-primary-hover to-accent tracking-tighter">RandevuX</span>
+          <span className="text-3xl font-black bg-clip-text text-transparent bg-gradient-to-br from-primary via-primary-hover to-accent tracking-tighter">Randesk</span>
         </div>
         <h1 className="text-4xl font-extrabold text-foreground tracking-tight sm:text-5xl">Geleceğin Randevu Sistemine Hoş Geldiniz</h1>
         <p className="text-muted-foreground mt-4 text-lg max-w-xl">İşletmenizi dijital dünyaya taşıyacak en güçlü adımı atmak üzeresiniz.</p>
@@ -291,7 +291,7 @@ export function BusinessOnboarding() {
             </div>
             <RxInput 
               label="İşletme Adı"
-              placeholder="RandevuX Güzellik Salonu"
+              placeholder="Randesk Güzellik Salonu"
               icon={<Store className="size-4" />}
               value={formData.businessName}
               onChange={e => setFormData({...formData, businessName: e.target.value})}

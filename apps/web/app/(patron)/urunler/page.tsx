@@ -5,7 +5,7 @@ import { FeatureGate } from "@/src/modules/admin/components/feature-gate"
 import { Package } from "lucide-react"
 
 export const metadata = {
-    title: "Ürün & Stok Yönetimi - Randevuxx",
+    title: "Ürün & Stok Yönetimi - Randesk",
 }
 
 export default async function UrunlerPage() {

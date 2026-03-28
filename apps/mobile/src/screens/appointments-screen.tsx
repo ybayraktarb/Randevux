@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import type { AppointmentSummary } from "@randevux/shared"
+import type { AppointmentSummary } from "@randesk/shared"
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native"
 import { ScreenShell } from "@/src/components/screen-shell"
 import { mobileApi } from "@/src/lib/api"

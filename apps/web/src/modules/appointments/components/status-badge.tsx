@@ -1,7 +1,7 @@
 "use client"
 
 import { cn } from "@/lib/utils"
-import type { AppointmentStatus } from "@randevux/shared"
+import type { AppointmentStatus } from "@randesk/shared"
 
 // We redefine AppointmentStatus locally to not break the type references in existing code or we export it properly.
 // Best to just use it directly.

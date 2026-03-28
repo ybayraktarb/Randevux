@@ -53,8 +53,9 @@ export async function updateAppointmentTimeAction(data: {
         revalidatePath("/patron/takvim")
         return { success: true }
     } catch (err: any) {
-        console.error("Drag-Drop Update Error:", err)
-        Sentry.captureException(err)
+        Sentry.captureException(err, {
+            tags: { module: 'booking', action: 'updateAppointmentTime' }
+        })
         return { success: false, error: err.message || "Saat güncellenirken hata oluştu." }
     }
 }

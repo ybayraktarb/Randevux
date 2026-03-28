@@ -14,7 +14,7 @@ function Logo() {
             <div className="flex items-center justify-center size-10 rounded-xl bg-primary">
                 <Calendar className="size-5 text-primary-foreground" />
             </div>
-            <span className="text-xl font-bold text-primary">RandevuX</span>
+            <span className="text-xl font-bold text-primary">Randesk</span>
         </div>
     )
 }

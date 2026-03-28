@@ -928,7 +928,7 @@ export function CustomerProfile() {
     }
     setAdding(true)
     const { addCustomerToBusinessAction } = await import("@/src/modules/customers/actions/customer.actions")
-    const res = await addCustomerToBusinessAction(businessId, newEmail || `${Date.now()}@randevuxx.local`, newName, newPhone)
+    const res = await addCustomerToBusinessAction(businessId, newEmail || `${Date.now()}@randesk.local`, newName, newPhone)
     setAdding(false)
     if (res.success) {
       toast.success("Müşteri başarıyla eklendi.")

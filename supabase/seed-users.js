@@ -5,7 +5,7 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 /**
- * RandevuX — Seed Users Script
+ * Randesk — Seed Users Script
  * ─────────────────────────────────────────────────────────────
  * Bu script Supabase Auth üzerinden 9 test kullanıcısı oluşturur
  * ve ardından ilgili tablolara bağlantılarını yapar.
@@ -68,15 +68,15 @@ const PASSWORD = process.env.SEED_PASSWORD || "Test1234!";
 
 // Kullanıcı listesi
 const USERS = [
-    { email: "patron@randevux.com", name: "Patron Bella", role: "owner" },
-    { email: "ayse@randevux.com", name: "Ayşe Yılmaz", role: "staff" },
-    { email: "fatma@randevux.com", name: "Fatma Demir", role: "staff" },
-    { email: "mehmet@randevux.com", name: "Mehmet Kaya", role: "staff" },
-    { email: "musteri1@randevux.com", name: "Ali Öztürk", role: "customer" },
-    { email: "musteri2@randevux.com", name: "Zeynep Aydın", role: "customer" },
-    { email: "musteri3@randevux.com", name: "Emre Çelik", role: "customer" },
-    { email: "musteri4@randevux.com", name: "Selin Arslan", role: "customer" },
-    { email: "musteri5@randevux.com", name: "Can Yıldız", role: "customer" },
+    { email: "patron@randesk.com", name: "Patron Bella", role: "owner" },
+    { email: "ayse@randesk.com", name: "Ayşe Yılmaz", role: "staff" },
+    { email: "fatma@randesk.com", name: "Fatma Demir", role: "staff" },
+    { email: "mehmet@randesk.com", name: "Mehmet Kaya", role: "staff" },
+    { email: "musteri1@randesk.com", name: "Ali Öztürk", role: "customer" },
+    { email: "musteri2@randesk.com", name: "Zeynep Aydın", role: "customer" },
+    { email: "musteri3@randesk.com", name: "Emre Çelik", role: "customer" },
+    { email: "musteri4@randesk.com", name: "Selin Arslan", role: "customer" },
+    { email: "musteri5@randesk.com", name: "Can Yıldız", role: "customer" },
 ];
 
 async function createUser(user) {
@@ -154,7 +154,7 @@ async function linkCustomer(userId) {
 }
 
 async function main() {
-    console.log("🚀 RandevuX Seed Users — Başlatılıyor...\n");
+    console.log("🚀 Randesk Seed Users — Başlatılıyor...\n");
 
     for (const user of USERS) {
         const userId = await createUser(user);

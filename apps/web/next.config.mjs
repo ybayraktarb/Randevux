@@ -16,7 +16,7 @@ const nextConfig = {
 export default withBundleAnalyzer(withSentryConfig(nextConfig, {
   // Sentry organizasyon ve proje bilgileri
   org: process.env.SENTRY_ORG,
-  project: process.env.SENTRY_PROJECT ?? "randevux",
+  project: process.env.SENTRY_PROJECT ?? "randesk",
 
   // Source maps gizli tutulur, Sentry'ye yüklenir
   silent: !process.env.CI,

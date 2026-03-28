@@ -37,7 +37,7 @@ export class CustomerService {
       // 2. Shadow user oluştur (Admin API)
       const supabaseAdmin = await createAdminClient()
 
-      const generatedPassword = "Randevuxx!" + randomBytes(8).toString("hex")
+      const generatedPassword = "Randesk!" + randomBytes(8).toString("hex")
       const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
         email: input.email,
         password: generatedPassword,

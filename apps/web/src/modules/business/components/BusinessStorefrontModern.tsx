@@ -464,7 +464,7 @@ export function BusinessStorefrontModern({ initialData }: BusinessStorefrontMode
                                 <Zap className="size-6" />
                             </div>
                             <h4 className="text-lg font-black text-gray-900 leading-tight">Güvenli ve HIzlI Randevu Deneyimi</h4>
-                            <p className="text-sm font-medium text-gray-500 leading-relaxed">RandevuX güvencesiyle 7/24 randevu alabilir, bildirimlerle işlemlerinizi takip edebilirsiniz.</p>
+                            <p className="text-sm font-medium text-gray-500 leading-relaxed">Randesk güvencesiyle 7/24 randevu alabilir, bildirimlerle işlemlerinizi takip edebilirsiniz.</p>
                         </div>
                     </div>
                 </div>

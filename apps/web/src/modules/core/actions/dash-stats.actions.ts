@@ -130,13 +130,14 @@ export async function getDashboardStatsAction(businessId: string) {
             } as DashboardStats
         }
     } catch (err: any) {
-        console.error("getDashboardStatsAction Critical Error:", {
-            message: err.message,
-            code: err.code,
-            details: err.details,
-            hint: err.hint
+        Sentry.captureException(err, { 
+            tags: { module: 'core', action: 'getDashboardStatsAction' }, 
+            extra: { 
+                code: err?.code, 
+                details: err?.details, 
+                hint: err?.hint 
+            } 
         })
-        Sentry.captureException(err)
         return { success: false, error: "İstatistikler yüklenemedi." }
     }
 }

@@ -139,7 +139,7 @@ export function RegisterFlow({ onToggle, onSocialLogin }: { onToggle: () => void
           commercial_consent_at: marketingChecked ? new Date().toISOString() : null,
         }).eq("id", user.id)
 
-        const role = await getUserRole(supabase, user.id)
+        const role = await getUserRole(supabase, user)
         window.location.href = getDashboardPath(role)
       }
     } catch {

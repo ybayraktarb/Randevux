@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "Randevux Mobile",
-    "slug": "randevux-mobile",
-    "scheme": "randevux",
+    "name": "Randesk Mobile",
+    "slug": "randesk-mobile",
+    "scheme": "randesk",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "plugins": [

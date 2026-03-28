@@ -10,6 +10,7 @@ import {
     Target, Settings2, ShieldCheck, Zap, Filter, Trash2, CheckCircle2
 } from "lucide-react"
 import { toast } from "sonner"
+import * as Sentry from "@sentry/nextjs"
 
 import { RxButton } from "@/src/modules/core/components/rx-button"
 import { RxModal } from "@/src/modules/core/components/rx-modal"
@@ -165,7 +166,7 @@ function PaketFormModal({
             onKapat()
             toast.success("Paket başarıyla kaydedildi")
         } catch (e: any) {
-            console.error("Paket Kayıt Hatası:", e)
+            Sentry.captureException(e, { tags: { module: 'billing', action: 'kaydetPaket' } })
             setHata(e.message || "Bir hata oluştu.")
             toast.error("Paket kaydedilemedi", { description: e.message || "Bilinmeyen bir hata oluştu." })
         } finally {

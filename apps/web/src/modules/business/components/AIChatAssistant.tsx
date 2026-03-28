@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { Sparkles, X, Send, Bot, User, Zap, MessageSquare, Loader2, Calendar } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { getAiAccessAction } from "@/src/modules/core/actions/ai.actions"
+import * as Sentry from "@sentry/nextjs"
 
 interface AIChatAssistantProps {
     businessId: string
@@ -34,7 +35,7 @@ export function AIChatAssistant({ businessId }: AIChatAssistantProps) {
                 const res = await getAiAccessAction(businessId)
                 setHasAccess(res.hasAccess)
             } catch (err) {
-                console.error("AI Access check failed:", err)
+                Sentry.captureException(err, { tags: { module: 'business', action: 'checkAiAccess' } })
                 setHasAccess(false)
             }
         }

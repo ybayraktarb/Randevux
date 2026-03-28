@@ -1,10 +1,10 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: randevux-web
+  name: randesk-web
   namespace: default
   labels:
-    app: randevux-web
+    app: randesk-web
 spec:
   replicas: 2
   strategy:
@@ -14,11 +14,11 @@ spec:
       maxSurge: 1
   selector:
     matchLabels:
-      app: randevux-web
+      app: randesk-web
   template:
     metadata:
       labels:
-        app: randevux-web
+        app: randesk-web
     spec:
       securityContext:
         runAsNonRoot: true
@@ -28,14 +28,14 @@ spec:
       containers:
         - name: web
           # Replace with your actual registry URL (e.g. AWS ECR / DigitalOcean Registry)
-          image: randevux-web:latest
+          image: randesk-web:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 3000
               name: http
           envFrom:
             - secretRef:
-                name: randevux-web-secret
+                name: randesk-web-secret
           resources:
             requests:
               cpu: "250m"

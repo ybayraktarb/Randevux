@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { checkFeatureAccess } from '@/lib/permissions';
 import { getAvailableSlotsAction } from '@/src/modules/appointments/actions/availability.actions';
 import { getQuickRebookDataAction } from '@/src/modules/auth/actions/auth.actions';
+import * as Sentry from "@sentry/nextjs";
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
@@ -29,7 +30,7 @@ export async function POST(req: Request) {
 
         // 3. System Prompt - Define AI Personality & Knowledge
         const systemPrompt = `
-            Sen RandevuX platformunun akıllı asistanısın. Görevin, müşterilere randevu alma süreçlerinde yardımcı olmak ve işletme hakkında bilgi vermektir.
+            Sen Randesk platformunun akıllı asistanısın. Görevin, müşterilere randevu alma süreçlerinde yardımcı olmak ve işletme hakkında bilgi vermektir.
             
             Kurallar:
             - Kibar, profesyonel ve yardımsever bir dil kullan.
@@ -119,7 +120,7 @@ export async function POST(req: Request) {
         // @ts-expect-error This SDK version mismatch expects toDataStreamResponse to exist on streamText
         return result.toDataStreamResponse();
     } catch (error: any) {
-        console.error('AI Chat Error:', error);
+        Sentry.captureException(error, { tags: { module: 'core', action: 'aiChatRoute' } })
         return new Response(JSON.stringify({ error: error.message }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' }

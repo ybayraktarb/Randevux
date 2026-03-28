@@ -1,12 +1,12 @@
 import { test, expect, Page } from "@playwright/test"
 
-const PATRON_EMAIL = process.env.TEST_PATRON_EMAIL ?? "test-patron@randevux.dev"
+const PATRON_EMAIL = process.env.TEST_PATRON_EMAIL ?? "test-patron@randesk.dev"
 const PATRON_PASSWORD = process.env.TEST_PATRON_PASSWORD ?? "test-password-123"
 const TEST_STAFF_PASSWORD = process.env.TEST_STAFF_PASSWORD ?? "Test1234!"
 
 const TEST_PERSONEL = {
     name: `Test Personel ${Date.now()}`,
-    email: `test-personel-${Date.now()}@randevux.test`,
+    email: `test-personel-${Date.now()}@randesk.test`,
     password: TEST_STAFF_PASSWORD,
 }
 

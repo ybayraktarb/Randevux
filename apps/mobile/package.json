@@ -1,5 +1,5 @@
 {
-  "name": "@randevux/mobile",
+  "name": "@randesk/mobile",
   "version": "0.1.0",
   "private": true,
   "main": "expo-router/entry",
@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@randevux/shared": "*",
+    "@randesk/shared": "*",
     "@react-native-async-storage/async-storage": "^1.23.1",
     "@supabase/supabase-js": "^2.97.0",
     "expo": "~53.0.0",

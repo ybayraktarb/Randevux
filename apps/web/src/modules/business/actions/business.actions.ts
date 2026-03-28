@@ -387,8 +387,7 @@ export async function getBusinessStorefrontAction(businessId: string): Promise<A
 
         return { success: true, data: formatted }
     } catch (err: unknown) {
-        console.error("getBusinessStorefrontAction Error:", err)
-        Sentry.captureException(err)
+        Sentry.captureException(err, { tags: { module: 'business', action: 'getBusinessStorefrontAction' } })
         const message = err instanceof Error ? err.message : "İşletme sayfası yüklenemedi."
         return { success: false, error: { message } }
     }

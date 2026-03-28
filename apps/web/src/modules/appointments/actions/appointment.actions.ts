@@ -4,7 +4,7 @@ import * as Sentry from "@sentry/nextjs"
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import { AppointmentService } from "../services/appointment.service"
-import type { AppointmentStatus } from "@randevux/shared"
+import type { AppointmentStatus } from "@randesk/shared"
 
 import type { ActionResult } from "@/lib/validations/action-types"
 

@@ -14,7 +14,8 @@ import {
     Package,
     Megaphone,
     CreditCard,
-    Zap
+    Zap,
+    Globe
 } from "lucide-react"
 
 import { RxAvatar } from "@/src/modules/core/components/rx-avatar"
@@ -40,6 +41,7 @@ const adminNavGroups = [
             { label: "Abonelik ve Finans", icon: CreditCard, key: "finance" },
             { label: "Paket Yönetimi", icon: Package, key: "packages" },
             { label: "Sektör & Modüller", icon: Layers, key: "modules" },
+            { label: "Landing Sayfası", icon: Globe, key: "landing" },
         ]
     },
     {
@@ -65,7 +67,7 @@ export function AdminSidebar({ collapsed, activeItem, onNavClick }: Readonly<{
                 <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
                     <CalendarDays className="size-5" />
                 </div>
-                {!collapsed && <span className="text-xl font-bold bg-gradient-to-r from-primary to-indigo-600 bg-clip-text text-transparent">RandevuX</span>}
+                {!collapsed && <span className="text-xl font-bold bg-gradient-to-r from-primary to-indigo-600 bg-clip-text text-transparent">Randesk</span>}
             </div>
 
             {/* Süper Admin Rozeti */}
@@ -145,7 +147,7 @@ export function AdminSidebar({ collapsed, activeItem, onNavClick }: Readonly<{
                         <RxAvatar name="Admin" size="md" online />
                         <div className="flex min-w-0 flex-1 flex-col">
                             <span className="truncate text-sm font-semibold text-foreground">Admin</span>
-                            <span className="truncate text-[11px] text-muted-foreground">admin@randevux.com</span>
+                            <span className="truncate text-[11px] text-muted-foreground">admin@randesk.com</span>
                         </div>
                         <button type="button" className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive" title="Çıkış Yap">
                             <LogOut className="size-[18px]" />

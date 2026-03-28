@@ -66,8 +66,10 @@ export async function POST(request: Request) {
 
         return NextResponse.json({ success: true, message: 'Webhook processed' }, { status: 200 })
     } catch (error) {
-        console.error('Webhook islenirken hata olustu:', error)
-        Sentry.captureException(error)
+        Sentry.captureException(error, {
+            tags: { module: 'auth' },
+            extra: { context: 'Supabase Webhook processing' }
+        })
         return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 })
     }
 }

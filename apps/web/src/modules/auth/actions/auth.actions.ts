@@ -1,7 +1,7 @@
 "use server"
 
 import * as Sentry from "@sentry/nextjs"
-import { createCustomerRepositories } from "@randevux/shared"
+import { createCustomerRepositories } from "@randesk/shared"
 import { z } from "zod"
 import { revalidatePath } from "next/cache"
 import { cookies } from "next/headers"

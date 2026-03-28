@@ -113,7 +113,7 @@ export function InventoryHistory({
 
         {/* Footer info */}
         <div className="px-10 py-6 bg-muted/10 border-t border-border flex justify-center">
-           <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Envanter Takip Modülü • RandevuX v2</p>
+           <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Envanter Takip Modülü • Randesk v2</p>
         </div>
       </div>
     </div>

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
+import * as Sentry from "@sentry/nextjs"
 
 interface FeatureGateProps {
     businessId: string
@@ -43,13 +44,13 @@ export function FeatureGate({ businessId, featureKey, fallback = null, children,
                 })
 
                 if (error) {
-                    console.error("FeatureGate Error:", error)
+                    Sentry.captureException(error, { tags: { module: 'core', action: 'featureGateCheck' } })
                     setIsEnabled(false)
                 } else {
                     setIsEnabled(!!data)
                 }
             } catch (err) {
-                console.error("FeatureGate Runtime Error:", err)
+                Sentry.captureException(err, { tags: { module: 'core', action: 'featureGateCheck', type: 'RuntimeError' } })
                 setIsEnabled(false)
             }
         }

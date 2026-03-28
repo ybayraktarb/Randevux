@@ -49,7 +49,7 @@ export async function addStaffLeaveAction(params: {
         })
 
         if (error) {
-            console.error("İzin eklenirken hata:", error)
+            Sentry.captureException(error, { tags: { module: 'staff', action: 'addStaffLeaveAction' } })
             return { success: false, error: { message: error.message || "İzin eklenemedi." } }
         }
 
@@ -74,7 +74,7 @@ export async function removeStaffLeaveAction(leaveId: string) {
             .eq("id", leaveId)
 
         if (error) {
-            console.error("İzin silinirken hata:", error)
+            Sentry.captureException(error, { tags: { module: 'staff', action: 'removeStaffLeaveAction' } })
             return { success: false, error: { message: "İzin silinemedi." } }
         }
 
@@ -130,7 +130,7 @@ export async function reviewStaffLeaveAction(leaveId: string, status: "approved"
             .eq("id", leaveId)
 
         if (error) {
-            console.error("İzin güncellenirken hata:", error)
+            Sentry.captureException(error, { tags: { module: 'staff', action: 'reviewStaffLeaveAction' } })
             return { success: false, error: { message: "İzin durumu güncellenemedi." } }
         }
 

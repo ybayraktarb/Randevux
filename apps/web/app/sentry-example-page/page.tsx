@@ -53,7 +53,7 @@ export default function Page() {
           <a
             target="_blank"
             rel="noopener"
-            href="https://randevux.sentry.io/issues/?project=4510985699852368"
+            href="https://randesk.sentry.io/issues/?project=4510985699852368"
           >
             Issues Page
           </a>{" "}

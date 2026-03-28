@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server"
 import { CommandCenterCalendar } from "@/src/modules/appointments/components/command-center-calendar"
 
 export const metadata = {
-    title: "Takvim & Vardiyalar - Randevuxx",
+    title: "Takvim & Vardiyalar - Randesk",
 }
 
 export default async function TakvimPage() {

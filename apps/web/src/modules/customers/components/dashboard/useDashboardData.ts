@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react"
 import { createClient } from "@/lib/supabase/client"
+import * as Sentry from "@sentry/nextjs"
 import { toast } from "sonner"
-import { createCustomerRepositories } from "@randevux/shared"
+import { createCustomerRepositories } from "@randesk/shared"
 import { cancelAppointmentAction } from "@/src/modules/appointments/actions/appointment.actions"
 import { getFamilyProfilesAction, addFamilyProfileAction, deleteFamilyProfileAction } from "@/src/modules/customers/actions/family.actions"
 import { getCustomerStatsAction } from "@/src/modules/core/actions/stats.actions"
@@ -54,7 +55,7 @@ export function useDashboardData(user: User | null) {
       setLoadingFamily(false)
       setLoadingStats(false)
     } catch (e) {
-      console.error(e)
+      Sentry.captureException(e, { tags: { module: 'customers', action: 'fetchDashboardData' } })
     } finally {
       setLoading(false)
     }

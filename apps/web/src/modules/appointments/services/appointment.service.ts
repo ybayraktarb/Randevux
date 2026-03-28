@@ -7,8 +7,8 @@ import {
     type CreateManualAppointmentInput,
     type CancelAppointmentInput,
     type UpdateAppointmentStatusInput
-} from "@randevux/shared"
-import { calculateTimeRange } from "@randevux/shared"
+} from "@randesk/shared"
+import { calculateTimeRange } from "@randesk/shared"
 
 import { createAdminClient } from "@/lib/supabase/admin"
 
@@ -105,8 +105,9 @@ export class AppointmentService {
             return { success: true, appointmentId: aptData?.id }
 
         } catch (err: unknown) {
-            console.error("[AppointmentService] Create Error:", err)
-            Sentry.captureException(err)
+            Sentry.captureException(err, {
+                tags: { module: 'booking', action: 'createAppointment' }
+            })
             const message = err instanceof Error ? err.message : "Randevu eklenirken bilinmeyen bir hata oluştu."
             return { success: false, error: { message } }
         }
@@ -160,8 +161,9 @@ export class AppointmentService {
             return { success: true }
 
         } catch (err: unknown) {
-             console.error("[AppointmentService] Cancel Error:", err)
-             Sentry.captureException(err)
+             Sentry.captureException(err, {
+                 tags: { module: 'booking', action: 'cancelAppointment' }
+             })
              const message = err instanceof Error ? err.message : "İptal işlemi başarısız oldu."
              return { success: false, error: { message } }
         }
@@ -220,8 +222,9 @@ export class AppointmentService {
 
             return { success: true }
         } catch (err: unknown) {
-             console.error("[AppointmentService] Update Status Error:", err)
-             Sentry.captureException(err)
+             Sentry.captureException(err, {
+                 tags: { module: 'booking', action: 'updateAppointmentStatus' }
+             })
              const message = err instanceof Error ? err.message : "Durum güncellenirken bir hata oluştu."
              return { success: false, error: { message } }
         }
@@ -281,8 +284,9 @@ export class AppointmentService {
 
             return { success: true }
         } catch (err: unknown) {
-             console.error("[AppointmentService] Add Note Error:", err)
-             Sentry.captureException(err)
+             Sentry.captureException(err, {
+                 tags: { module: 'booking', action: 'addAppointmentNote' }
+             })
              const message = err instanceof Error ? err.message : "Not eklenirken bir hata oluştu."
              return { success: false, error: { message } }
         }

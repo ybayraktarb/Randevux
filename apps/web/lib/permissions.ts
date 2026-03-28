@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
+import * as Sentry from "@sentry/nextjs"
 
 /**
  * Bir işletmenin belirli bir özelliğe (feature) erişimi olup olmadığını kontrol eder.
@@ -20,13 +21,13 @@ export async function checkFeatureAccess(businessId: string, featureKey: string)
             })
 
         if (error) {
-            console.error("checkFeatureAccess Error:", error)
+            Sentry.captureException(error, { tags: { module: 'core', action: 'checkFeatureAccess' } })
             return false
         }
 
         return !!data
     } catch (err) {
-        console.error("checkFeatureAccess Runtime Error:", err)
+        Sentry.captureException(err, { tags: { module: 'core', action: 'checkFeatureAccess', type: 'RuntimeError' } })
         return false
     }
 }

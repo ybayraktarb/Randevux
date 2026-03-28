@@ -5,7 +5,7 @@ import type {
   CustomerProfile,
   FamilyProfile,
   NotificationSettings
-} from "@randevux/shared"
+} from "@randesk/shared"
 
 export type TabView = "kesfet" | "genel" | "randevularim" | "profil"
 

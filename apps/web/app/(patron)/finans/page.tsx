@@ -5,7 +5,7 @@ import { FeatureGate } from "@/src/modules/admin/components/feature-gate"
 import { Wallet } from "lucide-react"
 
 export const metadata = {
-    title: "Finans & Muhasebe - Randevuxx",
+    title: "Finans & Muhasebe - Randesk",
 }
 
 export default async function FinansPage() {

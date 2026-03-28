@@ -11,6 +11,7 @@ import {
 import { createClient } from "@/lib/supabase/client"
 import { getUserRole, getDashboardPath, type UserRole } from "@/lib/supabase/roles"
 import type { User } from "@supabase/supabase-js"
+import * as Sentry from "@sentry/nextjs"
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -116,8 +117,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     .select("business_id, business:businesses(id, name)")
                     .eq("user_id", authUser.id),
 
-                // Rol tespiti
-                getUserRole(supabase, authUser.id),
+                // Rol tespiti (JWT öncelikli)
+                getUserRole(supabase, authUser),
             ])
 
             if (cancelled.value) return
@@ -203,7 +204,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 }
             }
         } catch (err) {
-            console.error("[AuthProvider] fetchAuth error:", err)
+            Sentry.captureException(err, {
+                tags: { module: 'auth' },
+                extra: { context: 'fetchAuth' }
+            })
             if (!cancelled.value) {
                 setState(prev => ({
                     ...prev,

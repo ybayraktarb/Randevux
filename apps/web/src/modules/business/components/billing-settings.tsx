@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client"
 import { CreditCard, Check, AlertCircle, Loader2, ArrowRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { RxButton } from "@/src/modules/core/components/rx-button"
+import * as Sentry from "@sentry/nextjs"
 
 interface BillingSettingsProps {
   businessId: string
@@ -85,7 +86,7 @@ export function BillingSettings({ businessId }: BillingSettingsProps) {
       }
       await fetchBillingData()
     } catch (e) {
-      console.error(e)
+      Sentry.captureException(e, { tags: { module: 'billing', action: 'handleToggleAddon' } })
     } finally {
       setActionLoading(false)
     }
@@ -114,7 +115,7 @@ export function BillingSettings({ businessId }: BillingSettingsProps) {
 
       await fetchBillingData()
     } catch (e) {
-      console.error(e)
+      Sentry.captureException(e, { tags: { module: 'billing', action: 'handleChangePackage' } })
     } finally {
       setActionLoading(false)
     }

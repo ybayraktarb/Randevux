@@ -1,10 +1,10 @@
 import { test, expect, Page } from "@playwright/test"
 
-const PATRON_EMAIL = process.env.TEST_PATRON_EMAIL ?? "test-patron@randevux.dev"
+const PATRON_EMAIL = process.env.TEST_PATRON_EMAIL ?? "test-patron@randesk.dev"
 const PATRON_PASSWORD = process.env.TEST_PATRON_PASSWORD ?? "test-password-123"
-const PERSONEL_EMAIL = process.env.TEST_PERSONEL_EMAIL ?? "test-personel@randevux.dev"
+const PERSONEL_EMAIL = process.env.TEST_PERSONEL_EMAIL ?? "test-personel@randesk.dev"
 const PERSONEL_PASSWORD = process.env.TEST_PERSONEL_PASSWORD ?? "test-password-123"
-const MUSTERI_EMAIL = process.env.TEST_MUSTERI_EMAIL ?? "test-musteri@randevux.dev"
+const MUSTERI_EMAIL = process.env.TEST_MUSTERI_EMAIL ?? "test-musteri@randesk.dev"
 const MUSTERI_PASSWORD = process.env.TEST_MUSTERI_PASSWORD ?? "test-password-123"
 
 // ─── Shared helper ──────────────────────────────────────────────────────────────

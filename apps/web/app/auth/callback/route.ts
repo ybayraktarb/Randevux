@@ -20,7 +20,7 @@ export async function GET(request: Request) {
             const { data: { user } } = await supabase.auth.getUser()
             if (user) {
                 // KALDIRILDI: const { getUserRole, getDashboardPath } = await import("@/lib/supabase/roles")
-                const role = await getUserRole(supabase, user.id)
+                const role = await getUserRole(supabase, user)
                 const dashboardPath = getDashboardPath(role)
                 return NextResponse.redirect(new URL(dashboardPath, origin))
             }

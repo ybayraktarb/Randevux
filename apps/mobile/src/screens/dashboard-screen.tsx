@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import type { CustomerDashboardData } from "@randevux/shared"
+import type { CustomerDashboardData } from "@randesk/shared"
 import { StyleSheet, Text, View } from "react-native"
 import { ScreenShell } from "@/src/components/screen-shell"
 import { mobileApi } from "@/src/lib/api"
@@ -21,7 +21,7 @@ export function DashboardScreen() {
 
   return (
     <ScreenShell
-      title={data?.profile.name ? `Merhaba ${data.profile.name}` : "Randevux Mobile"}
+      title={data?.profile.name ? `Merhaba ${data.profile.name}` : "Randesk Mobile"}
       subtitle="Müşteri deneyimi için ortak domain katmanını kullanan ilk Expo sürümü."
     >
       <View>

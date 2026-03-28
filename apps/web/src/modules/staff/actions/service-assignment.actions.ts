@@ -30,7 +30,7 @@ export async function assignStaffServiceAction(staffBusinessId: string, serviceI
             if (error.code === '23505') {
                 return { success: false, error: { message: "Bu hizmet zaten personele atanmış." } };
             }
-            console.error("Hizmet atanırken hata:", error);
+            Sentry.captureException(error, { tags: { module: 'staff', action: 'assignStaffServiceAction' } });
             return { success: false, error: { message: "Hizmet atanırken bir hata oluştu." } };
         }
 
@@ -63,7 +63,7 @@ export async function removeStaffServiceAction(staffBusinessId: string, serviceI
             });
 
         if (error) {
-            console.error("Hizmet silinirken hata:", error);
+            Sentry.captureException(error, { tags: { module: 'staff', action: 'removeStaffServiceAction' } });
             return { success: false, error: { message: "Hizmet silinirken bir hata oluştu." } };
         }
 
@@ -101,7 +101,7 @@ export async function updateStaffServiceAction(staffBusinessId: string, serviceI
             });
 
         if (error) {
-            console.error("Hizmet güncellenirken hata:", error);
+            Sentry.captureException(error, { tags: { module: 'staff', action: 'updateStaffServiceAction' } });
             return { success: false, error: { message: "Hizmet güncellenirken bir hata oluştu." } };
         }
 

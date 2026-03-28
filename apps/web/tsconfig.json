@@ -11,10 +11,10 @@
       "@/*": [
         "./*"
       ],
-      "@randevux/shared": [
+      "@randesk/shared": [
         "../../packages/shared/src/index.ts"
       ],
-      "@randevux/shared/*": [
+      "@randesk/shared/*": [
         "../../packages/shared/src/*"
       ]
     }

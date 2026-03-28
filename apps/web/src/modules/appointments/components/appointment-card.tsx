@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
 import { RxAvatar } from "@/src/modules/core/components/rx-avatar"
 import { RxButton } from "@/src/modules/core/components/rx-button"
 import { StatusBadge } from "./status-badge"
-import type { AppointmentStatus } from "@randevux/shared"
+import type { AppointmentStatus } from "@randesk/shared"
 
 // We can define the Appointment interface here, or move it to types later.
 export interface AppointmentCardProps {

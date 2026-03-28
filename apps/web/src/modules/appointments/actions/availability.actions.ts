@@ -175,8 +175,7 @@ export async function getAvailableSlotsAction(params: SlotParams): Promise<Actio
 
         return { success: true, data: slots }
     } catch (err: unknown) {
-        console.error("Availability Engine Error:", err)
-        Sentry.captureException(err)
+        Sentry.captureException(err, { tags: { module: 'booking', action: 'getAvailableSlotsAction' } })
         const message = err instanceof Error ? err.message : "Müsaitlik bilgisi alınamadı."
         return { success: false, error: { message } }
     }

@@ -1,4 +1,5 @@
 import { SupabaseClient } from "@supabase/supabase-js"
+import * as Sentry from "@sentry/nextjs"
 
 type AuditAction = "viewed" | "created" | "updated" | "deleted" | "onboarded"
 
@@ -24,6 +25,6 @@ export async function logAudit(
         target_id: params.targetId || null,
     })
     if (error) {
-        console.error("[logAudit] Error:", error.message)
+        Sentry.captureException(new Error(error.message), { tags: { module: 'core', action: 'logAudit' } })
     }
 }

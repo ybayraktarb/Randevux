@@ -1,6 +1,6 @@
 import { test, expect, Page } from "@playwright/test"
 
-const MUSTERI_EMAIL = process.env.TEST_MUSTERI_EMAIL ?? "test-musteri@randevux.dev"
+const MUSTERI_EMAIL = process.env.TEST_MUSTERI_EMAIL ?? "test-musteri@randesk.dev"
 const MUSTERI_PASSWORD = process.env.TEST_MUSTERI_PASSWORD ?? "test-password-123"
 
 async function loginAsMusteri(page: Page) {

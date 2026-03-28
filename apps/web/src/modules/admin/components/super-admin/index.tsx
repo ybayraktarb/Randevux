@@ -21,12 +21,13 @@ import { PlatformAnnouncementBanner } from "../platform-announcement-banner"
 
 import { BusinessesTab } from "./tabs/businesses-tab"
 import { ModulesTab } from "./tabs/modules-tab"
+import { LandingSettingsTab } from "./tabs/landing-settings-tab"
 
 export function SuperAdmin() {
     const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
     const initialTab = (searchParams?.get("tab") as any) || "overview"
     
-    const [activeTab, setActiveTab] = useState<"overview" | "businesses" | "users" | "finance" | "modules" | "packages" | "announcements" | "stats" | "logs" | "settings" | "features">(initialTab)
+    const [activeTab, setActiveTab] = useState<"overview" | "businesses" | "users" | "finance" | "modules" | "packages" | "announcements" | "stats" | "logs" | "settings" | "features" | "landing">(initialTab)
     const [drawerOpen, setDrawerOpen] = useState(false)
     const [windowWidth, setWindowWidth] = useState(1200)
 
@@ -59,6 +60,7 @@ export function SuperAdmin() {
         { key: "stats" as const, label: "Platform İstatistikleri" },
         { key: "logs" as const, label: "Sistem Logları" },
         { key: "settings" as const, label: "Ayarlar" },
+        { key: "landing" as const, label: "Landing Sayfası" },
     ]
 
     const handleNavClick = (key: string) => {
@@ -74,6 +76,7 @@ export function SuperAdmin() {
             logs: "logs",
             settings: "settings",
             features: "features",
+            landing: "landing",
         }
         if (tabMap[key]) {
             setActiveTab(tabMap[key])
@@ -129,6 +132,7 @@ export function SuperAdmin() {
                         {activeTab === "logs" && <LogsTab />}
                         {activeTab === "settings" && <SettingsTab />}
                         {activeTab === "features" && <FeaturesTab />}
+                        {activeTab === "landing" && <LandingSettingsTab />}
                     </main>
                 </div>
             </div>

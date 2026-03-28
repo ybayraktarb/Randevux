@@ -1,7 +1,7 @@
 "use server"
 
 import * as Sentry from "@sentry/nextjs"
-import { createCustomerRepositories } from "@randevux/shared"
+import { createCustomerRepositories } from "@randesk/shared"
 import { CustomerService } from "@/src/modules/customers/services/customer.service"
 import { createClient } from "@/lib/supabase/server"
 

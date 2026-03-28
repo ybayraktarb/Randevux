@@ -47,13 +47,37 @@ export async function updateSession(request: NextRequest) {
     const authRoutes = ["/login", "/register"]
     const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route))
 
-    const dashboardRoutes = [
-        { path: "/admin-dashboard", role: "super_admin" },
-        { path: "/patron-dashboard", role: "patron" },
-        { path: "/personel-panel", role: "personel" },
-        { path: "/musteri-panel", role: "musteri" },
+    // Tüm rollere ait korumalı yolların ön eklerini tanımlıyoruz
+    const routeRoleMap = [
+        // Admin Yolları
+        { prefix: "/admin-dashboard", role: "super_admin" },
+        // Patron (İşletme Sahibi) Yolları
+        { prefix: "/patron-dashboard", role: "patron" },
+        { prefix: "/randevular", role: "patron" },
+        { prefix: "/personel", role: "patron" },
+        { prefix: "/hizmetler", role: "patron" },
+        { prefix: "/takvim", role: "patron" },
+        { prefix: "/musteriler", role: "patron" },
+        { prefix: "/urunler", role: "patron" },
+        { prefix: "/finans", role: "patron" },
+        { prefix: "/ayarlar", role: "patron" },
+        // Personel Yolları
+        { prefix: "/personel-panel", role: "personel" },
+        { prefix: "/personel-randevular", role: "personel" },
+        { prefix: "/izin", role: "personel" },
+        { prefix: "/personel-ayarlar", role: "personel" },
+        // Müşteri Yolları
+        { prefix: "/musteri-panel", role: "musteri" },
+        { prefix: "/randevularim", role: "musteri" },
+        { prefix: "/profil", role: "musteri" },
     ]
-    const currentDashboard = dashboardRoutes.find((d) => pathname.startsWith(d.path))
+    
+    // Geçerli pathname'in (veya alt yapısının) tanımlı route prefix'lerinden birine uyup uymadığını kontrol et.
+    // Örneğin pathname = "/ayarlar/ek" ise -> "/ayarlar" route kuralını baz al.
+    // pathname tam eşleşecek veya tam olarak prefix + "/" ile başlayacak (e.g. /ayarlar veya /ayarlar/...).
+    const matchingRoute = routeRoleMap.find(
+        (route) => pathname === route.prefix || pathname.startsWith(route.prefix + "/")
+    )
 
     // Logic 1: Giriş yapmamış kullanıcı public olmayan sayfaya erişemez
     if (!user && !isPublicRoute) {
@@ -65,7 +89,7 @@ export async function updateSession(request: NextRequest) {
     // Logic 2: Giriş yapmış kullanıcı — role kontrolü
     if (user) {
         // KALDIRILDI: const { getUserRole, getDashboardPath } = await import("@/lib/supabase/roles")
-        let role = await getUserRole(supabase, user.id)
+        let role = await getUserRole(supabase, user)
 
         const correctPath = getDashboardPath(role)
 
@@ -74,8 +98,8 @@ export async function updateSession(request: NextRequest) {
             return NextResponse.redirect(new URL(correctPath, request.url))
         }
 
-        // Yanlış dashboard'a erişmeye çalışırsa doğru olana yönlendir
-        if (currentDashboard && currentDashboard.role !== role) {
+        // Yanlış role ait bir korumalı sayfaya erişmeye çalışıyorsa kendi ana paneline yönlendir
+        if (matchingRoute && matchingRoute.role !== role) {
             return NextResponse.redirect(new URL(correctPath, request.url))
         }
     }

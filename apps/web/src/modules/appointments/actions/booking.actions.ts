@@ -44,15 +44,15 @@ export async function getBookingDataAction(businessId: string): Promise<ActionRe
         ])
 
         if (servicesRes.error) {
-            console.error("Booking Flow - Services Fetch Error:", JSON.stringify(servicesRes.error, null, 2))
+            Sentry.captureException(servicesRes.error, { tags: { module: 'booking', action: 'getBookingDataAction', errorType: 'ServicesFetchError' } })
             throw servicesRes.error
         }
         if (staffRes.error) {
-            console.error("Booking Flow - Staff Fetch Error:", JSON.stringify(staffRes.error, null, 2))
+            Sentry.captureException(staffRes.error, { tags: { module: 'booking', action: 'getBookingDataAction', errorType: 'StaffFetchError' } })
             throw staffRes.error
         }
         if (businessRes.error) {
-            console.error("Booking Flow - Business Fetch Error:", JSON.stringify(businessRes.error, null, 2))
+            Sentry.captureException(businessRes.error, { tags: { module: 'booking', action: 'getBookingDataAction', errorType: 'BusinessFetchError' } })
             throw businessRes.error
         }
 
@@ -99,8 +99,6 @@ export async function getBookingDataAction(businessId: string): Promise<ActionRe
             }
         }))
 
-        // console.log(`getBookingDataAction: Found ${servicesRes.data.length} services and ${formattedStaff.length} staff members.`)
-
         return {
             success: true,
             data: {
@@ -111,21 +109,13 @@ export async function getBookingDataAction(businessId: string): Promise<ActionRe
             }
         }
     } catch (err: unknown) {
-        console.error("getBookingDataAction Error:", err)
-        Sentry.captureException(err)
+        Sentry.captureException(err, { tags: { module: 'booking', action: 'getBookingDataAction' } })
         const message = err instanceof Error ? err.message : "Randevu verileri alınamadı."
         return { success: false, error: { message } }
     }
 }
 
 export async function createBookingAction(data: CreateBookingInput): Promise<ActionResult<{ appointmentId: string }>> {
-    /*
-    console.log("createBookingAction: Received request", { ...data, customerNote: "..." })
-    console.log("createBookingAction - ENV CHECK:", {
-        url: process.env.NEXT_PUBLIC_SUPABASE_URL,
-        hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    })
-    */
     try {
         const supabase = await createClient()
         const { data: { user } } = await supabase.auth.getUser()
@@ -140,7 +130,7 @@ export async function createBookingAction(data: CreateBookingInput): Promise<Act
             .single()
 
         if (!userExists) {
-            console.error(`createBookingAction: User ${user.id} not found in public.users table`)
+            Sentry.captureMessage(`createBookingAction: User ${user.id} not found in public.users table`, { tags: { module: 'booking', action: 'createBookingAction' } })
             throw new Error("Kullanıcı profili bulunamadı. Lütfen destekle iletişime geçin.")
         }
 
@@ -167,7 +157,6 @@ export async function createBookingAction(data: CreateBookingInput): Promise<Act
             customer_note: data.customerNote || "",
             status: "Bekliyor"
         }
-        // console.log("createBookingAction: Inserting appointment", aptData)
 
         const { data: apt, error: aptError } = await supabase
             .from("appointments")
@@ -176,11 +165,9 @@ export async function createBookingAction(data: CreateBookingInput): Promise<Act
             .single()
 
         if (aptError) {
-            console.error("createBookingAction: Appointment Insert Error", JSON.stringify(aptError, null, 2))
+            Sentry.captureException(aptError, { tags: { module: 'booking', action: 'createBookingAction', step: 'AppointmentInsertError' } })
             throw aptError
         }
-
-        // console.log(`createBookingAction: Created appointment ${apt.id}. Mapping services...`)
 
         // 3. Insert Appointment Services (Snapshots)
         const { data: services } = await supabase
@@ -203,17 +190,15 @@ export async function createBookingAction(data: CreateBookingInput): Promise<Act
             .insert(aptServices)
 
         if (svcError) {
-            console.error("createBookingAction: Appointment Services Insert Error", JSON.stringify(svcError, null, 2))
+            Sentry.captureException(svcError, { tags: { module: 'booking', action: 'createBookingAction', step: 'AppointmentServicesInsertError' } })
             throw svcError
         }
 
-        // console.log("createBookingAction: Success!")
         revalidatePath("/randevularim", "page")
 
         return { success: true, data: { appointmentId: apt.id } }
     } catch (err: unknown) {
-        console.error("createBookingAction Error:", err)
-        Sentry.captureException(err)
+        Sentry.captureException(err, { tags: { module: 'booking', action: 'createBookingAction' } })
         const message = err instanceof Error ? err.message : "Randevu kaydedilirken bir hata oluştu."
         return { success: false, error: { message } }
     }

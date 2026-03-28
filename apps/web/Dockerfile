@@ -9,7 +9,7 @@ RUN apk update
 WORKDIR /app
 RUN npm install -g turbo
 COPY . .
-RUN turbo prune @randevux/web --docker
+RUN turbo prune @randesk/web --docker
 
 # Add lockfile and package.json's of isolated subworkspace
 FROM base AS installer
@@ -25,7 +25,7 @@ RUN npm ci
 
 # Build the project
 COPY --from=builder /app/out/full/ .
-RUN npx turbo run build --filter=@randevux/web
+RUN npx turbo run build --filter=@randesk/web
 
 # Use the standalone output for production deployment
 FROM base AS runner

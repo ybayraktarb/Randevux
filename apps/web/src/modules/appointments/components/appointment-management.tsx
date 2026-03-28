@@ -50,7 +50,7 @@ import { ActionDropdown } from "@/src/modules/appointments/components/action-dro
 import { CheckoutModal } from "@/src/modules/appointments/components/checkout-modal"
 import { AddAppointmentModal } from "@/src/modules/appointments/components/add-appointment-modal"
 
-import type { AppointmentStatus } from "@randevux/shared"
+import type { AppointmentStatus } from "@randesk/shared"
 
 interface AppointmentSvc {
   name: string

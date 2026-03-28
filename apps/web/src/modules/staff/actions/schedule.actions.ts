@@ -37,7 +37,7 @@ export async function updateStaffWorkSchedulesAction(staffBusinessId: string, sc
             .eq("staff_business_id", staffBusinessId);
 
         if (deleteError) {
-            console.error("Çalışma saatleri silinirken hata:", deleteError);
+            Sentry.captureException(deleteError, { tags: { module: 'staff', action: 'updateStaffWorkSchedulesAction.delete' } });
             return { success: false, error: { message: "Çalışma saatleri silinirken bir hata oluştu." } };
         }
 
@@ -56,7 +56,7 @@ export async function updateStaffWorkSchedulesAction(staffBusinessId: string, sc
                 .insert(insertData);
 
             if (insertError) {
-                console.error("Çalışma saatleri eklenirken hata:", insertError);
+                Sentry.captureException(insertError, { tags: { module: 'staff', action: 'updateStaffWorkSchedulesAction.insert' } });
                 return { success: false, error: { message: "Çalışma saatleri kaydedilirken hata oluştu." } };
             }
         }
@@ -88,7 +88,7 @@ export async function updateStaffBreaksAction(staffBusinessId: string, breaks: B
             .eq("staff_business_id", staffBusinessId);
 
         if (deleteError) {
-            console.error("Mola saatleri silinirken hata:", deleteError);
+            Sentry.captureException(deleteError, { tags: { module: 'staff', action: 'updateStaffBreaksAction.delete' } });
             return { success: false, error: { message: "Mola saatleri silinirken bir hata oluştu." } };
         }
 
@@ -107,7 +107,7 @@ export async function updateStaffBreaksAction(staffBusinessId: string, breaks: B
                 .insert(insertData);
 
             if (insertError) {
-                console.error("Mola saatleri eklenirken hata:", insertError);
+                Sentry.captureException(insertError, { tags: { module: 'staff', action: 'updateStaffBreaksAction.insert' } });
                 return { success: false, error: { message: "Mola saatleri kaydedilirken hata oluştu." } };
             }
         }
